@@ -20,7 +20,7 @@ namespace VVVV.Nodes.Bluefish
         Category = "Bluefish",
         Help = "Report version details of Bluefish (yet do be done)",
         Tags = "",
-        Author = "ingorandolf",
+        Author = "nsynk",
         AutoEvaluate = true)]
 	#endregion PluginInfo
 	public class AboutNode : IPluginEvaluate
@@ -49,7 +49,7 @@ namespace VVVV.Nodes.Bluefish
 		{
 			if (FFirstRun)
 			{
-                FLogger.Log(LogType.Debug, "first run");
+                FLogger.Log(LogType.Message, "Bluefish: About: first run");
 
 				FFirstRun = false;
 				Refresh();
@@ -60,17 +60,59 @@ namespace VVVV.Nodes.Bluefish
 		{
 			try
 			{
-                FLogger.Log(LogType.Debug, "create blueplayback net");
-
+                FLogger.Log(LogType.Message, "Bluefish: About: create blueplayback net");
                 BluePlaybackNet blueVelvet = new BluePlaybackNet();
 
-                FLogger.Log(LogType.Debug, "get version");
+                FLogger.Log(LogType.Message, "Bluefish: About: create device");
+                // create bluefish device
+                blueVelvet.BluePlaybackInterfaceCreate();
 
+                
+                // get device count
+                FLogger.Log(LogType.Message, "Bluefish: About: get device count");
+                int count = blueVelvet.GetDevicecount();
+
+                FLogger.Log(LogType.Message, "Bluefish: About: device count: " + count);
+
+
+                FLogger.Log(LogType.Message, "Bluefish: About: configure device");
+                int videoMode = (int)BlueFish_h.EVideoMode.VID_FMT_PAL;
+
+                //MEM_FMT_ARGB_PC=6
+                //MEM_FMT_BGR=9
+                int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_BGR;
+
+                int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
+
+                // configure card
+                blueVelvet.BluePlaybackInterfaceConfig(1, // Device Number
+                                                            0, // output channel
+                                                            videoMode, // video mode //VID_FMT_PAL=0
+                                                            memFormat, // memory format //MEM_FMT_ARGB_PC=6 //MEM_FMT_BGR=9
+                                                            updateMethod, // update type (frame, field) //UPD_FMT_FRAME=1
+                                                            0, // video destination
+                                                            0, // audio destination
+                                                            0  // audio channel mask
+                                                            ); //Dev 1, Output channel A, PAL, BGRA, FRAME_MODE, not used, not used, not used
+
+
+
+                /*
+                // get serial number
+                FLogger.Log(LogType.Message, "Bluefish: About: get device serial number");
+                blueVelvet.BluePlaybackGetSerialNumber();
+
+                //FLogger.Log(LogType.Message, "Bluefish: About: device serial number: " + sn);
+
+
+                /*
+                FLogger.Log(LogType.Message, "get version");
                 string velvetVersion = blueVelvet.BlueVelvetVersion();
 			
                 FPinOutVelvetVersion[0] = velvetVersion;
 				
 				FPinOutStatus[0] = "OK";
+                */
 			}
 
 			catch (Exception e)

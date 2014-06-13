@@ -27,7 +27,8 @@ namespace VVVV.Nodes.Bluefish
     [PluginInfo(Name = "VideoOut",
                 Category = "Bluefish",
                 Version = "EX9.SharedTexture",
-                Help = "Given a texture handle, will push graphic to Bluefish device", Tags = "")]
+                Help = "Given a texture handle, will push graphic to Bluefish device",
+                Tags = "")]
     #endregion PluginInfo
 	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {

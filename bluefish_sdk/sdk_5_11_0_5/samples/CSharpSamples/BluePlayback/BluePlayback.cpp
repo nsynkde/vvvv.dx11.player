@@ -159,22 +159,25 @@ extern "C"
 	}
 
 
-	BLUEPLAYBACK_API char* BluePlaybackGetSerialNumber(BLUEPLAYBACK_HANDLE pBPHandle)
+	BLUEPLAYBACK_API void BluePlaybackGetSerialNumber(BLUEPLAYBACK_HANDLE pBPHandle)
 	{
 		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
 
 		if (!pBluePlayback)
-			return NULL;
+			return;
 
+
+		printf("alloc mem for serial number\n");
 		int serialNumberSize = 20;
 		char *serialNumber = (char*)malloc(serialNumberSize);		
 		ZeroMemory(serialNumber, serialNumberSize);
 
+		printf("trying to get serial number...\n");
 		int res = pBluePlayback->GetCardSerialNumber(serialNumber, serialNumberSize);
 		
 		printf("serial number: %s\n", serialNumber);
 
-		return serialNumber;
+		//return serialNumber;
 	}
 	
 

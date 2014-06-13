@@ -107,14 +107,15 @@ namespace VVVV.Nodes.Bluefish
                 
 
                 // get serial number
-                string sn = device.BluePlaybackGetSerialNumber();
+                //string sn = device.BluePlaybackGetSerialNumber();
+                device.BluePlaybackGetSerialNumber();
 
                 // add device, with default names...
                 FDevices.Add(new Device()
                 {
                     BluePlayback = device,
                     ModelName = "Bluefish Model",
-                    DisplayName = sn
+                    DisplayName = ""
                 });
 
                 /*
