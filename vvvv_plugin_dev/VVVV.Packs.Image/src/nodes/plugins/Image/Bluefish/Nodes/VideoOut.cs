@@ -23,12 +23,23 @@ using System.Diagnostics;
 
 namespace VVVV.Nodes.Bluefish
 {
+    /*
     #region PluginInfo
     [PluginInfo(Name = "VideoOut",
                 Category = "Bluefish",
                 Version = "EX9.SharedTexture",
                 Help = "Given a texture handle, will push graphic to Bluefish device",
                 Tags = "")]
+     * */
+
+
+    #region PluginInfo
+    [PluginInfo(Name = "VideoOut",
+        Category = "Bluefish",
+        Help = "Bluefish Videout",
+        Tags = "",
+        Author = "nsynk",
+        AutoEvaluate = true)]
     #endregion PluginInfo
 	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {

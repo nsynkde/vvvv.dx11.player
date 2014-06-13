@@ -84,6 +84,10 @@ namespace VVVV.Nodes.Bluefish
 
                 int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
 
+
+                
+                /*
+
                 // configure card
                 blueVelvet.BluePlaybackInterfaceConfig(1, // Device Number
                                                             0, // output channel

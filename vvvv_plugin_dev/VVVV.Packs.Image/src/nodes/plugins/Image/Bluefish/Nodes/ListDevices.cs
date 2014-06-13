@@ -19,7 +19,7 @@ namespace VVVV.Nodes.Bluefish
         Category = "Bluefish",
         Help = "List Bluefish devices",
         Tags = "",
-        Author = "elliotwoods",
+        Author = "nsynk",
         AutoEvaluate = true)]
 	#endregion PluginInfo
 	public class ListDevicesNode : IPluginEvaluate
@@ -57,6 +57,8 @@ namespace VVVV.Nodes.Bluefish
 		{
 			if (FFirstRun || FPinInRefresh[0])
 			{
+                FLogger.Log(LogType.Message, "Bluefish: ListDevice: first run");
+
 				FFirstRun = false;
 				Refresh();
 			}
@@ -70,21 +72,27 @@ namespace VVVV.Nodes.Bluefish
 				FPinOutModelName.SliceCount = 0;
 				FPinOutDisplayName.SliceCount = 0;
 
+                FLogger.Log(LogType.Message, "Bluefish: ListDevice: get DeviceRegister singleton");
 				var register = DeviceRegister.Singleton;
 				register.Refresh();
 
 				for (int i = 0; i < register.Count; i++)
 				{
+                    FLogger.Log(LogType.Message, "Bluefish: ListDevice: interate: " + i);
+
 					FPinOutDevices.Add(new DeviceRegister.DeviceIndex(i));
 					FPinOutModelName.Add(register.GetModelName(i));
 					FPinOutDisplayName.Add(register.GetDisplayName(i));
 				}
 				FPinOutStatus[0] = "OK devices: " + register.FDeviceCount;
+
+                FLogger.Log(LogType.Message, "OK devices: " + register.FDeviceCount);
 			}
 
 			catch (Exception e)
 			{
 				FPinOutStatus[0] = "ERROR : " + e.Message;
+                FLogger.Log(LogType.Message, "Bluefish: ListDevice: ERROR: " + e.Message);
 			}
 
 		}

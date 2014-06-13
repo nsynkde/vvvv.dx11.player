@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.ComponentModel.Composition;
+using VVVV.Core.Logging;
 using BluePlaybackNetLib;
 
 namespace VVVV.Nodes.Bluefish
@@ -10,6 +12,9 @@ namespace VVVV.Nodes.Bluefish
 	class DeviceRegister
 	{
 		static public DeviceRegister Singleton = new DeviceRegister();
+
+        [Import]
+        ILogger FLogger;
 
 		public class DeviceIndex
 		{
@@ -96,26 +101,29 @@ namespace VVVV.Nodes.Bluefish
 
                 // one devie only for now
                 // do more later...
-
+                FLogger.Log(LogType.Message, "Bluefish: Device register: create device");
                 BluePlaybackNet device = new BluePlaybackNet();
                 // create bluefish device
                 device.BluePlaybackInterfaceCreate();
 
 
                 // get device count
+                FLogger.Log(LogType.Message, "Bluefish: Device register: get device count");
                 FDeviceCount = device.GetDevicecount();
-                
+
+                FLogger.Log(LogType.Message, "Bluefish: Device register: device count: " + FDeviceCount);
 
                 // get serial number
                 //string sn = device.BluePlaybackGetSerialNumber();
-                device.BluePlaybackGetSerialNumber();
+                
+                //device.BluePlaybackGetSerialNumber();
 
                 // add device, with default names...
                 FDevices.Add(new Device()
                 {
                     BluePlayback = device,
                     ModelName = "Bluefish Model",
-                    DisplayName = ""
+                    DisplayName = "sn"
                 });
 
                 /*
