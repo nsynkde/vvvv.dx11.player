@@ -11,10 +11,21 @@ namespace VVVV.Nodes.Bluefish
 {
 	class DeviceRegister
 	{
-		static public DeviceRegister Singleton = new DeviceRegister();
+		static public DeviceRegister Singleton = null;
 
-        [Import]
+        static public void SetupSingleton(ILogger FLogger){
+            if (Singleton == null)
+            {
+                Singleton = new DeviceRegister(FLogger);
+            }
+        }
+
         ILogger FLogger;
+
+        DeviceRegister(ILogger FLogger)
+        {
+            this.FLogger = FLogger;
+        }
 
 		public class DeviceIndex
 		{
@@ -90,12 +101,17 @@ namespace VVVV.Nodes.Bluefish
 
 		public void Refresh()
 		{
-			WorkerThread.Singleton.PerformBlocking(() => {
-				foreach (var oldDevice in FDevices)
-				{
+            FLogger.Log(LogType.Message, "Bluefish: Device register: Refresh()");
+
+            WorkerThread.Singleton.PerformBlocking(() => {
+
+                FLogger.Log(LogType.Message, "Bluefish: Device register: WorkerThread: clear old devices");
+
+                foreach (var oldDevice in FDevices)
+                {
                     Marshal.ReleaseComObject(oldDevice.BluePlayback);
-				}
-				FDevices.Clear();
+                }
+                FDevices.Clear();
 
 
 
@@ -127,27 +143,27 @@ namespace VVVV.Nodes.Bluefish
                 });
 
                 /*
-				var iterator = new CDeckLinkIterator();
-				IDeckLink device;
-				string modelName, displayName;
-				while (true)
-				{
-					iterator.Next(out device);
-					if (device == null)
-						break;
+                var iterator = new CDeckLinkIterator();
+                IDeckLink device;
+                string modelName, displayName;
+                while (true)
+                {
+                    iterator.Next(out device);
+                    if (device == null)
+                        break;
 
-					device.GetModelName(out modelName);
-					device.GetDisplayName(out displayName);
+                    device.GetModelName(out modelName);
+                    device.GetDisplayName(out displayName);
 
-					FDevices.Add(new Device()
-					{
-						DeviceHandle = device,
-						ModelName = modelName,
-						DisplayName = displayName
-					});
-				}
-                 * */
-			});
-		}
+                    FDevices.Add(new Device()
+                    {
+                        DeviceHandle = device,
+                        ModelName = modelName,
+                        DisplayName = displayName
+                    });
+                }* */
+
+            });
+        }
 	}
 }

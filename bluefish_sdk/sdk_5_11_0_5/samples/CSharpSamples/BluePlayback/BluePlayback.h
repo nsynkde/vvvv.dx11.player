@@ -38,7 +38,7 @@ extern "C"
 
 	BLUEPLAYBACK_API ULONG BluePlaybackGetMemorySize(BLUEPLAYBACK_HANDLE pBPHandle);
 
-	BLUEPLAYBACK_API void BluePlaybackGetSerialNumber(BLUEPLAYBACK_HANDLE pBPHandle);
+	BLUEPLAYBACK_API const char* BluePlaybackGetSerialNumber(BLUEPLAYBACK_HANDLE pBPHandle);
 
 	BLUEPLAYBACK_API const char* BluePlaybackBlueVelvetVersion();
 

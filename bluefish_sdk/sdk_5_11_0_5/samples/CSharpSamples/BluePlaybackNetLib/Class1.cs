@@ -60,9 +60,11 @@ namespace BluePlaybackNetLib
             return BluePlaybackNativeInterface.BluePlaybackGetMemorySize(pBluePlayback);
         }
 
-        public void BluePlaybackGetSerialNumber()
+        public string BluePlaybackGetSerialNumber()
         {
-            BluePlaybackNativeInterface.BluePlaybackGetSerialNumber(pBluePlayback);
+            
+            string str = Marshal.PtrToStringAnsi(BluePlaybackNativeInterface.BluePlaybackGetSerialNumber(pBluePlayback));
+            return str;
         }
 
         public string BlueVelvetVersion()
@@ -119,7 +121,7 @@ namespace BluePlaybackNetLib
         internal static extern ulong BluePlaybackGetMemorySize(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
-        internal static extern void BluePlaybackGetSerialNumber(IntPtr pBluePlaybackObject);
+        internal static extern IntPtr BluePlaybackGetSerialNumber(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern string BluePlaybackBlueVelvetVersion();

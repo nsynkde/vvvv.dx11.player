@@ -23,23 +23,14 @@ using System.Diagnostics;
 
 namespace VVVV.Nodes.Bluefish
 {
-    /*
+    
     #region PluginInfo
     [PluginInfo(Name = "VideoOut",
                 Category = "Bluefish",
-                Version = "EX9.SharedTexture",
                 Help = "Given a texture handle, will push graphic to Bluefish device",
-                Tags = "")]
-     * */
-
-
-    #region PluginInfo
-    [PluginInfo(Name = "VideoOut",
-        Category = "Bluefish",
-        Help = "Bluefish Videout",
-        Tags = "",
-        Author = "nsynk",
-        AutoEvaluate = true)]
+                Tags = "",
+                Author = "nsynk",
+                AutoEvaluate = true)]
     #endregion PluginInfo
 	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {
@@ -56,24 +47,27 @@ namespace VVVV.Nodes.Bluefish
 			public ReadTexture ReadTexture;
 			byte[] FBuffer;
 
-			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, SyncLoop syncLoop)
+            ILogger FLogger;
+
+			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, SyncLoop syncLoop, ILogger FLogger)
 			{
+                this.FLogger = FLogger;
                 BluePlaybackNet device = null;
-				WorkerThread.Singleton.PerformBlocking(() => {
+				//WorkerThread.Singleton.PerformBlocking(() => {
 					device = DeviceRegister.Singleton.GetDeviceHandle(deviceID);
-				});
+				//});
 
 				try
 				{
 					ModeRegister.Mode mode = null;
-					WorkerThread.Singleton.PerformBlocking(() =>
-					{
-						mode = ModeRegister.Singleton.Modes[modeString];
-					});
+					//WorkerThread.Singleton.PerformBlocking(() =>
+					//{
+						//mode = ModeRegister.Singleton.Modes[modeString];
+					//});
 
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
-					this.Source = new Source(device, mode, useCallback);
-					this.ReadTexture = new ReadTexture(mode.CompressedWidth, mode.Height, textureHandle, format, usage);
+                    this.Source = new Source(device, BlueFish_h.EVideoMode.VID_FMT_1080I_5000, useCallback);
+					this.ReadTexture = new ReadTexture(1920, 1080, textureHandle, format, usage);
 					this.FBuffer = new byte[this.ReadTexture.BufferLength];
 
 					if (useCallback)
@@ -81,7 +75,7 @@ namespace VVVV.Nodes.Bluefish
 						this.Source.NewFrame += Source_NewFrame;
 					}
 				}
-				catch
+				catch(Exception e)
 				{
 					if (this.Source != null)
 						this.Source.Dispose();
@@ -89,9 +83,11 @@ namespace VVVV.Nodes.Bluefish
 						this.ReadTexture.Dispose();
 					if (this.FBuffer != null)
 						this.FBuffer = null;
-					throw;
+					throw e;
 				}
 			}
+
+            
 
 			void Source_NewFrame(IntPtr data)
 			{
@@ -106,9 +102,20 @@ namespace VVVV.Nodes.Bluefish
 
 			public void PullFromTexture()
 			{
+                FLogger.Log(LogType.Message, "PullFromTexture");
 				lock (Source.LockBuffer)
 				{
-					this.ReadTexture.ReadBack(this.FBuffer);
+					//this.ReadTexture.ReadBack(this.FBuffer);
+                    for (int y = 0; y < 1080; y++)
+                    {
+                        for (int x = 0; x < 1920; x++)
+                        {
+                            this.FBuffer[x*4 + y * 1920*4] = 255;
+                            this.FBuffer[x*4 + y * 1920*4 + 1] = 255;
+                            this.FBuffer[x*4 + y * 1920*4 + 2] = 0;
+                            this.FBuffer[x*4 + y * 1920*4 + 3] = 0;
+                        }
+                    }
 				}
 
 				Source.SendFrame(this.FBuffer);
@@ -187,7 +194,7 @@ namespace VVVV.Nodes.Bluefish
 		Spread<Instance> FInstances = new Spread<Instance>();
         #endregion fields & pins
 
-        [ImportingConstructor()]
+        [ImportingConstructor]
 		public VideoOut(IPluginHost host)
         {
         }
@@ -196,6 +203,8 @@ namespace VVVV.Nodes.Bluefish
         {
 			if (FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInSyncLoop.IsChanged || FInSyncLoop.IsChanged)
 			{
+
+                DeviceRegister.SetupSingleton(FLogger);
 				foreach(var slice in FInstances)
 					if (slice != null)
 						slice.Dispose();
@@ -207,20 +216,24 @@ namespace VVVV.Nodes.Bluefish
 				{
 					try
 					{
+                        /*
 						if (FInDevice[i] == null)
 							throw (new Exception("No device selected"));
 						if (FInMode[i] == null)
 							throw (new Exception("No mode selected"));
 						if (FInEnabled[i] == false)
 							throw (new Exception("Disabled"));
+                        */
 
-						FInstances.Add(new Instance(FInDevice[i].Index, FInMode[i].Index, FInHandle[i], FInFormat[i], FInUsage[i], FInSyncLoop[i]));
+                        Instance inst = new Instance(0, "", FInHandle[i], FInFormat[i], FInUsage[i], FInSyncLoop[i], FLogger); 
+
+						FInstances.Add(inst);
 						FOutStatus[i] = "OK";
 					}
 					catch(Exception e)
 					{
 						FInstances.Add(null);
-						FOutStatus[i] = e.Message;
+						FOutStatus[i] = e.ToString();
 					}
 				}
 			}
@@ -271,10 +284,10 @@ namespace VVVV.Nodes.Bluefish
 				if (instance == null)
 					continue;
 
-				if (FInSyncLoop[i] == SyncLoop.VVVV)
-				{
+				/*if (FInSyncLoop[i] == SyncLoop.VVVV)
+				{*/
 					instance.PullFromTexture();
-				}
+				//}
 			}
 		}
 

@@ -73,9 +73,21 @@ namespace VVVV.Nodes.Bluefish
 				FPinOutDisplayName.SliceCount = 0;
 
                 FLogger.Log(LogType.Message, "Bluefish: ListDevice: get DeviceRegister singleton");
-				var register = DeviceRegister.Singleton;
-				register.Refresh();
+                DeviceRegister.SetupSingleton(FLogger);
+                var register = DeviceRegister.Singleton;
 
+                FLogger.Log(LogType.Message, "Bluefish: ListDevice: got DeviceRegister. call refresh");
+                if (register != null)
+                {
+                    register.Refresh();
+                }
+                else
+                {
+                    FLogger.Log(LogType.Message, "Couldn't get register singleton");
+                }
+
+
+                FLogger.Log(LogType.Message, "Bluefish: ListDevice: after refresh");
 				for (int i = 0; i < register.Count; i++)
 				{
                     FLogger.Log(LogType.Message, "Bluefish: ListDevice: interate: " + i);

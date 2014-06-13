@@ -75,7 +75,7 @@ namespace VVVV.Nodes.Bluefish
                 FLogger.Log(LogType.Message, "Bluefish: About: device count: " + count);
 
 
-                FLogger.Log(LogType.Message, "Bluefish: About: configure device");
+                
                 int videoMode = (int)BlueFish_h.EVideoMode.VID_FMT_PAL;
 
                 //MEM_FMT_ARGB_PC=6
@@ -85,9 +85,9 @@ namespace VVVV.Nodes.Bluefish
                 int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
 
 
-                
-                /*
 
+
+                FLogger.Log(LogType.Message, "Bluefish: About: try to configure device");
                 // configure card
                 blueVelvet.BluePlaybackInterfaceConfig(1, // Device Number
                                                             0, // output channel
@@ -101,13 +101,15 @@ namespace VVVV.Nodes.Bluefish
 
 
 
-                /*
+                
                 // get serial number
                 FLogger.Log(LogType.Message, "Bluefish: About: get device serial number");
-                blueVelvet.BluePlaybackGetSerialNumber();
+                unsafe
+                {
+                    string sn = blueVelvet.BluePlaybackGetSerialNumber();
 
-                //FLogger.Log(LogType.Message, "Bluefish: About: device serial number: " + sn);
-
+                    FLogger.Log(LogType.Message, "Bluefish: About: device serial number: " + sn);
+                }
 
                 /*
                 FLogger.Log(LogType.Message, "get version");
@@ -122,6 +124,7 @@ namespace VVVV.Nodes.Bluefish
 			catch (Exception e)
 			{
 				FPinOutStatus[0] = "ERROR : " + e.Message;
+                FLogger.Log(LogType.Message, "Bluefish: About: ERROR : " + e.Message);
 			}
 
 		}

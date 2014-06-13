@@ -105,12 +105,12 @@ namespace VVVV.Nodes.Bluefish
 		}
 
 
-        public Source(BluePlaybackNet device, ModeRegister.Mode mode, bool useDeviceCallbacks)
+        public Source(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks)
 		{
 			this.Initialise(device, mode, useDeviceCallbacks);
 		}
 
-        public void Initialise(BluePlaybackNet device, ModeRegister.Mode mode, bool useDeviceCallbacks)
+        public void Initialise(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks)
 		{
 			Stop();
 
@@ -167,11 +167,11 @@ namespace VVVV.Nodes.Bluefish
                     //VID_FMT_1080I_5000=8
                     //VID_FMT_1080P_2500=11
 
-                    int videoMode = (int)BlueFish_h.EVideoMode.VID_FMT_PAL;
+                    int videoMode = (int)mode;
 
                     //MEM_FMT_ARGB_PC=6
                     //MEM_FMT_BGR=9
-                    int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_BGR;
+                    int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_ARGB;
 
                     int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
 
@@ -193,11 +193,11 @@ namespace VVVV.Nodes.Bluefish
                     FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_ENGINE,
                         (uint)4);
 
-
+                    /*
                     ulong size = FDevice.BluePlaybackGetMemorySize();
                     //MessageBox.Show(size.ToString());
                     Console.WriteLine("videocard buffersize?: {0}", size);
-
+                    */
 					//--
 					//enable the output
 					//

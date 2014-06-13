@@ -86,7 +86,7 @@
     <Compile Include="Lib\Source.cs" />
     <None Include="Nodes\EnumerateOutputModes.cs" />
     <None Include="Nodes\InterimTextureInfo.cs" />
-    <None Include="Nodes\VideoOut.cs" />
+    <Compile Include="Nodes\VideoOut.cs" />
     <Compile Include="Nodes\ListDevices.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="packages.config">
