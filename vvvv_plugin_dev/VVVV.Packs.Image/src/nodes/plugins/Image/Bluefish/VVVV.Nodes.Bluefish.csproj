@@ -28,7 +28,28 @@
     <Reference Include="BluePlaybackNetLib">
       <HintPath>Z:\Documents\_eno\vvvv\vvvv_45beta32_x64\packs\VVVV.Packs.Image\src\nodes\plugins\Image\Bluefish\References\BluePlaybackNetLib.dll</HintPath>
     </Reference>
+    <Reference Include="CrossGraphics">
+      <HintPath>..\..\..\..\packages\CrossGraphics-gregsn.1.0.7\lib\net40-client\CrossGraphics.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SharpDX">
+      <HintPath>..\..\..\..\packages\CrossGraphics-gregsn.1.0.7\lib\net40-client\SharpDX.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SharpDX.Direct2D1">
+      <HintPath>..\..\..\..\packages\CrossGraphics-gregsn.1.0.7\lib\net40-client\SharpDX.Direct2D1.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SharpDX.DXGI">
+      <HintPath>..\..\..\..\packages\CrossGraphics-gregsn.1.0.7\lib\net40-client\SharpDX.DXGI.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SlimDX">
+      <HintPath>..\..\..\..\packages\SlimDX.4.0.13.44\lib\NET40\SlimDX.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.ComponentModel.Composition.CodePlex">
       <HintPath>..\..\..\..\packages\VVVV.System.ComponentModel.Composition.Codeplex.2.5.0\lib\net40\System.ComponentModel.Composition.CodePlex.dll</HintPath>
       <Private>False</Private>
@@ -41,12 +62,16 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="VVVV.Core">
-      <HintPath>..\..\..\..\packages\VVVV.Core.32.0.0\lib\net40\VVVV.Core.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\..\..\..\packages\VVVV.Core.32.1.0\lib\net40\VVVV.Core.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="VVVV.Utils">
-      <HintPath>..\..\..\..\packages\VVVV.Utils.32.0.0\lib\net40\VVVV.Utils.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\..\..\..\packages\VVVV.Utils.32.1.0\lib\net40\VVVV.Utils.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="VVVV.UtilsIL">
+      <HintPath>..\..\..\..\packages\VVVV.UtilsIL.32.1.0\lib\net40\VVVV.UtilsIL.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -64,13 +89,16 @@
     <None Include="Nodes\VideoOut.cs" />
     <Compile Include="Nodes\ListDevices.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="BluePlaybackNetLib.dll" />
+    <Content Include="VVVV.PluginInterfaces.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
@@ -80,16 +108,17 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.props'))" />
     <Error Condition="!Exists('..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\packages\VVVV.PluginInterfaces.32.0.0\build\net40\VVVV.PluginInterfaces.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\packages\VVVV.PluginInterfaces.32.0.0\build\net40\VVVV.PluginInterfaces.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\packages\VVVV.Utils3rdParty.32.0.0\build\net40\VVVV.Utils3rdParty.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\packages\VVVV.Utils3rdParty.32.0.0\build\net40\VVVV.Utils3rdParty.targets'))" />
   </Target>
   <Import Project="..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.targets" Condition="Exists('..\..\..\..\packages\VVVV.SlimDX.1.0.1\build\net40\VVVV.SlimDX.targets')" />
-  <Import Project="..\..\..\..\packages\VVVV.PluginInterfaces.32.0.0\build\net40\VVVV.PluginInterfaces.targets" Condition="Exists('..\..\..\..\packages\VVVV.PluginInterfaces.32.0.0\build\net40\VVVV.PluginInterfaces.targets')" />
-  <Import Project="..\..\..\..\packages\VVVV.Utils3rdParty.32.0.0\build\net40\VVVV.Utils3rdParty.targets" Condition="Exists('..\..\..\..\packages\VVVV.Utils3rdParty.32.0.0\build\net40\VVVV.Utils3rdParty.targets')" />
   <PropertyGroup>
     <PostBuildEvent>
     </PostBuildEvent>
   </PropertyGroup>
+  <Import Project="..\..\..\..\packages\VVVV.PluginInterfaces.32.1.0\build\net40\VVVV.PluginInterfaces.targets" Condition="Exists('..\..\..\..\packages\VVVV.PluginInterfaces.32.1.0\build\net40\VVVV.PluginInterfaces.targets')" />
+  <Import Project="..\..\..\..\packages\VVVV.Nodes.Generic.32.1.0\build\net40\VVVV.Nodes.Generic.targets" Condition="Exists('..\..\..\..\packages\VVVV.Nodes.Generic.32.1.0\build\net40\VVVV.Nodes.Generic.targets')" />
+  <Import Project="..\..\..\..\packages\VVVV.Utils3rdParty.32.1.0\build\net40\VVVV.Utils3rdParty.targets" Condition="Exists('..\..\..\..\packages\VVVV.Utils3rdParty.32.1.0\build\net40\VVVV.Utils3rdParty.targets')" />
+  <Import Project="..\..\..\..\packages\VVVV.Hosting.32.1.0\build\net40\VVVV.Hosting.targets" Condition="Exists('..\..\..\..\packages\VVVV.Hosting.32.1.0\build\net40\VVVV.Hosting.targets')" />
+  <Import Project="..\..\..\..\packages\VVVV.Packs.Time.0.5.3\build\net40\VVVV.Packs.Time.targets" Condition="Exists('..\..\..\..\packages\VVVV.Packs.Time.0.5.3\build\net40\VVVV.Packs.Time.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
