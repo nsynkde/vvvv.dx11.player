@@ -192,55 +192,12 @@ void CPlaybackDevice::Render(BYTE* pBuffer)
 	if (!pBuffer || !m_pSDK)
 		return;
 
+	m_pSDK->wait_output_video_synch(UPD_FMT_FRAME, fieldcount);
+	m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, m_ActiveBuffer, 0);
+	m_pSDK->render_buffer_update(m_ActiveBuffer);
 
-	//printf("writing bytes @ %d: size: %ld to Buffer: %d\n", pBuffer, m_Buffersize, m_ActiveBuffer);
-#ifdef WRITE_BMP
-	if (!SaveBMP(pBuffer, (int)m_PixelsPerLine, (int)m_VideoLines, m_BytesPerFrame, L"C:\\Users\\nsynk\\Desktop\\test.bmp"))
-	{
-		printf("error writing to file\n");
-	}
-#endif
-
-	void* pAddressNotUsedChA = NULL;
-	ULONG BufferIdChA = 0;
-	ULONG UnderrunChA = 0;
-	ULONG UniqueIdChA = 0;
-	ULONG LastUnderrunChA = 0;
-	DWORD BytesReturnedChA = 0;
-
-	if (!(m_pSDK->video_playback_allocate(&pAddressNotUsedChA, BufferIdChA, UnderrunChA)))
-	{
-		//m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, m_ActiveBuffer, 0);
-		m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, BlueImage_DMABuffer(BufferIdChA, BLUE_DATA_FRAME), 0);
-
-		m_ActiveBuffer++;
-		m_ActiveBuffer %= 2;
-
-		//wait for both DMA transfers to be finished
-		GetOverlappedResult(m_pSDK->m_hDevice, &OverlapChA, &BytesReturnedChA, TRUE);
-		ResetEvent(OverlapChA.hEvent);
-
-		//tell the card to playback the frames on the next interrupt
-		m_pSDK->video_playback_present(UniqueIdChA, BlueBuffer_Image(BufferIdChA), 1, 0);
-
-		//track UnderrunChA and UnderrunChB to see if frames were dropped
-		if (UnderrunChA != LastUnderrunChA)
-		{
-			printf("Dropped a frame: ChA underruns: %ld\n", UnderrunChA);
-			LastUnderrunChA = UnderrunChA;
-		}
-
-	}
-	else
-	{
-		m_pSDK->wait_output_video_synch(UPD_FMT_FRAME, fieldcount);
-	}
-	//m_pSDK->wait_output_video_synch(UPD_FMT_FRAME, fieldcount);
-	//m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, m_ActiveBuffer, 0);
-	//m_pSDK->render_buffer_update(m_ActiveBuffer);
-
-	//m_ActiveBuffer++;
-	//m_ActiveBuffer %= 2;
+	m_ActiveBuffer++;
+	m_ActiveBuffer %= 2;
 }
 
 int CPlaybackDevice::SetCardProperty(int nProp,unsigned int nValue)

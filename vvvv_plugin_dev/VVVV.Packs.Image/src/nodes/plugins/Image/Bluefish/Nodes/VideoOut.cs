@@ -46,6 +46,7 @@ namespace VVVV.Nodes.Bluefish
 			public Source Source;
 			public ReadTexture ReadTexture;
 			byte[] FBuffer;
+            int frame = 0;
 
             ILogger FLogger;
 
@@ -66,13 +67,13 @@ namespace VVVV.Nodes.Bluefish
 					//});
 
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
-                    this.Source = new Source(device, BlueFish_h.EVideoMode.VID_FMT_1080I_5000, useCallback);
-					this.ReadTexture = new ReadTexture(1920, 1080, textureHandle, format, usage);
+                    this.Source = new Source(device, BlueFish_h.EVideoMode.VID_FMT_1080P_6000, useCallback, FLogger);
+					this.ReadTexture = new ReadTexture(1920, 1080, textureHandle, format, usage, FLogger);
 					this.FBuffer = new byte[this.ReadTexture.BufferLength];
 
 					if (useCallback)
 					{
-						this.Source.NewFrame += Source_NewFrame;
+						//this.Source.NewFrame += Source_NewFrame;
 					}
 				}
 				catch(Exception e)
@@ -93,32 +94,15 @@ namespace VVVV.Nodes.Bluefish
 			{
 				lock (Source.LockBuffer)
 				{
-					this.ReadTexture.ReadBack(this.FBuffer);
+                    this.ReadTexture.ReadBack(data);
 				}
-
-				Marshal.Copy(this.FBuffer, 0, data, this.FBuffer.Length);
-				this.FFrameWaiting = true;
 			}
 
 			public void PullFromTexture()
 			{
-                FLogger.Log(LogType.Message, "PullFromTexture");
-				lock (Source.LockBuffer)
-				{
-					//this.ReadTexture.ReadBack(this.FBuffer);
-                    for (int y = 0; y < 1080; y++)
-                    {
-                        for (int x = 0; x < 1920; x++)
-                        {
-                            this.FBuffer[x*4 + y * 1920*4] = 255;
-                            this.FBuffer[x*4 + y * 1920*4 + 1] = 255;
-                            this.FBuffer[x*4 + y * 1920*4 + 2] = 0;
-                            this.FBuffer[x*4 + y * 1920*4 + 3] = 0;
-                        }
-                    }
-				}
+                
+                this.ReadTexture.ReadBack(Source);
 
-				Source.SendFrame(this.FBuffer);
 			}
 
 			public void UpdateFrameAvailable()
@@ -256,7 +240,7 @@ namespace VVVV.Nodes.Bluefish
 
 		void MainLoop_Present(object o, EventArgs e)
 		{
-			TimeSpan sleepTime = new TimeSpan(100);
+			/*TimeSpan sleepTime = new TimeSpan(100);
 			Stopwatch waitingTime = new Stopwatch();
 			waitingTime.Start();
 			for (int i = 0; i < FInstances.SliceCount; i++)
@@ -273,7 +257,7 @@ namespace VVVV.Nodes.Bluefish
 							break;
 					}
 				}
-			}
+			}*/
 		}
 
 		void MainLoop_OnRender(object sender, EventArgs e)
@@ -301,5 +285,6 @@ namespace VVVV.Nodes.Bluefish
 			FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
 			FHDEHost.MainLoop.OnRender -= MainLoop_OnRender;
 		}
+
 	}
 }

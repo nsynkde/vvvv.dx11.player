@@ -8,6 +8,8 @@ using System.Windows.Forms;
 using SlimDX;
 using SlimDX.Direct3D9;
 using VVVV.PluginInterfaces.V2;
+using VVVV.Core.Logging;
+using System.Runtime.InteropServices;
 
 namespace VVVV.Nodes.Bluefish
 {
@@ -46,11 +48,12 @@ namespace VVVV.Nodes.Bluefish
 		Format FFormat;
 		Usage FUsage;
 
-		Texture FTextureShared;
-		Texture FTextureCopied;
-		Surface FSurfaceOffscreen;
+        Texture FTextureShared, FTextureCopied;
+        Surface FSurfaceOffscreen;
 
-		public ReadTexture(int width, int height, uint handle, EnumEntry formatEnum, EnumEntry usageEnum)
+        ILogger FLogger;
+
+		public ReadTexture(int width, int height, uint handle, EnumEntry formatEnum, EnumEntry usageEnum, ILogger FLogger)
 		{
 			Format format;
 			if (formatEnum.Name == "INTZ")
@@ -65,21 +68,33 @@ namespace VVVV.Nodes.Bluefish
 				format = (Format)Enum.Parse(typeof(Format), formatEnum, true);
 
 			var usage = Usage.Dynamic;
-			if (usageEnum.Index == (int)(TextureType.RenderTarget))
-				usage = Usage.RenderTarget;
-			else if (usageEnum.Index == (int)(TextureType.DepthStencil))
-				usage = Usage.DepthStencil;
+            if (usageEnum.Index == (int)(TextureType.RenderTarget))
+            {
+                usage = Usage.RenderTarget;
+                FLogger.Log(LogType.Message, "texture as renderTarget");
+            }
+            else if (usageEnum.Index == (int)(TextureType.DepthStencil))
+            {
+                usage = Usage.DepthStencil;
+                FLogger.Log(LogType.Message, "texture as depthstencil");
+            }
+            else
+            {
+                FLogger.Log(LogType.Message, "texture as dynamic");
+            }
 
 			this.FWidth = width;
 			this.FHeight = height;
 			this.FHandle = (IntPtr)unchecked((int)handle);
 			this.FFormat = format;
-			this.FUsage = usage;
+            this.FUsage = usage;
+            FLogger.Log(LogType.Message, "shared tex shared handle " + this.FHandle.ToString());
+            this.FLogger = FLogger;
 
 			Initialise();
 		}
 
-		public ReadTexture(int width, int height, IntPtr handle, Format format, Usage usage)
+        public ReadTexture(int width, int height, IntPtr handle, Format format, Usage usage, ILogger FLogger)
 		{
 			this.FWidth = width;
 			this.FHeight = height;
@@ -91,9 +106,13 @@ namespace VVVV.Nodes.Bluefish
 		}
 
 		void Initialise()
-		{
-			if (this.FHandle == (IntPtr) 0)
-				throw (new Exception("No shared texture handle set"));
+        {
+            FLogger.Log(LogType.Message, "Initialize");
+            if (this.FHandle == (IntPtr)0)
+            {
+                FLogger.Log(LogType.Message, "shared tex shared handle 0" + this.FHandle.ToString());
+                throw (new Exception("No shared texture handle set"));
+            }
 			this.FContext = new Direct3DEx();
 
 			this.FHiddenControl = new Control();
@@ -108,10 +127,11 @@ namespace VVVV.Nodes.Bluefish
 				BackBufferHeight = this.FHeight
 			});
 
-			this.FTextureShared = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, FUsage, FFormat, Pool.Default, ref this.FHandle);
-			this.FTextureCopied = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.RenderTarget, FFormat, Pool.Default);
+			this.FTextureShared = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, this.FUsage, FFormat, Pool.Default, ref this.FHandle);
+			this.FTextureCopied = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
 
-			var description = FTextureCopied.GetLevelDescription(0);
+
+            var description = FTextureShared.GetLevelDescription(0);
 			this.FSurfaceOffscreen = Surface.CreateOffscreenPlainEx(FDevice, FWidth, FHeight, description.Format, Pool.SystemMemory, Usage.None);
 			this.FInitialised = true;
 		}
@@ -120,35 +140,77 @@ namespace VVVV.Nodes.Bluefish
 		/// Read back the data from the texture into a CPU buffer
 		/// </summary>
 		/// <param name="buffer"></param>
-		public void ReadBack(byte[] buffer)
+		public void ReadBack(Source Source)
 		{
-			Stopwatch Timer = new Stopwatch();
-			Timer.Start();
+			//Stopwatch Timer = new Stopwatch();
+			//Timer.Start();
 			try
 			{
-				FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTextureCopied.GetSurfaceLevel(0), TextureFilter.None);
-				FDevice.GetRenderTargetData(this.FTextureCopied.GetSurfaceLevel(0), FSurfaceOffscreen);
-
-				var rect = FSurfaceOffscreen.LockRectangle(LockFlags.ReadOnly);
+                FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTextureCopied.GetSurfaceLevel(0), TextureFilter.None);
+                //FDevice.GetRenderTargetData(this.FTextureShared.GetSurfaceLevel(0), FSurfaceOffscreen);
+				//var rect = FSurfaceOffscreen.LockRectangle(LockFlags.ReadOnly);
+                var rect = this.FTextureCopied.LockRectangle(0, LockFlags.ReadOnly);
 				try
 				{
-					rect.Data.Read(buffer, 0, buffer.Length);
-					FSurfaceOffscreen.UnlockRectangle();
+                    Source.SendFrame(rect.Data.DataPointer);
+
+                    this.FTextureCopied.UnlockRectangle(0);
+					//FSurfaceOffscreen.UnlockRectangle();
 				}
 				catch (Exception e)
 				{
-					FSurfaceOffscreen.UnlockRectangle();
-					throw;
+                    FLogger.Log(LogType.Error, e.ToString());
+                    this.FTextureCopied.UnlockRectangle(0);
+					throw e;
 				}
 			}
 			catch (Exception e)
-			{
+            {
+                FLogger.Log(LogType.Error, e.ToString());
 				FDevice.EndScene();
-				throw;
+				throw e;
 			}
-			Timer.Stop();
-			Debug.Print(Timer.Elapsed.TotalMilliseconds.ToString());
+			//Timer.Stop();
+            //FLogger.Log(LogType.Message, Timer.Elapsed.TotalMilliseconds.ToString());
 		}
+
+        /// <summary>
+        /// Read back the data from the texture into a CPU buffer
+        /// </summary>
+        /// <param name="buffer"></param>
+        public void ReadBack(IntPtr data)
+        {
+            Stopwatch Timer = new Stopwatch();
+            Timer.Start();
+            try
+            {
+                FDevice.GetRenderTargetData(this.FTextureShared.GetSurfaceLevel(0), FSurfaceOffscreen);
+
+                var rect = FSurfaceOffscreen.LockRectangle(LockFlags.ReadOnly);
+                try
+                {
+
+                    //FLogger.Log(LogType.Message, "reading " + buffer.Length);
+                    memcpy(data, rect.Data.DataPointer, this.FWidth * this.FHeight * 4);
+                    
+                    FSurfaceOffscreen.UnlockRectangle();
+                }
+                catch (Exception e)
+                {
+                    FLogger.Log(LogType.Error, e.ToString());
+                    FSurfaceOffscreen.UnlockRectangle();
+                    throw e;
+                }
+            }
+            catch (Exception e)
+            {
+                FLogger.Log(LogType.Error, e.ToString());
+                FDevice.EndScene();
+                throw e;
+            }
+            Timer.Stop();
+            Debug.Print(Timer.Elapsed.TotalMilliseconds.ToString());
+        }
 
 		public int BufferLength
 		{
@@ -161,12 +223,14 @@ namespace VVVV.Nodes.Bluefish
 		public void Dispose()
 		{
 			FTextureShared.Dispose();
-			FTextureCopied.Dispose();
 			FSurfaceOffscreen.Dispose(); 
 			
 			FContext.Dispose();
 			FDevice.Dispose();
 			FHiddenControl.Dispose();
 		}
+
+        [DllImport("msvcrt.dll", SetLastError = false)]
+        static extern IntPtr memcpy(IntPtr dest, IntPtr src, int count);
 	}
 }

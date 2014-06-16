@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Timers;
 using BluePlaybackNetLib;
+using VVVV.Core.Logging;
 
 
 
@@ -43,6 +44,7 @@ namespace VVVV.Nodes.Bluefish
 		public ModeRegister.Mode Mode {get; private set;}
 
 		int FFrameIndex = 0;
+        ILogger FLogger;
 
         MemoryAllocator FMemoryAllocator = new MemoryAllocator();
 		//IDeckLinkMutableVideoFrame FVideoFrame;
@@ -105,18 +107,18 @@ namespace VVVV.Nodes.Bluefish
 		}
 
 
-        public Source(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks)
+        public Source(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks,ILogger FLogger)
 		{
-			this.Initialise(device, mode, useDeviceCallbacks);
+			this.Initialise(device, mode, useDeviceCallbacks,FLogger);
 		}
 
-        public void Initialise(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks)
+        public void Initialise(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks, ILogger FLogger)
 		{
-			Stop();
+			//Stop();
 
 			try
 			{
-				WorkerThread.Singleton.PerformBlocking(() => {
+				//WorkerThread.Singleton.PerformBlocking(() => {
 
 					//--
 					//attach to device
@@ -171,11 +173,12 @@ namespace VVVV.Nodes.Bluefish
 
                     //MEM_FMT_ARGB_PC=6
                     //MEM_FMT_BGR=9
-                    int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_ARGB;
+                    int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_BGRA;
 
                     int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
 
                     // configure card
+                    FDevice.BluePlaybackInterfaceStart();
                     FDevice.BluePlaybackInterfaceConfig(1, // Device Number
                                                                 0, // output channel
                                                                 videoMode, // video mode //VID_FMT_PAL=0
@@ -186,12 +189,12 @@ namespace VVVV.Nodes.Bluefish
                                                                 0  // audio channel mask
                                                                 ); //Dev 1, Output channel A, PAL, BGRA, FRAME_MODE, not used, not used, not used
 
+
 					//
 					//--
 
                     //set video engine duplex
-                    FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_ENGINE,
-                        (uint)4);
+                    //FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_ENGINE, (uint)4);
 
                     /*
                     ulong size = FDevice.BluePlaybackGetMemorySize();
@@ -233,9 +236,9 @@ namespace VVVV.Nodes.Bluefish
 					}
 					//
 					//--
-
+                    this.FLogger = FLogger;
 					FRunning = true;
-				});
+				//});
 			}
 			catch (Exception e)
 			{
@@ -248,6 +251,8 @@ namespace VVVV.Nodes.Bluefish
 
 		public void Stop()
 		{
+            FLogger.Log(LogType.Error, "stopping");
+
 			if (!FRunning)
 				return;
 
@@ -319,6 +324,17 @@ namespace VVVV.Nodes.Bluefish
             
 
 		}
+
+        public void SendFrame(IntPtr data)
+        {
+            int result = FDevice.BluePlaybackInterfaceRender(data);
+
+            if (result < 0)
+            {
+                FLogger.Log(LogType.Error,"error writing bytes");
+            }
+
+        }
 
 		public void Dispose()
 		{
