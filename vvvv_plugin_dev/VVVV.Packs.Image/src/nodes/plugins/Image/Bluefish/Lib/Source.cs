@@ -8,6 +8,7 @@ using System.Threading;
 using System.Timers;
 using BluePlaybackNetLib;
 using VVVV.Core.Logging;
+using SlimDX.Direct3D9;
 
 
 
@@ -15,39 +16,15 @@ namespace VVVV.Nodes.Bluefish
 {
 	class Source : IDisposable
 	{
-		[DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-		public static extern IntPtr MemSet(IntPtr dest, int c, IntPtr count);
-
-		class MemoryAllocator
-		{
-			public void AllocateBuffer(uint bufferSize, out IntPtr allocatedBuffer)
-			{
-				allocatedBuffer = Marshal.AllocCoTaskMem( (int) bufferSize);
-			}
-
-			public void Commit()
-			{
-			}
-
-			public void Decommit()
-			{
-			}
-
-			public void ReleaseBuffer(IntPtr buffer)
-			{
-				Marshal.FreeCoTaskMem(buffer);
-			}
-		}
+        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        public static extern IntPtr MemSet(IntPtr dest, int c, IntPtr count);
 
         BluePlaybackNet FDevice;
-		//IDeckLinkOutput FOutputDevice;
 		public ModeRegister.Mode Mode {get; private set;}
 
 		int FFrameIndex = 0;
         ILogger FLogger;
-
-        MemoryAllocator FMemoryAllocator = new MemoryAllocator();
-		//IDeckLinkMutableVideoFrame FVideoFrame;
+        WorkerThread worker = new WorkerThread();
 
 		int FWidth = 0;
 		public int Width
@@ -129,40 +106,6 @@ namespace VVVV.Nodes.Bluefish
 						throw (new Exception("No mode selected"));
 
 					FDevice = device;
-                    /*
-					var outputDevice = FDevice as IDeckLinkOutput;
-					if (outputDevice == null)
-						throw (new Exception("Device does not support output"));
-					FOutputDevice = outputDevice;
-                     */
-					//
-					//--
-
-
-					//--
-					//set memory allocator
-					//
-					//FOutputDevice.SetVideoOutputFrameMemoryAllocator(FMemoryAllocator);
-					//
-					//--
-
-
-					//--
-					//select mode
-					//
-                    /*
-					_BMDDisplayModeSupport support;
-					IDeckLinkDisplayMode displayMode;
-					FOutputDevice.DoesSupportVideoMode(mode.DisplayModeHandle.GetDisplayMode(), mode.PixelFormat, mode.Flags, out support, out displayMode);
-					if (support == _BMDDisplayModeSupport.bmdDisplayModeNotSupported)
-						throw (new Exception("Mode not supported"));
-
-					this.Mode = mode;
-					this.FWidth = Mode.Width;
-					this.FHeight = Mode.Height;
-
-					Mode.DisplayModeHandle.GetFrameRate(out this.FFrameDuration, out this.FFrameTimescale);
-                     */
 
 
                     //VID_FMT_PAL=0
@@ -189,36 +132,6 @@ namespace VVVV.Nodes.Bluefish
                                                                 0  // audio channel mask
                                                                 ); //Dev 1, Output channel A, PAL, BGRA, FRAME_MODE, not used, not used, not used
 
-
-					//
-					//--
-
-                    //set video engine duplex
-                    //FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_ENGINE, (uint)4);
-
-                    /*
-                    ulong size = FDevice.BluePlaybackGetMemorySize();
-                    //MessageBox.Show(size.ToString());
-                    Console.WriteLine("videocard buffersize?: {0}", size);
-                    */
-					//--
-					//enable the output
-					//
-					//FOutputDevice.EnableVideoOutput(Mode.DisplayModeHandle.GetDisplayMode(), Mode.Flags);
-					//
-					//--
-
-
-					//--
-					//generate frames
-                    /*
-					IntPtr data;
-					FOutputDevice.CreateVideoFrame(FWidth, FHeight, Mode.CompressedWidth * 4, Mode.PixelFormat, _BMDFrameFlags.bmdFrameFlagDefault, out FVideoFrame);
-					FVideoFrame.GetBytes(out data);
-					FillBlack(data);
-                     */
-					//
-					//--
 
 					//--
 					//scheduled playback
@@ -259,23 +172,19 @@ namespace VVVV.Nodes.Bluefish
 			//stop new frames from being scheduled
 			FRunning = false;
 
+            byte[] black = new byte[1920 * 1080 * 4];
+            unsafe
+            {
+                fixed (byte* p = black)
+                {
+                    IntPtr ptr = (IntPtr)p;
+                    MemSet(ptr, 0, (IntPtr)(1920 * 1080 * 4));
+                    int result = FDevice.BluePlaybackInterfaceRender(ptr);
+                }
+            }
+
             // stop device, black frame...
             FDevice.BluePlaybackInterfaceDestroy();
-
-            /*
-			WorkerThread.Singleton.PerformBlocking(() => {
-				int scheduledPlayback;
-				FOutputDevice.IsScheduledPlaybackRunning(out scheduledPlayback);
-				if (scheduledPlayback != 0)
-				{
-					long unused;
-					FOutputDevice.StopScheduledPlayback(0, out unused, 1000);
-				}
-				FOutputDevice.DisableVideoOutput();
-			});
-
-			Marshal.ReleaseComObject(FVideoFrame);
-             */
 		}
 
 		void FillBlack(IntPtr data)
@@ -287,37 +196,24 @@ namespace VVVV.Nodes.Bluefish
 
 		public void SendFrame(byte[] buffer)
 		{
-            /*
-			lock (LockBuffer)
-			{
-				IntPtr outBuffer = IntPtr.Zero;
-				WorkerThread.Singleton.PerformBlocking(() =>
-				{
-					FVideoFrame.GetBytes(out outBuffer);
-				});
-				Marshal.Copy(buffer, 0, outBuffer, buffer.Length);
-			}
-			WorkerThread.Singleton.Perform(() =>
-			{
-				FOutputDevice.DisplayVideoFrameSync(FVideoFrame);
-			});
-            */
-
-            unsafe
+            worker.Perform(() =>
             {
-                fixed (byte* p = buffer)
+                unsafe
                 {
-                    IntPtr ptr = (IntPtr)p;
-                    
-                    // send bytes blocking
-                    int result = FDevice.BluePlaybackInterfaceRender(ptr);
-
-                    if (result < 0)
+                    fixed (byte* p = buffer)
                     {
-                        Console.WriteLine("error writing bytes");
-                    }
-                } 
-            }
+                        IntPtr ptr = (IntPtr)p;
+                    
+                        // send bytes blocking
+                        int result = FDevice.BluePlaybackInterfaceRender(ptr);
+
+                        if (result < 0)
+                        {
+                            Console.WriteLine("error writing bytes");
+                        }
+                    } 
+                }
+            });
 
             
 
@@ -327,25 +223,50 @@ namespace VVVV.Nodes.Bluefish
 
         public void SendFrame(IntPtr data)
         {
-            int result = FDevice.BluePlaybackInterfaceRender(data);
-
-            if (result < 0)
+            worker.Perform(() =>
             {
-                FLogger.Log(LogType.Error,"error writing bytes");
-            }
+                int result = FDevice.BluePlaybackInterfaceRender(data);
 
+                if (result < 0)
+                {
+                    FLogger.Log(LogType.Error, "error writing bytes");
+                }
+            });
+
+        }
+
+        public void SendFrame(Texture texture)
+        {
+            worker.Perform(() =>
+            {
+
+                var rect = texture.LockRectangle(0, LockFlags.ReadOnly);
+                int result = FDevice.BluePlaybackInterfaceRender(rect.Data.DataPointer);
+                texture.UnlockRectangle(0);
+
+                if (result < 0)
+                {
+                    FLogger.Log(LogType.Error, "error writing bytes");
+                }
+            });
+
+        }
+
+        public void WaitSync()
+        {
+            //worker.BlockUntilEmpty();
+            FDevice.BluePlaybackInterfaceWaitSync();
+        }
+
+        public bool DoneLastFrame()
+        {
+            return worker.QueueSize == 0;
         }
 
 		public void Dispose()
 		{
 			Stop();
 		}
-        /*
-		public void ScheduledFrameCompleted(IDeckLinkVideoFrame completedFrame, _BMDOutputFrameCompletionResult result)
-		{
-			ScheduleFrame(false);
-		}
-        */
 
         
 		void ScheduleFrame(bool preRoll)

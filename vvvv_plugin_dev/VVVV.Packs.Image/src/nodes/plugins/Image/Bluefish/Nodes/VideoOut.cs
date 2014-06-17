@@ -34,23 +34,16 @@ namespace VVVV.Nodes.Bluefish
     #endregion PluginInfo
 	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {
-		enum SyncLoop
-		{
-			Bluefish,
-			VVVV,
-			Sync
-		}
 
 		class Instance : IDisposable
 		{
 			public Source Source;
 			public ReadTexture ReadTexture;
-			byte[] FBuffer;
             int frame = 0;
 
             ILogger FLogger;
 
-			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, SyncLoop syncLoop, ILogger FLogger)
+			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
 			{
                 this.FLogger = FLogger;
                 BluePlaybackNet device = null;
@@ -69,7 +62,7 @@ namespace VVVV.Nodes.Bluefish
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
                     this.Source = new Source(device, BlueFish_h.EVideoMode.VID_FMT_1080P_6000, useCallback, FLogger);
 					this.ReadTexture = new ReadTexture(1920, 1080, textureHandle, format, usage, FLogger);
-					this.FBuffer = new byte[this.ReadTexture.BufferLength];
+                    this.ReadTexture.FVSync = syncLoop;
 
 					if (useCallback)
 					{
@@ -82,8 +75,6 @@ namespace VVVV.Nodes.Bluefish
 						this.Source.Dispose();
 					if (this.ReadTexture != null)
 						this.ReadTexture.Dispose();
-					if (this.FBuffer != null)
-						this.FBuffer = null;
 					throw e;
 				}
 			}
@@ -133,8 +124,20 @@ namespace VVVV.Nodes.Bluefish
 			{
 				this.Source.Dispose();
 				this.ReadTexture.Dispose();
-				this.FBuffer = null;
 			}
+
+            public bool SyncLoop
+            {
+                set
+                {
+                    this.ReadTexture.FVSync = value;
+                }
+
+                get
+                {
+                    return this.ReadTexture.FVSync;
+                }
+            }
 		}
 
         #region fields & pins
@@ -155,7 +158,7 @@ namespace VVVV.Nodes.Bluefish
 		IDiffSpread<uint> FInHandle;
 
 		[Input("Sync")]
-		IDiffSpread<SyncLoop> FInSyncLoop;
+		IDiffSpread<bool> FInSyncLoop;
 
 		[Input("Enabled")]
 		IDiffSpread<bool> FInEnabled;
@@ -185,7 +188,7 @@ namespace VVVV.Nodes.Bluefish
 
         public void Evaluate(int SpreadMax)
         {
-			if (FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInSyncLoop.IsChanged || FInSyncLoop.IsChanged)
+			if (FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged )
 			{
 
                 DeviceRegister.SetupSingleton(FLogger);
@@ -209,7 +212,7 @@ namespace VVVV.Nodes.Bluefish
 							throw (new Exception("Disabled"));
                         */
 
-                        Instance inst = new Instance(0, "", FInHandle[i], FInFormat[i], FInUsage[i], FInSyncLoop[i], FLogger); 
+                        Instance inst = new Instance(0, "", FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
 
 						FInstances.Add(inst);
 						FOutStatus[i] = "OK";
@@ -221,6 +224,16 @@ namespace VVVV.Nodes.Bluefish
 					}
 				}
 			}
+
+            if (FInSyncLoop.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].SyncLoop = FInSyncLoop[i];
+                }
+
+            }
 
 			FOutFramesInBuffer.SliceCount = FInstances.SliceCount;
 			for (int i = 0; i < FInstances.SliceCount; i++)
@@ -258,21 +271,21 @@ namespace VVVV.Nodes.Bluefish
 					}
 				}
 			}*/
+            for (int i = 0; i < FInstances.SliceCount; i++)
+            {
+                var instance = FInstances[i];
+                if (instance == null)
+                    continue;
+
+                /*if (FInSyncLoop[i] == SyncLoop.VVVV)
+                {*/
+                instance.PullFromTexture();
+                //}
+            }
 		}
 
 		void MainLoop_OnRender(object sender, EventArgs e)
 		{
-			for (int i = 0; i < FInstances.SliceCount; i++)
-			{
-				var instance = FInstances[i];
-				if (instance == null)
-					continue;
-
-				/*if (FInSyncLoop[i] == SyncLoop.VVVV)
-				{*/
-					instance.PullFromTexture();
-				//}
-			}
 		}
 
 		public void Dispose()

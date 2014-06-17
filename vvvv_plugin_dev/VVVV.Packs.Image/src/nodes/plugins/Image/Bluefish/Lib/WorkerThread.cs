@@ -17,8 +17,10 @@ namespace VVVV.Nodes.Bluefish
 		Object FLock = new Object();
 		Queue<WorkItemDelegate> FWorkQueue = new Queue<WorkItemDelegate>();
 		Exception FException;
+        ManualResetEvent FNewWorkEvent = new ManualResetEvent(false);
+        ManualResetEvent FEmptyQueueEvent = new ManualResetEvent(true);
 
-		WorkerThread()
+		public WorkerThread()
 		{
 			FRunning = true;
 			FThread = new Thread(Loop);
@@ -31,28 +33,36 @@ namespace VVVV.Nodes.Bluefish
 		{
 			while (FRunning)
 			{
-				bool empty = true;
-				lock (FLock)
-				{
-					if (FWorkQueue.Count > 0)
-					{
-						empty = false;
-						var workItem = FWorkQueue.Dequeue();
-						try
-						{
-							workItem();
-							this.FException = null;
-						}
-						catch (Exception e)
-						{
-							this.FException = e;
-						}
-					}
-				}
-				if (empty)
-				{
-					Thread.Sleep(1);
-				}
+                FNewWorkEvent.WaitOne();
+                WorkItemDelegate nextWork;
+                do
+                {
+                    lock (FLock)
+                    {
+                        if (FWorkQueue.Count > 0)
+                        {
+                            nextWork = FWorkQueue.Dequeue();
+                        }
+                        else
+                        {
+                            nextWork = null;
+                            FEmptyQueueEvent.Set();
+                            FNewWorkEvent.Reset();
+                        }
+                    }
+                    if (nextWork!=null)
+                    {
+                        try
+                        {
+                            nextWork();
+                            this.FException = null;
+                        }
+                        catch (Exception e)
+                        {
+                            this.FException = e;
+                        }
+                    }
+                } while (nextWork != null);
 			}
 		}
 
@@ -87,6 +97,8 @@ namespace VVVV.Nodes.Bluefish
 			lock (FLock)
 			{
 				FWorkQueue.Enqueue(item);
+                FNewWorkEvent.Set();
+                FEmptyQueueEvent.Reset();
 			}
 		}
 
@@ -94,22 +106,32 @@ namespace VVVV.Nodes.Bluefish
 		{
 			lock (FLock)
 			{
-				if (!FWorkQueue.Contains(item))
-					FWorkQueue.Enqueue(item);
+                if (!FWorkQueue.Contains(item))
+                {
+                    FWorkQueue.Enqueue(item);
+                    FNewWorkEvent.Set();
+                    FEmptyQueueEvent.Reset();
+                }
 			}
 		}
 
 		public void BlockUntilEmpty()
 		{
-			while (true)
-			{
-				lock (FLock)
-				{
-					if (FWorkQueue.Count == 0)
-						return;
-				}
-				Thread.Sleep(1);
-			}
+            /*lock (FLock)
+            {
+                if (FWorkQueue.Count == 0)
+                    return;
+            }*/
+            FEmptyQueueEvent.WaitOne();
 		}
+
+        public int QueueSize{
+            get{
+                lock (FLock)
+			    {
+                    return FWorkQueue.Count;
+                }
+            }
+        }
 	}
 }

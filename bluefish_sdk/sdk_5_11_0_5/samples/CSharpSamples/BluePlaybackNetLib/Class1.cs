@@ -34,6 +34,11 @@ namespace BluePlaybackNetLib
             BluePlaybackNativeInterface.BluePlaybackStart(pBluePlayback);
         }
 
+        public int BluePlaybackInterfaceWaitSync()
+        {
+            return BluePlaybackNativeInterface.BluePlaybackWaitSync(pBluePlayback);
+        }
+
         public int BluePlaybackInterfaceRender(IntPtr pBuffer)
         {
             return BluePlaybackNativeInterface.BluePlaybackRender(pBluePlayback, pBuffer);
@@ -101,6 +106,9 @@ namespace BluePlaybackNetLib
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern void BluePlaybackStop(IntPtr pBluePlaybackObject);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern int BluePlaybackWaitSync(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackRender(IntPtr pBluePlaybackObject, IntPtr pBuffer);

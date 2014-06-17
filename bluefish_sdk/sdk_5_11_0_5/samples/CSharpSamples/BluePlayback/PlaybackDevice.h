@@ -33,6 +33,7 @@ public:
 				INT32 inVideoDestination, INT32 inAudioDestination, INT32 inAudioChannelMask);
 	int Start();
 	int Stop();
+	void WaitSync();
 	void Render(BYTE* pBuffer);
 
 	int SetCardProperty(int nProp,unsigned int nValue);

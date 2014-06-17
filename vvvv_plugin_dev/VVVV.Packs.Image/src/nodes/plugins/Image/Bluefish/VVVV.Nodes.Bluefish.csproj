@@ -81,7 +81,6 @@
     <Compile Include="Lib\ReadTexture.cs" />
     <Compile Include="Lib\WorkerThread.cs" />
     <Compile Include="Nodes\About.cs" />
-    <Compile Include="Lib\Capture.cs" />
     <None Include="Nodes\DeviceAttributes.cs" />
     <Compile Include="Lib\Source.cs" />
     <None Include="Nodes\EnumerateOutputModes.cs" />

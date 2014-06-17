@@ -91,6 +91,16 @@ extern "C"
 		return pBluePlayback->Stop();
 	}
 
+	BLUEPLAYBACK_API int BluePlaybackWaitSync(BLUEPLAYBACK_HANDLE pBPHandle)
+	{
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+		if(!pBluePlayback)
+			return -1;
+
+		pBluePlayback->WaitSync();
+		return 0;
+	}
+
 	BLUEPLAYBACK_API int BluePlaybackRender(BLUEPLAYBACK_HANDLE pBPHandle, BYTE* pBuffer)
 	{
 		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;

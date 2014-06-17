@@ -185,14 +185,20 @@ int CPlaybackDevice::Stop()
 	return 0;
 }
 
-void CPlaybackDevice::Render(BYTE* pBuffer)
-{
+void CPlaybackDevice::WaitSync(){
 	unsigned long fieldcount = 0;
 
-	if (!pBuffer || !m_pSDK)
+	if (!m_pSDK)
 		return;
 
 	m_pSDK->wait_output_video_synch(UPD_FMT_FRAME, fieldcount);
+}
+
+void CPlaybackDevice::Render(BYTE* pBuffer)
+{
+	if (!pBuffer || !m_pSDK)
+		return;
+
 	m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, m_ActiveBuffer, 0);
 	m_pSDK->render_buffer_update(m_ActiveBuffer);
 

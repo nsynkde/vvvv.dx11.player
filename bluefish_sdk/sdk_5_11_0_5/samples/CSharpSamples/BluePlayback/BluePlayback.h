@@ -27,6 +27,7 @@ extern "C"
 	BLUEPLAYBACK_API int BluePlaybackStart(BLUEPLAYBACK_HANDLE pBPHandle);
 	BLUEPLAYBACK_API int BluePlaybackStop(BLUEPLAYBACK_HANDLE pBPHandle);
 
+	BLUEPLAYBACK_API int BluePlaybackWaitSync(BLUEPLAYBACK_HANDLE pBPHandle);
 	BLUEPLAYBACK_API int BluePlaybackRender(BLUEPLAYBACK_HANDLE pBPHandle, BYTE* pBuffer);
 
 	BLUEPLAYBACK_API void BluePlaybackDestroy(BLUEPLAYBACK_HANDLE pBPHandle);

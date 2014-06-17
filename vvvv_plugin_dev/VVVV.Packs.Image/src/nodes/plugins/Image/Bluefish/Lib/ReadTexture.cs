@@ -26,32 +26,26 @@ namespace VVVV.Nodes.Bluefish
 	/// </summary>
 	class ReadTexture : IDisposable
 	{
-		struct Vertex
-		{
-			public Vector4 Position;
-			public Vector2 TextureCoord;
-
-			static public int GetSize()
-			{
-				return Vector4.SizeInBytes + Vector2.SizeInBytes;
-			}
-		}
 
 		Direct3DEx FContext;
 		DeviceEx FDevice;
 		Control FHiddenControl;
 		bool FInitialised = false;
-
+        bool FBackLocked = false;
 		int FWidth;
 		int FHeight;
 		IntPtr FHandle;
 		Format FFormat;
 		Usage FUsage;
 
-        Texture FTextureShared, FTextureCopied;
+        Texture FTextureShared;
+        Texture[] FTexturePool;
+        int frontTexture, backTexture;
         Surface FSurfaceOffscreen;
 
         ILogger FLogger;
+
+        public bool FVSync = true;
 
 		public ReadTexture(int width, int height, uint handle, EnumEntry formatEnum, EnumEntry usageEnum, ILogger FLogger)
 		{
@@ -128,7 +122,13 @@ namespace VVVV.Nodes.Bluefish
 			});
 
 			this.FTextureShared = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, this.FUsage, FFormat, Pool.Default, ref this.FHandle);
-			this.FTextureCopied = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
+            this.FTexturePool = new Texture[8];
+            for (int i = 0; i < this.FTexturePool.Length;i++ )
+            {
+                this.FTexturePool[i] = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
+            }
+			/*this.FTextureBack = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
+            this.FTextureFront = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);*/
 
 
             var description = FTextureShared.GetLevelDescription(0);
@@ -142,27 +142,63 @@ namespace VVVV.Nodes.Bluefish
 		/// <param name="buffer"></param>
 		public void ReadBack(Source Source)
 		{
-			//Stopwatch Timer = new Stopwatch();
-			//Timer.Start();
 			try
-			{
-                FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTextureCopied.GetSurfaceLevel(0), TextureFilter.None);
-                //FDevice.GetRenderTargetData(this.FTextureShared.GetSurfaceLevel(0), FSurfaceOffscreen);
-				//var rect = FSurfaceOffscreen.LockRectangle(LockFlags.ReadOnly);
-                var rect = this.FTextureCopied.LockRectangle(0, LockFlags.ReadOnly);
-				try
-				{
+            {
+                //Stopwatch Timer = new Stopwatch();
+                //Timer.Start();
+                if (Source.DoneLastFrame())
+                {
+                    // Texture pool, send previous frame
+                    /*if (FBackLocked)
+                    {
+                        this.FTexturePool[frontTexture].UnlockRectangle(0);
+                        FBackLocked = false;
+                    }
+
+                    frontTexture = backTexture;
+                    backTexture++;
+                    backTexture %= this.FTexturePool.Length;
+
+                    var rect = this.FTexturePool[frontTexture].LockRectangle(0, LockFlags.ReadOnly);
+                    FBackLocked = true;
                     Source.SendFrame(rect.Data.DataPointer);
 
-                    this.FTextureCopied.UnlockRectangle(0);
-					//FSurfaceOffscreen.UnlockRectangle();
-				}
-				catch (Exception e)
-				{
-                    FLogger.Log(LogType.Error, e.ToString());
-                    this.FTextureCopied.UnlockRectangle(0);
-					throw e;
-				}
+                    FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);*/
+
+                    //Threaded texture upload, should be faster
+                    FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
+                    Source.SendFrame(this.FTexturePool[backTexture]);
+                    backTexture++;
+                    backTexture %= this.FTexturePool.Length;
+
+                    // 1 texture, send immediately, seems as fast as texture pool
+                    /*if (FBackLocked)
+                    {
+                        this.FTexturePool[0].UnlockRectangle(0);
+                        FBackLocked = false;
+                    }
+
+                    FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[0].GetSurfaceLevel(0), TextureFilter.None);
+
+
+                    var rect = this.FTexturePool[0].LockRectangle(0, LockFlags.ReadOnly);
+                    FBackLocked = true;
+                    Source.SendFrame(rect.Data.DataPointer);*/
+
+                    //Source.SendFrame(this.FTexturePool[currentTexture]);
+                    //FDevice.GetRenderTargetData(this.FTextureShared.GetSurfaceLevel(0), FSurfaceOffscreen);
+                    //var rect = FSurfaceOffscreen.LockRectangle(LockFlags.ReadOnly);
+
+                    /*var TextureAux = FTextureFront;
+                    FTextureFront = FTextureBack;
+                    FTextureBack = TextureAux;*/
+                }
+                //Timer.Stop();
+                //FLogger.Log(LogType.Message, Timer.Elapsed.TotalMilliseconds.ToString());
+                if (FVSync)
+                {
+                    Source.WaitSync();
+                }
 			}
 			catch (Exception e)
             {
@@ -170,8 +206,6 @@ namespace VVVV.Nodes.Bluefish
 				FDevice.EndScene();
 				throw e;
 			}
-			//Timer.Stop();
-            //FLogger.Log(LogType.Message, Timer.Elapsed.TotalMilliseconds.ToString());
 		}
 
         /// <summary>
@@ -222,8 +256,12 @@ namespace VVVV.Nodes.Bluefish
 
 		public void Dispose()
 		{
-			FTextureShared.Dispose();
-			FSurfaceOffscreen.Dispose(); 
+            FTextureShared.Dispose();
+			FSurfaceOffscreen.Dispose();
+            for (int i = 0; i < FTexturePool.Length; i++)
+            {
+                FTexturePool[i].Dispose();
+            }
 			
 			FContext.Dispose();
 			FDevice.Dispose();
