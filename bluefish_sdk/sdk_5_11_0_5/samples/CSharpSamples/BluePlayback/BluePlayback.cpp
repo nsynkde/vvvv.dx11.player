@@ -139,7 +139,7 @@ extern "C"
 		return pBluePlayback->SetCardProperty(nProp, nValue);
 	}
 
-	BLUEPLAYBACK_API int BluePlaybackQueryCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp)
+	BLUEPLAYBACK_API int BluePlaybackQueryULongCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, ULONG & outValue)
 	{
 		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
 
@@ -154,6 +154,27 @@ extern "C"
 		printf("vartype: %d\n", varVal.vt);
 		printf("var value: %d\n", varVal.ulVal);
 		
+		outValue = varVal.ulVal;
+
+		return error_code;
+	}
+
+	BLUEPLAYBACK_API int BluePlaybackQueryUIntCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, UINT32 & outValue)
+	{
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+
+		if (!pBluePlayback)
+			return -1;
+
+		VARIANT varVal;
+		int error_code;
+		error_code = pBluePlayback->QueryCardProperty(nProp, &varVal);
+
+		printf("query card property error: %d\n", error_code);
+		printf("vartype: %d\n", varVal.vt);
+		printf("var value: %d\n", varVal.ulVal);
+		
+		outValue = varVal.uintVal;
 
 		return error_code;
 	}
@@ -209,6 +230,50 @@ extern "C"
 		DevCount = pBluePlayback->CheckCardPresent();
 
 		return DevCount;
+	}
+
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetPixelsPerLine(BLUEPLAYBACK_HANDLE pBPHandle)
+	{
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+
+		if (!pBluePlayback)
+			return 0;
+
+		return pBluePlayback->GetPixelsPerLine();
+
+	}
+
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetVideoLines(BLUEPLAYBACK_HANDLE pBPHandle)
+	{
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+
+		if (!pBluePlayback)
+			return 0;
+
+		return pBluePlayback->GetVideoLines();
+
+	}
+
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetBytesPerLine(BLUEPLAYBACK_HANDLE pBPHandle)
+	{
+		
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+
+		if (!pBluePlayback)
+			return 0;
+
+		return pBluePlayback->GetBytesPerLine();
+	}
+
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetBytesPerFrame(BLUEPLAYBACK_HANDLE pBPHandle)
+	{
+		
+		CPlaybackDevice * pBluePlayback = (CPlaybackDevice *)pBPHandle;
+
+		if (!pBluePlayback)
+			return 0;
+
+		return pBluePlayback->GetBytesPerFrame();
 	}
 
 }	//end of extern "C"

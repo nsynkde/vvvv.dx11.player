@@ -31,11 +31,8 @@ namespace VVVV.Nodes.Bluefish
 		[Output("Device")]
 		ISpread<DeviceRegister.DeviceIndex> FPinOutDevices;
 
-		[Output("Model Name")]
-		ISpread<string> FPinOutModelName;
-
-		[Output("Display Name")]
-		ISpread<string> FPinOutDisplayName;
+        [Output("Serial Number")]
+		ISpread<string> FPinOutSerialNumber;
 
 		[Output("Status")]
 		ISpread<string> FPinOutStatus;
@@ -69,8 +66,7 @@ namespace VVVV.Nodes.Bluefish
 			try
 			{
 				FPinOutDevices.SliceCount = 0;
-				FPinOutModelName.SliceCount = 0;
-				FPinOutDisplayName.SliceCount = 0;
+                FPinOutSerialNumber.SliceCount = 0;
 
                 FLogger.Log(LogType.Message, "Bluefish: ListDevice: get DeviceRegister singleton");
                 DeviceRegister.SetupSingleton(FLogger);
@@ -93,8 +89,7 @@ namespace VVVV.Nodes.Bluefish
                     FLogger.Log(LogType.Message, "Bluefish: ListDevice: interate: " + i);
 
 					FPinOutDevices.Add(new DeviceRegister.DeviceIndex(i));
-					FPinOutModelName.Add(register.GetModelName(i));
-					FPinOutDisplayName.Add(register.GetDisplayName(i));
+                    FPinOutSerialNumber.Add(register.GetSerialNumber(i));
 				}
 				FPinOutStatus[0] = "OK devices: " + register.FDeviceCount;
 

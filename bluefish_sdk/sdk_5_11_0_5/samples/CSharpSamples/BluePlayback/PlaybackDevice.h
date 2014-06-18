@@ -23,6 +23,8 @@ protected:
 	unsigned long	m_BytesPerLine;
 	OVERLAPPED OverlapChA;
 
+	void RefreshProperties();
+
 public:
 	CPlaybackDevice();
 	~CPlaybackDevice();
@@ -44,6 +46,11 @@ public:
 	unsigned long GetMemorySize() { return m_Buffersize; };
 
 	int GetCardSerialNumber(char* serial, int size);
+
+	unsigned long GetPixelsPerLine();
+	unsigned long GetVideoLines();
+	unsigned long GetBytesPerLine();
+	unsigned long GetBytesPerFrame();
 };
 
 #endif	//_PLAYBACK_DEVICE_H

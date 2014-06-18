@@ -138,7 +138,7 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 			OverlapChA.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 			// get video sizes
-			ULONG GoldenSize = BlueVelvetGolden((ULONG)inVidFmt, (ULONG)inMemFmt, (ULONG)inUpdFmt);
+			/*ULONG GoldenSize = BlueVelvetGolden((ULONG)inVidFmt, (ULONG)inMemFmt, (ULONG)inUpdFmt);
 			m_PixelsPerLine = BlueVelvetLinePixels((ULONG)inVidFmt);
 			m_VideoLines = BlueVelvetFrameLines((ULONG)inVidFmt, (ULONG)inUpdFmt);
 			m_BytesPerFrame = BlueVelvetFrameBytes((ULONG)inVidFmt, (ULONG)inMemFmt, (ULONG)inUpdFmt);
@@ -154,7 +154,8 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 
 
 			//m_Buffersize = 720*576*4;
-			m_Buffersize = GoldenSize;
+			m_Buffersize = GoldenSize;*/
+			RefreshProperties();
 		}
 
 		if(err == 0)
@@ -165,7 +166,9 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 
 int CPlaybackDevice::Start()
 {
-	return 0;
+	UINT32 iDummy = ENUM_BLACKGENERATOR_OFF;
+	int err = SetCardProperty(VIDEO_BLACKGENERATOR, iDummy);
+	return err;
 }
 
 int CPlaybackDevice::Stop()
@@ -206,6 +209,22 @@ void CPlaybackDevice::Render(BYTE* pBuffer)
 	m_ActiveBuffer %= 2;
 }
 
+void CPlaybackDevice::RefreshProperties(){
+	VARIANT inVidFmt;
+	QueryCardProperty(VIDEO_MODE,&inVidFmt);
+	VARIANT inMemFmt;
+	QueryCardProperty(VIDEO_MEMORY_FORMAT,&inMemFmt);
+	VARIANT inUpdFmt;
+	QueryCardProperty(VIDEO_UPDATE_TYPE,&inUpdFmt);
+	// get video sizes
+	ULONG GoldenSize = BlueVelvetGolden(inVidFmt.ulVal, inMemFmt.ulVal, inUpdFmt.ulVal);
+	m_PixelsPerLine = BlueVelvetLinePixels(inVidFmt.ulVal);
+	m_VideoLines = BlueVelvetFrameLines(inVidFmt.ulVal, inUpdFmt.ulVal);
+	m_BytesPerFrame = BlueVelvetFrameBytes(inVidFmt.ulVal, inMemFmt.ulVal, inUpdFmt.ulVal);
+	m_BytesPerLine = BlueVelvetLineBytes(inVidFmt.ulVal, inMemFmt.ulVal);
+	m_Buffersize = GoldenSize;
+}
+
 int CPlaybackDevice::SetCardProperty(int nProp,unsigned int nValue)
 {
 	int error_code;
@@ -213,6 +232,7 @@ int CPlaybackDevice::SetCardProperty(int nProp,unsigned int nValue)
 	objVar.vt = VT_UI4;
 	objVar.ulVal = nValue;
 	error_code = m_pSDK->SetCardProperty(nProp,objVar);
+	RefreshProperties();
 	return error_code;
 }
 
@@ -223,6 +243,7 @@ int CPlaybackDevice::SetCardProperty(int nProp,__int64 nValue)
 	objVar.vt = VT_UI8;
 	objVar.ullVal = nValue;
 	error_code = m_pSDK->SetCardProperty(nProp,objVar);
+	RefreshProperties();
 	return error_code;
 }
 
@@ -239,4 +260,24 @@ int CPlaybackDevice::GetCardSerialNumber(char* serialNum, int serialNumSize)
 	int error_code;
 	error_code = bfGetCardSerialNumber(m_pSDK, serialNum, serialNumSize); //nStringSize must be at least 20
 	return error_code;
+}
+
+unsigned long CPlaybackDevice::GetPixelsPerLine()
+{
+	return m_PixelsPerLine;
+}
+
+unsigned long CPlaybackDevice::GetVideoLines()
+{
+	return m_VideoLines;
+}
+
+unsigned long CPlaybackDevice::GetBytesPerLine()
+{
+	return m_BytesPerLine;
+}
+
+unsigned long CPlaybackDevice::GetBytesPerFrame()
+{
+	return m_BytesPerFrame;
 }

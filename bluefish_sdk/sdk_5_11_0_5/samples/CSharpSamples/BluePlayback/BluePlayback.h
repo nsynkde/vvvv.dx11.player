@@ -35,7 +35,8 @@ extern "C"
 	BLUEPLAYBACK_API int BluePlaybackSetCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, unsigned int nValue);
 	BLUEPLAYBACK_API int BluePlaybackSetCardPropertyInt64(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, __int64 nValue);
 
-	BLUEPLAYBACK_API int BluePlaybackQueryCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp);
+	BLUEPLAYBACK_API int BluePlaybackQueryUIntCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, UINT32 & outValue);
+	BLUEPLAYBACK_API int BluePlaybackQueryULongCardProperty(BLUEPLAYBACK_HANDLE pBPHandle, int nProp, ULONG & outValue);
 
 	BLUEPLAYBACK_API ULONG BluePlaybackGetMemorySize(BLUEPLAYBACK_HANDLE pBPHandle);
 
@@ -44,4 +45,9 @@ extern "C"
 	BLUEPLAYBACK_API const char* BluePlaybackBlueVelvetVersion();
 
 	BLUEPLAYBACK_API int BluePlaybackGetDeviceCount(BLUEPLAYBACK_HANDLE pBPHandle);
+
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetPixelsPerLine(BLUEPLAYBACK_HANDLE pBPHandle);
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetVideoLines(BLUEPLAYBACK_HANDLE pBPHandle);
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetBytesPerLine(BLUEPLAYBACK_HANDLE pBPHandle);
+	BLUEPLAYBACK_API unsigned long BluePlaybackGetBytesPerFrame(BLUEPLAYBACK_HANDLE pBPHandle);
 }

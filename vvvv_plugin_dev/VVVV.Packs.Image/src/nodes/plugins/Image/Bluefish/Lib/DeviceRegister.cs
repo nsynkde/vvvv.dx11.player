@@ -40,8 +40,7 @@ namespace VVVV.Nodes.Bluefish
 		public class Device
 		{
 			public BluePlaybackNet BluePlayback;
-			public string ModelName;
-			public string DisplayName;
+			public string SerialNumber;
 		}
 
 		List<Device> FDevices = new List<Device>();
@@ -57,7 +56,11 @@ namespace VVVV.Nodes.Bluefish
 		public int Count
 		{
 			get
-			{
+            {
+                if (FDevices.Count == 0)
+                {
+                    Refresh();
+                }
 				int result = 0;
 				WorkerThread.Singleton.PerformBlocking(() =>
 					{
@@ -67,22 +70,12 @@ namespace VVVV.Nodes.Bluefish
 			}
 		}
 
-		public string GetModelName(int index)
+		public string GetSerialNumber(int index)
 		{
 			string result = "";
 			WorkerThread.Singleton.PerformBlocking(() =>
 			{
-				result = FDevices[index].ModelName;
-			});
-			return result;
-		}
-
-		public string GetDisplayName(int index)
-		{
-			string result = "";
-			WorkerThread.Singleton.PerformBlocking(() =>
-			{
-				result = FDevices[index].DisplayName;
+				result = FDevices[index].SerialNumber;
 			});
 			return result;
 		}
@@ -93,10 +86,10 @@ namespace VVVV.Nodes.Bluefish
 			{
 				Refresh();
 			}
-			if (this.Count == 0)
+			if (this.Count <= index)
 				throw (new Exception("No Bluefish device available"));
 			else
-                return FDevices[index % FDevices.Count].BluePlayback;
+                return FDevices[index].BluePlayback;
 		}
 
 		public void Refresh()
@@ -129,39 +122,14 @@ namespace VVVV.Nodes.Bluefish
 
                 FLogger.Log(LogType.Message, "Bluefish: Device register: device count: " + FDeviceCount);
 
-                // get serial number
-                //string sn = device.BluePlaybackGetSerialNumber();
-                
-                //device.BluePlaybackGetSerialNumber();
 
                 // add device, with default names...
                 FDevices.Add(new Device()
                 {
                     BluePlayback = device,
-                    ModelName = "Bluefish Model",
-                    DisplayName = "sn"
+                    SerialNumber = ""
                 });
-
-                /*
-                var iterator = new CDeckLinkIterator();
-                IDeckLink device;
-                string modelName, displayName;
-                while (true)
-                {
-                    iterator.Next(out device);
-                    if (device == null)
-                        break;
-
-                    device.GetModelName(out modelName);
-                    device.GetDisplayName(out displayName);
-
-                    FDevices.Add(new Device()
-                    {
-                        DeviceHandle = device,
-                        ModelName = modelName,
-                        DisplayName = displayName
-                    });
-                }* */
+                //device.BluePlaybackGetSerialNumber(),//this hangs the program
 
             });
         }

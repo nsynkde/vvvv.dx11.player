@@ -26,23 +26,30 @@ namespace VVVV.Nodes.Bluefish
         ILogger FLogger;
         WorkerThread worker = new WorkerThread();
 
-		int FWidth = 0;
+		
 		public int Width
 		{
 			get
 			{
-				return FWidth;
+                return (int)FDevice.BluePlaybackGetPixelsPerLine();
 			}
 		}
 
-		int FHeight = 0;
 		public int Height
-		{
-			get
-			{
-				return FHeight;
-			}
+        {
+            get
+            {
+                return (int)FDevice.BluePlaybackGetVideoLines();
+            }
 		}
+
+        public int Pitch
+        {
+            get
+            {
+                return (int)FDevice.BluePlaybackGetBytesPerLine();
+            }
+        }
 
 		bool FRunning = false;
 		public bool Running
@@ -53,24 +60,94 @@ namespace VVVV.Nodes.Bluefish
 			}
 		}
 
-		long FFrameDuration = 0;
-		long FFrameTimescale = 0;
-		public double Framerate
-		{
-			get
-			{
-				return (double)FFrameTimescale / (double)FFrameDuration;
-			}
-		}
+        BlueFish_h.EVideoMode FVideoMode;
+        public BlueFish_h.EVideoMode VideoMode
+        {
+            get 
+            {
+                return FVideoMode;
+            }
 
-		uint FFramesInBuffer = 0;
-		public int FramesInBuffer
-		{
-			get
-			{
-				return (int) FFramesInBuffer;
-			}
-		}
+            set
+            {
+                FVideoMode = value;
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_MODE, (uint)value);
+            }
+        }
+
+        public uint Channel
+        {
+            get
+            {
+                ulong channel;
+                FDevice.BluePlaybackQueryULongCardProperty((int)BlueFish_h.EBlueCardProperty.DEFAULT_VIDEO_OUTPUT_CHANNEL, out channel);
+                return (uint)channel;
+            }
+
+            set
+            {
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.DEFAULT_VIDEO_OUTPUT_CHANNEL, value);
+            }
+        }
+
+        public BlueFish_h.EConnectorSignalColorSpace OutputColorSpace
+        {
+            get
+            {
+                ulong colorSpace;
+                FDevice.BluePlaybackQueryULongCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_OUTPUT_SIGNAL_COLOR_SPACE, out colorSpace);
+                return (BlueFish_h.EConnectorSignalColorSpace)colorSpace;
+            }
+            set
+            {
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_OUTPUT_SIGNAL_COLOR_SPACE, (uint)value);
+            }
+        }
+
+        public bool DualLink
+        {
+            get
+            {
+                ulong dualLink;
+                FDevice.BluePlaybackQueryULongCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_DUAL_LINK_OUTPUT, out dualLink);
+                return dualLink!=0;
+            }
+            set
+            {
+                uint dualLink = (uint)(value?1:0);
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_DUAL_LINK_OUTPUT, dualLink);
+            }
+        }
+
+        public BlueFish_h.EDualLinkSignalFormatType DualLinkSignalFormat
+        {
+            get
+            {
+                ulong dualLinkFormat;
+                FDevice.BluePlaybackQueryULongCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_DUAL_LINK_OUTPUT_SIGNAL_FORMAT_TYPE, out dualLinkFormat);
+                return (BlueFish_h.EDualLinkSignalFormatType)dualLinkFormat;
+            }
+            set
+            {
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_DUAL_LINK_OUTPUT_SIGNAL_FORMAT_TYPE, (uint)value);
+            }
+
+        }
+
+        public BlueFish_h.EPreDefinedColorSpaceMatrix ColorMatrix
+        {
+            get
+            {
+                ulong colorMatrix;
+                FDevice.BluePlaybackQueryULongCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_PREDEFINED_COLOR_MATRIX, out colorMatrix);
+                return (BlueFish_h.EPreDefinedColorSpaceMatrix)colorMatrix;
+            }
+            set
+            {
+                FDevice.BluePlaybackSetCardProperty((int)BlueFish_h.EBlueCardProperty.VIDEO_PREDEFINED_COLOR_MATRIX, (uint)value);
+            }
+
+        }
 
 		public delegate void FrameServeHandler(IntPtr data);
 		/// <summary>
@@ -91,80 +168,63 @@ namespace VVVV.Nodes.Bluefish
 
         public void Initialise(BluePlaybackNet device, BlueFish_h.EVideoMode mode, bool useDeviceCallbacks, ILogger FLogger)
 		{
-			//Stop();
-
 			try
 			{
-				//WorkerThread.Singleton.PerformBlocking(() => {
+				//--
+				//attach to device
+				//
+				if (device == null)
+					throw (new Exception("No device"));
 
-					//--
-					//attach to device
-					//
-					if (device == null)
-						throw (new Exception("No device"));
-					if (mode == null)
-						throw (new Exception("No mode selected"));
+				FDevice = device;
 
-					FDevice = device;
+                FVideoMode = mode;
 
+                // configure card
+                FDevice.BluePlaybackInterfaceStart();
+                int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_BGRA;
 
-                    //VID_FMT_PAL=0
-                    //VID_FMT_1080I_5000=8
-                    //VID_FMT_1080P_2500=11
+                int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
+                FDevice.BluePlaybackInterfaceConfig(1, // Device Number
+                                                    0, // output channel
+                                                    (int)mode, // video mode //VID_FMT_PAL=0
+                                                    memFormat, // memory format //MEM_FMT_ARGB_PC=6 //MEM_FMT_BGR=9
+                                                    updateMethod, // update type (frame, field) //UPD_FMT_FRAME=1
+                                                    0, // video destination
+                                                    0, // audio destination
+                                                    0  // audio channel mask
+                                                    );
 
-                    int videoMode = (int)mode;
-
-                    //MEM_FMT_ARGB_PC=6
-                    //MEM_FMT_BGR=9
-                    int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_BGRA;
-
-                    int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
-
-                    // configure card
-                    FDevice.BluePlaybackInterfaceStart();
-                    FDevice.BluePlaybackInterfaceConfig(1, // Device Number
-                                                                0, // output channel
-                                                                videoMode, // video mode //VID_FMT_PAL=0
-                                                                memFormat, // memory format //MEM_FMT_ARGB_PC=6 //MEM_FMT_BGR=9
-                                                                updateMethod, // update type (frame, field) //UPD_FMT_FRAME=1
-                                                                0, // video destination
-                                                                0, // audio destination
-                                                                0  // audio channel mask
-                                                                ); //Dev 1, Output channel A, PAL, BGRA, FRAME_MODE, not used, not used, not used
-
-
-					//--
-					//scheduled playback
-					if (useDeviceCallbacks == true)
+				//--
+				//scheduled playback
+				if (useDeviceCallbacks == true)
+				{
+                    /*
+					FOutputDevice.SetScheduledFrameCompletionCallback(this);
+					this.FFrameIndex = 0;
+					for (int i = 0; i < (int)this.Framerate; i++)
 					{
-                        /*
-						FOutputDevice.SetScheduledFrameCompletionCallback(this);
-						this.FFrameIndex = 0;
-						for (int i = 0; i < (int)this.Framerate; i++)
-						{
-							ScheduleFrame(true);
-						}
-						FOutputDevice.StartScheduledPlayback(0, 100, 1.0);
-                         */
+						ScheduleFrame(true);
 					}
-					//
-					//--
-                    this.FLogger = FLogger;
-					FRunning = true;
-				//});
+					FOutputDevice.StartScheduledPlayback(0, 100, 1.0);
+                        */
+				}
+				//
+				//--
+                this.FLogger = FLogger;
+				FRunning = true;
 			}
 			catch (Exception e)
 			{
-				this.FWidth = 0;
-				this.FHeight = 0;
 				this.FRunning = false;
 				throw;
 			}
 		}
 
 		public void Stop()
-		{
-            FLogger.Log(LogType.Error, "stopping");
+        {
+
+            // stop device, black frame...
 
 			if (!FRunning)
 				return;
@@ -172,24 +232,7 @@ namespace VVVV.Nodes.Bluefish
 			//stop new frames from being scheduled
 			FRunning = false;
 
-            byte[] black = new byte[1920 * 1080 * 4];
-            unsafe
-            {
-                fixed (byte* p = black)
-                {
-                    IntPtr ptr = (IntPtr)p;
-                    MemSet(ptr, 0, (IntPtr)(1920 * 1080 * 4));
-                    int result = FDevice.BluePlaybackInterfaceRender(ptr);
-                }
-            }
-
-            // stop device, black frame...
-            FDevice.BluePlaybackInterfaceDestroy();
-		}
-
-		void FillBlack(IntPtr data)
-		{
-			MemSet(data, 0, (IntPtr)(Mode.CompressedWidth * Mode.Height * 4));
+            FDevice.BluePlaybackInterfaceStop();
 		}
 
 		public Object LockBuffer = new Object();

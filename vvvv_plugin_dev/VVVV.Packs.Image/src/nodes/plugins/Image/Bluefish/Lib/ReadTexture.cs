@@ -32,22 +32,25 @@ namespace VVVV.Nodes.Bluefish
 		Control FHiddenControl;
 		bool FInitialised = false;
         bool FBackLocked = false;
-		int FWidth;
-		int FHeight;
+		int FInWidth;
+        int FInHeight;
+        int FOutWidth;
+        int FOutHeight;
 		IntPtr FHandle;
 		Format FFormat;
 		Usage FUsage;
 
         Texture FTextureShared;
         Texture[] FTexturePool;
+        Texture[] FResizeTexturePool;
         int frontTexture, backTexture;
-        Surface FSurfaceOffscreen;
+        //Surface FSurfaceOffscreen;
 
         ILogger FLogger;
 
         public bool FVSync = true;
 
-		public ReadTexture(int width, int height, uint handle, EnumEntry formatEnum, EnumEntry usageEnum, ILogger FLogger)
+		public ReadTexture(int inWidth, int inHeight, int outWidth, int outHeight, uint handle, EnumEntry formatEnum, EnumEntry usageEnum, ILogger FLogger)
 		{
 			Format format;
 			if (formatEnum.Name == "INTZ")
@@ -77,8 +80,10 @@ namespace VVVV.Nodes.Bluefish
                 FLogger.Log(LogType.Message, "texture as dynamic");
             }
 
-			this.FWidth = width;
-			this.FHeight = height;
+			this.FInWidth = inWidth;
+            this.FInHeight = inHeight;
+            this.FOutWidth = outWidth;
+            this.FOutHeight = outHeight;
 			this.FHandle = (IntPtr)unchecked((int)handle);
 			this.FFormat = format;
             this.FUsage = usage;
@@ -88,10 +93,12 @@ namespace VVVV.Nodes.Bluefish
 			Initialise();
 		}
 
-        public ReadTexture(int width, int height, IntPtr handle, Format format, Usage usage, ILogger FLogger)
-		{
-			this.FWidth = width;
-			this.FHeight = height;
+        public ReadTexture(int inWidth, int inHeight, int outWidth, int outHeight, IntPtr handle, Format format, Usage usage, ILogger FLogger)
+        {
+            this.FInWidth = inWidth;
+            this.FInHeight = inHeight;
+            this.FOutWidth = outWidth;
+            this.FOutHeight = outHeight;
 			this.FHandle = handle;
 			this.FFormat = format;
 			this.FUsage = usage;
@@ -111,28 +118,36 @@ namespace VVVV.Nodes.Bluefish
 
 			this.FHiddenControl = new Control();
 			this.FHiddenControl.Visible = false;
-			this.FHiddenControl.Width = this.FWidth;
-			this.FHiddenControl.Height = this.FHeight;
+			this.FHiddenControl.Width = this.FInWidth;
+			this.FHiddenControl.Height = this.FInHeight;
 			
 			var flags = CreateFlags.HardwareVertexProcessing | CreateFlags.Multithreaded | CreateFlags.PureDevice | CreateFlags.FpuPreserve;
 			this.FDevice = new DeviceEx(FContext, 0, DeviceType.Hardware, this.FHiddenControl.Handle, flags, new PresentParameters()
 			{
-				BackBufferWidth = this.FWidth,
-				BackBufferHeight = this.FHeight
+				BackBufferWidth = this.FInWidth,
+				BackBufferHeight = this.FInHeight
 			});
 
-			this.FTextureShared = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, this.FUsage, FFormat, Pool.Default, ref this.FHandle);
+			this.FTextureShared = new Texture(this.FDevice, this.FInWidth, this.FInHeight, 1, this.FUsage, FFormat, Pool.Default, ref this.FHandle);
             this.FTexturePool = new Texture[8];
             for (int i = 0; i < this.FTexturePool.Length;i++ )
             {
-                this.FTexturePool[i] = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
+                this.FTexturePool[i] = new Texture(this.FDevice, this.FOutWidth, this.FOutHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
+            } 
+            if (FInWidth != FOutWidth || FInHeight != FOutHeight)
+            {
+                this.FResizeTexturePool = new Texture[8];
+                for (int i = 0; i < this.FTexturePool.Length; i++)
+                {
+                    this.FResizeTexturePool[i] = new Texture(this.FDevice, this.FOutWidth, this.FOutHeight, 1, Usage.RenderTarget, FFormat, Pool.Default);
+                }
             }
 			/*this.FTextureBack = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);
             this.FTextureFront = new Texture(this.FDevice, this.FWidth, this.FHeight, 1, Usage.Dynamic, FFormat, Pool.Default);*/
 
 
             var description = FTextureShared.GetLevelDescription(0);
-			this.FSurfaceOffscreen = Surface.CreateOffscreenPlainEx(FDevice, FWidth, FHeight, description.Format, Pool.SystemMemory, Usage.None);
+			//this.FSurfaceOffscreen = Surface.CreateOffscreenPlainEx(FDevice, FWidth, FHeight, description.Format, Pool.SystemMemory, Usage.None);
 			this.FInitialised = true;
 		}
 
@@ -166,7 +181,16 @@ namespace VVVV.Nodes.Bluefish
                     FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);*/
 
                     //Threaded texture upload, should be faster
-                    FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
+
+                    if (FInWidth != FOutWidth || FInHeight != FOutHeight)
+                    {
+                        FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FResizeTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.Linear);
+                        FDevice.StretchRectangle(this.FResizeTexturePool[backTexture].GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
+                    }
+                    else
+                    {
+                        FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
+                    }
                     Source.SendFrame(this.FTexturePool[backTexture]);
                     backTexture++;
                     backTexture %= this.FTexturePool.Length;
@@ -212,7 +236,7 @@ namespace VVVV.Nodes.Bluefish
         /// Read back the data from the texture into a CPU buffer
         /// </summary>
         /// <param name="buffer"></param>
-        public void ReadBack(IntPtr data)
+        /*public void ReadBack(IntPtr data)
         {
             Stopwatch Timer = new Stopwatch();
             Timer.Start();
@@ -244,20 +268,20 @@ namespace VVVV.Nodes.Bluefish
             }
             Timer.Stop();
             Debug.Print(Timer.Elapsed.TotalMilliseconds.ToString());
-        }
+        }*/
 
 		public int BufferLength
 		{
 			get
 			{
-				return this.FWidth * this.FHeight * 4;
+				return this.FOutWidth * this.FOutHeight * 4;
 			}
 		}
 
 		public void Dispose()
 		{
             FTextureShared.Dispose();
-			FSurfaceOffscreen.Dispose();
+			//FSurfaceOffscreen.Dispose();
             for (int i = 0; i < FTexturePool.Length; i++)
             {
                 FTexturePool[i].Dispose();

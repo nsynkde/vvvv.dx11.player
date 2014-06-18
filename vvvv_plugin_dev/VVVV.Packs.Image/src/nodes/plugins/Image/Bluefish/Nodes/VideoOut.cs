@@ -39,30 +39,33 @@ namespace VVVV.Nodes.Bluefish
 		{
 			public Source Source;
 			public ReadTexture ReadTexture;
-            int frame = 0;
+            private uint FTextureWidth;
+            private uint FTextureHeight;
+            private uint FTextureHandle;
+            private EnumEntry FTextureFormat;
+            private EnumEntry FTextureUsage;
+            private uint FDeviceID;
 
             ILogger FLogger;
 
-			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
+            public Instance(uint deviceID, BlueFish_h.EVideoMode videoMode, uint width, uint height, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
 			{
                 this.FLogger = FLogger;
-                BluePlaybackNet device = null;
-				//WorkerThread.Singleton.PerformBlocking(() => {
-					device = DeviceRegister.Singleton.GetDeviceHandle(deviceID);
-				//});
+                BluePlaybackNet device = DeviceRegister.Singleton.GetDeviceHandle((int)deviceID);
+                FDeviceID = deviceID;
 
 				try
 				{
-					ModeRegister.Mode mode = null;
-					//WorkerThread.Singleton.PerformBlocking(() =>
-					//{
-						//mode = ModeRegister.Singleton.Modes[modeString];
-					//});
-
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
-                    this.Source = new Source(device, BlueFish_h.EVideoMode.VID_FMT_1080P_6000, useCallback, FLogger);
-					this.ReadTexture = new ReadTexture(1920, 1080, textureHandle, format, usage, FLogger);
-                    this.ReadTexture.FVSync = syncLoop;
+                    this.Source = new Source(device, videoMode, useCallback, FLogger);
+                    FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
+                    this.ReadTexture = new ReadTexture((int)width, (int)height, Source.Width, Source.Height, textureHandle, format, usage, FLogger);
+                    this.SyncLoop = syncLoop;
+                    this.FTextureHandle = textureHandle;
+                    this.FTextureFormat = format;
+                    this.FTextureUsage = usage;
+                    this.FTextureWidth = width;
+                    this.FTextureHeight = height;
 
 					if (useCallback)
 					{
@@ -81,43 +84,19 @@ namespace VVVV.Nodes.Bluefish
 
             
 
-			void Source_NewFrame(IntPtr data)
+			/*void Source_NewFrame(IntPtr data)
 			{
 				lock (Source.LockBuffer)
 				{
                     this.ReadTexture.ReadBack(data);
 				}
-			}
+			}*/
 
 			public void PullFromTexture()
 			{
                 
                 this.ReadTexture.ReadBack(Source);
 
-			}
-
-			public void UpdateFrameAvailable()
-			{
-				FFrameAvailable = FFrameWaiting;
-				FFrameWaiting = false;
-			}
-
-			bool FFrameWaiting = false;
-			bool FFrameAvailable = false;
-			public bool FrameAvailable
-			{
-				get
-				{
-					return FFrameAvailable;
-				}
-			}
-
-			public int FramesInBuffer
-			{
-				get
-				{
-					return Source.FramesInBuffer;
-				}
 			}
 
 			public void Dispose()
@@ -138,36 +117,150 @@ namespace VVVV.Nodes.Bluefish
                     return this.ReadTexture.FVSync;
                 }
             }
+
+            public bool DualLink
+            {
+                set
+                {
+                    this.Source.DualLink = value;
+                }
+
+                get
+                {
+                    return this.Source.DualLink;
+                }
+            }
+
+            public BlueFish_h.EDualLinkSignalFormatType DualLinkSignalFormat
+            {
+                set
+                {
+                    this.Source.DualLinkSignalFormat = value;
+                }
+
+                get
+                {
+                    return this.Source.DualLinkSignalFormat;
+                }
+            }
+
+            public BlueFish_h.EPreDefinedColorSpaceMatrix ColorMatrix
+            {
+                set
+                {
+                    this.Source.ColorMatrix = value;
+                }
+
+                get
+                {
+                    return this.Source.ColorMatrix;
+                }
+            }
+
+            public BlueFish_h.EConnectorSignalColorSpace OutputColorSpace
+            {
+                set
+                {
+                    this.Source.OutputColorSpace = value;
+                }
+
+                get
+                {
+                    return this.Source.OutputColorSpace;
+                }
+            }
+
+            public BlueFish_h.EVideoMode VideoMode
+            {
+                set
+                {
+                    if (this.Source.VideoMode != value)
+                    {
+                        this.Source.VideoMode = value;
+                        FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
+                        bool sync = this.SyncLoop;
+                        this.ReadTexture = new ReadTexture((int)FTextureWidth, (int)FTextureHeight, Source.Width, Source.Height, FTextureHandle, FTextureFormat, FTextureUsage, FLogger);
+                        this.ReadTexture.FVSync = sync;
+                    }
+                }
+
+                get
+                {
+                    return this.Source.VideoMode;
+                }
+            }
+
+            public uint Channel
+            {
+                set
+                {
+                    this.Source.Channel = value;
+                }
+
+                get
+                {
+                    return this.Source.Channel;
+                }
+            }
+
+            public string DeviceSerialNumber
+            {
+                get
+                {
+                    return DeviceRegister.Singleton.GetSerialNumber((int)FDeviceID);
+                }
+            }
 		}
 
         #region fields & pins
 #pragma warning disable 0649
 		[Input("Device")]
-		IDiffSpread<DeviceRegister.DeviceIndex> FInDevice;
+        IDiffSpread<uint> FInDevice;
 
-		[Input("Mode")]
-		IDiffSpread<ModeRegister.ModeIndex> FInMode;
+        [Input("Out Channel")]
+        IDiffSpread<uint> FInOutChannel;
 
-		[Input("Format", EnumName = "TextureFormat")]
-		IDiffSpread<EnumEntry> FInFormat;
+        [Input("Mode")]
+        IDiffSpread<BlueFish_h.EVideoMode> FInMode;
 
-		[Input("Usage", EnumName = "TextureUsage")]
-		IDiffSpread<EnumEntry> FInUsage;
+        [Input("Out Color Space")]
+        IDiffSpread<BlueFish_h.EConnectorSignalColorSpace> FInOutputColorSpace;
 
-		[Input("Handle")]
-		IDiffSpread<uint> FInHandle;
+        [Input("Dual Link")]
+        IDiffSpread<bool> FInDualLink;
+
+        [Input("Dual Link Signal Format")]
+        IDiffSpread<BlueFish_h.EDualLinkSignalFormatType> FInDualLinkSignalFormat;
+
+        [Input("Color Matrix")]
+        IDiffSpread<BlueFish_h.EPreDefinedColorSpaceMatrix> FInColorMatrix;
 
 		[Input("Sync")]
 		IDiffSpread<bool> FInSyncLoop;
 
 		[Input("Enabled")]
-		IDiffSpread<bool> FInEnabled;
+        IDiffSpread<bool> FInEnabled;
 
-		[Output("Frames In Buffer")]
-		ISpread<int> FOutFramesInBuffer;
+        [Input("TextureWidth")]
+        IDiffSpread<uint> FInWidth;
+
+        [Input("TextureHeight")]
+        IDiffSpread<uint> FInHeight;
+
+        [Input("TextureFormat", EnumName = "TextureFormat")]
+        IDiffSpread<EnumEntry> FInFormat;
+
+        [Input("TextureUsage", EnumName = "TextureUsage")]
+        IDiffSpread<EnumEntry> FInUsage;
+
+        [Input("TextureHandle")]
+        IDiffSpread<uint> FInHandle;
 
 		[Output("Status")]
-		ISpread<string> FOutStatus;
+        ISpread<string> FOutStatus;
+
+        [Output("Serial Number")]
+        ISpread<string> FOutSerialNumber;
 
         [Import]
         ILogger FLogger;
@@ -188,7 +281,7 @@ namespace VVVV.Nodes.Bluefish
 
         public void Evaluate(int SpreadMax)
         {
-			if (FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged )
+			if (FInDevice.IsChanged || FInWidth.IsChanged || FInHeight.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged )
 			{
 
                 DeviceRegister.SetupSingleton(FLogger);
@@ -203,19 +296,14 @@ namespace VVVV.Nodes.Bluefish
 				{
 					try
 					{
-                        /*
-						if (FInDevice[i] == null)
-							throw (new Exception("No device selected"));
-						if (FInMode[i] == null)
-							throw (new Exception("No mode selected"));
 						if (FInEnabled[i] == false)
 							throw (new Exception("Disabled"));
-                        */
 
-                        Instance inst = new Instance(0, "", FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
+                        Instance inst = new Instance(FInDevice[i], FInMode[i], FInWidth[i], FInHeight[i], FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
 
 						FInstances.Add(inst);
 						FOutStatus[i] = "OK";
+                        FOutSerialNumber[i] = inst.DeviceSerialNumber;
 					}
 					catch(Exception e)
 					{
@@ -224,6 +312,36 @@ namespace VVVV.Nodes.Bluefish
 					}
 				}
 			}
+
+            if (FInMode.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].VideoMode = FInMode[i];
+                }
+
+            }
+
+            if (FInOutChannel.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].Channel = FInOutChannel[i];
+                }
+
+            }
+
+            if (FInOutputColorSpace.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].OutputColorSpace = FInOutputColorSpace[i];
+                }
+
+            }
 
             if (FInSyncLoop.IsChanged)
             {
@@ -235,42 +353,44 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-			FOutFramesInBuffer.SliceCount = FInstances.SliceCount;
-			for (int i = 0; i < FInstances.SliceCount; i++)
-			{
-				if (FInstances[i] == null)
-					FOutFramesInBuffer[i] = 0;
-				else
-					FOutFramesInBuffer[i] = FInstances[i].FramesInBuffer;
-			}
+            if (FInDualLink.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].DualLink = FInDualLink[i];
+                }
+
+            }
+
+            if (FInDualLinkSignalFormat.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].DualLinkSignalFormat = FInDualLinkSignalFormat[i];
+                }
+
+            }
+
+            if (FInColorMatrix.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInstances[i] != null)
+                        FInstances[i].ColorMatrix = FInColorMatrix[i];
+                }
+
+            }
         }
 
 		public void OnImportsSatisfied()
 		{
 			FHDEHost.MainLoop.OnPresent += MainLoop_Present;
-			FHDEHost.MainLoop.OnRender += MainLoop_OnRender;
 		}
 
 		void MainLoop_Present(object o, EventArgs e)
 		{
-			/*TimeSpan sleepTime = new TimeSpan(100);
-			Stopwatch waitingTime = new Stopwatch();
-			waitingTime.Start();
-			for (int i = 0; i < FInstances.SliceCount; i++)
-			{
-				if (FInSyncLoop[i] == SyncLoop.Sync && FInstances[i] != null)
-				{
-					var instance = FInstances[i];
-					instance.UpdateFrameAvailable();
-					while (!instance.FrameAvailable)
-					{
-						Thread.Sleep(sleepTime);
-						instance.UpdateFrameAvailable();
-						if (waitingTime.ElapsedMilliseconds > 100)
-							break;
-					}
-				}
-			}*/
             for (int i = 0; i < FInstances.SliceCount; i++)
             {
                 var instance = FInstances[i];
@@ -284,10 +404,6 @@ namespace VVVV.Nodes.Bluefish
             }
 		}
 
-		void MainLoop_OnRender(object sender, EventArgs e)
-		{
-		}
-
 		public void Dispose()
 		{
 			foreach (var slice in FInstances)
@@ -296,7 +412,6 @@ namespace VVVV.Nodes.Bluefish
 			GC.SuppressFinalize(this);
 
 			FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
-			FHDEHost.MainLoop.OnRender -= MainLoop_OnRender;
 		}
 
 	}
