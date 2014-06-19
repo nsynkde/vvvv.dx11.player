@@ -45,6 +45,8 @@ public:
 
 	unsigned long GetMemorySize() { return m_Buffersize; };
 
+	int GetMemoryChannel();
+
 	int GetCardSerialNumber(char* serial, int size);
 
 	unsigned long GetPixelsPerLine();

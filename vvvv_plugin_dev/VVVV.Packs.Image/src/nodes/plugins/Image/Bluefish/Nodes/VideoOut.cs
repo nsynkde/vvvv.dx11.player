@@ -12,7 +12,6 @@ using VVVV.PluginInterfaces.V2.EX9;
 using VVVV.Utils.VColor;
 using VVVV.Utils.VMath;
 using VVVV.Utils.SlimDX;
-using BluePlaybackNetLib;
 
 #endregion usings
 
@@ -37,7 +36,7 @@ namespace VVVV.Nodes.Bluefish
 
 		class Instance : IDisposable
 		{
-			public Source Source;
+			public BluefishSource Source;
 			public ReadTexture ReadTexture;
             private uint FTextureWidth;
             private uint FTextureHeight;
@@ -48,16 +47,15 @@ namespace VVVV.Nodes.Bluefish
 
             ILogger FLogger;
 
-            public Instance(uint deviceID, BlueFish_h.EVideoMode videoMode, uint width, uint height, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
+            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, uint width, uint height, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
 			{
                 this.FLogger = FLogger;
-                BluePlaybackNet device = DeviceRegister.Singleton.GetDeviceHandle((int)deviceID);
                 FDeviceID = deviceID;
 
 				try
 				{
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
-                    this.Source = new Source(device, videoMode, useCallback, FLogger);
+                    this.Source = new BluefishSource(deviceID, channel, videoMode, useCallback, FLogger);
                     FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
                     this.ReadTexture = new ReadTexture((int)width, (int)height, Source.Width, Source.Height, textureHandle, format, usage, FLogger);
                     this.SyncLoop = syncLoop;
@@ -207,7 +205,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 get
                 {
-                    return DeviceRegister.Singleton.GetSerialNumber((int)FDeviceID);
+                    return this.Source.SerialNumber;
                 }
             }
 		}
@@ -262,6 +260,9 @@ namespace VVVV.Nodes.Bluefish
         [Output("Serial Number")]
         ISpread<string> FOutSerialNumber;
 
+        [Output("Out Channel")]
+        ISpread<uint> FOutOutChannel;
+
         [Import]
         ILogger FLogger;
 
@@ -272,6 +273,7 @@ namespace VVVV.Nodes.Bluefish
 
         //track the current texture slice
 		Spread<Instance> FInstances = new Spread<Instance>();
+        bool FFirstRun = true;
         #endregion fields & pins
 
         [ImportingConstructor]
@@ -281,10 +283,8 @@ namespace VVVV.Nodes.Bluefish
 
         public void Evaluate(int SpreadMax)
         {
-			if (FInDevice.IsChanged || FInWidth.IsChanged || FInHeight.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged )
+            if (FFirstRun || FInDevice.IsChanged || FInWidth.IsChanged || FInHeight.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
 			{
-
-                DeviceRegister.SetupSingleton(FLogger);
 				foreach(var slice in FInstances)
 					if (slice != null)
 						slice.Dispose();
@@ -299,11 +299,12 @@ namespace VVVV.Nodes.Bluefish
 						if (FInEnabled[i] == false)
 							throw (new Exception("Disabled"));
 
-                        Instance inst = new Instance(FInDevice[i], FInMode[i], FInWidth[i], FInHeight[i], FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
+                        Instance inst = new Instance(FInDevice[i], FInOutChannel[i], FInMode[i], FInWidth[i], FInHeight[i], FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
 
 						FInstances.Add(inst);
 						FOutStatus[i] = "OK";
                         FOutSerialNumber[i] = inst.DeviceSerialNumber;
+                        FOutOutChannel[i] = FInOutChannel[i];
 					}
 					catch(Exception e)
 					{
@@ -311,9 +312,11 @@ namespace VVVV.Nodes.Bluefish
 						FOutStatus[i] = e.ToString();
 					}
 				}
+
+                FFirstRun = true;
 			}
 
-            if (FInMode.IsChanged)
+            if (FFirstRun || FInMode.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -323,17 +326,7 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FInOutChannel.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    if (FInstances[i] != null)
-                        FInstances[i].Channel = FInOutChannel[i];
-                }
-
-            }
-
-            if (FInOutputColorSpace.IsChanged)
+            if (FFirstRun || FInOutputColorSpace.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -343,7 +336,7 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FInSyncLoop.IsChanged)
+            if (FFirstRun || FInSyncLoop.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -353,7 +346,7 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FInDualLink.IsChanged)
+            if (FFirstRun || FInDualLink.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -363,7 +356,7 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FInDualLinkSignalFormat.IsChanged)
+            if (FFirstRun || FInDualLinkSignalFormat.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -373,7 +366,7 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FInColorMatrix.IsChanged)
+            if (FFirstRun || FInColorMatrix.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
@@ -382,6 +375,8 @@ namespace VVVV.Nodes.Bluefish
                 }
 
             }
+
+            FFirstRun = false;
         }
 
 		public void OnImportsSatisfied()

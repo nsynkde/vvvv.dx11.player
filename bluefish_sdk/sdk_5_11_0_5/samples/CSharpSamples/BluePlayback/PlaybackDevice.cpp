@@ -49,7 +49,7 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 	OutputDebugString(DebugString);
 
 	int err = -1;
-	if(m_DeviceID == -1 && m_pSDK)
+	if(m_pSDK)
 	{
 		//attach to the card
 		err = m_pSDK->device_attach(inDevNo,0);
@@ -65,20 +65,6 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 			err = SetCardProperty(DEFAULT_VIDEO_OUTPUT_CHANNEL, (UINT32)inChannel);
 			m_VideoChannel = inChannel;
 			swprintf_s(DebugString, 256, L"channel %d", err);
-			OutputDebugString(DebugString);
-		}
-
-
-		//route output channel
-		//RouteChannel(pSDK, EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHA, EPOCH_DEST_SDI_OUTPUT_A, BLUE_CONNECTOR_PROP_SINGLE_LINK);
-		if (err == 0)
-		{
-			VARIANT varVal;
-			varVal.vt = VT_UI4;
-
-			varVal.ulVal = EPOCH_SET_ROUTING(EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHA, EPOCH_DEST_SDI_OUTPUT_A, BLUE_CONNECTOR_PROP_SINGLE_LINK);
-			err = m_pSDK->SetCardProperty(MR2_ROUTING, varVal);
-			swprintf_s(DebugString, 256, L"routing %d", err);
 			OutputDebugString(DebugString);
 		}
 
@@ -136,32 +122,10 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 		if(err == 0)
 		{
 			OverlapChA.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-			// get video sizes
-			/*ULONG GoldenSize = BlueVelvetGolden((ULONG)inVidFmt, (ULONG)inMemFmt, (ULONG)inUpdFmt);
-			m_PixelsPerLine = BlueVelvetLinePixels((ULONG)inVidFmt);
-			m_VideoLines = BlueVelvetFrameLines((ULONG)inVidFmt, (ULONG)inUpdFmt);
-			m_BytesPerFrame = BlueVelvetFrameBytes((ULONG)inVidFmt, (ULONG)inMemFmt, (ULONG)inUpdFmt);
-			m_BytesPerLine = BlueVelvetLineBytes((ULONG)inVidFmt, (ULONG)inMemFmt);
-
-
-			printf("Video Golden:          %ld\n", GoldenSize);
-			printf("Video Pixels per line: %ld\n", m_PixelsPerLine);
-			printf("Video lines:           %ld\n", m_VideoLines);
-			printf("Video Bytes per frame: %ld\n", m_BytesPerFrame);
-			printf("Video Bytes per line:  %ld\n", m_BytesPerLine);
-
-
-
-			//m_Buffersize = 720*576*4;
-			m_Buffersize = GoldenSize;*/
 			RefreshProperties();
 		}
-
-		if(err == 0)
-			return err;
 	}
-	return false;
+	return err;
 }
 
 int CPlaybackDevice::Start()
@@ -186,6 +150,11 @@ int CPlaybackDevice::Stop()
 	CloseHandle(OverlapChA.hEvent);
 
 	return 0;
+}
+
+int CPlaybackDevice::GetMemoryChannel()
+{
+	return m_VideoChannel;
 }
 
 void CPlaybackDevice::WaitSync(){

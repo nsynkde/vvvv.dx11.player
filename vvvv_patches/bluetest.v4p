@@ -1,6 +1,6 @@
-<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta32.0.dtd" >
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta32.1.dtd" >
    <PATCH nodename="C:\DEV\bluefish\vvvv_patches\bluetest.v4p" systemname="bluetest" filename="C:\DEV\bluefish\vvvv_patches\bluetest.v4p">
-   <BOUNDS type="Window" left="4725" top="2310" width="12360" height="11175">
+   <BOUNDS type="Window" left="7020" top="3945" width="12360" height="11175">
    </BOUNDS>
    <PACK Name="VVVV.Packs" Version="0.1.0">
    </PACK>
@@ -17,7 +17,7 @@
    </PIN>
    <PIN pinname="Sync" slicecount="1" values="1">
    </PIN>
-   <PIN pinname="Mode" slicecount="1" values="VID_FMT_1080P_6000">
+   <PIN pinname="Mode" slicecount="1" values="VID_FMT_1080I_6000">
    </PIN>
    <PIN pinname="Height" visible="1">
    </PIN>
@@ -25,7 +25,7 @@
    </PIN>
    <PIN pinname="Device" visible="1" slicecount="1" values="0">
    </PIN>
-   <PIN pinname="Dual Link" slicecount="1" values="1">
+   <PIN pinname="Dual Link" slicecount="1" values="0">
    </PIN>
    <PIN pinname="Dual Link Signal Format" slicecount="1" values="Signal_FormatType_4224">
    </PIN>
@@ -43,7 +43,7 @@
    </PIN>
    <PIN pinname="Enabled" slicecount="1" values="1">
    </PIN>
-   <PIN pinname="Out Channel" slicecount="1" values="0">
+   <PIN pinname="Out Channel" slicecount="1" visible="1" values="0">
    </PIN>
    </NODE>
    <NODE systemname="Renderer (EX9)" nodename="Renderer (EX9)" componentmode="InAWindow" id="2">
@@ -271,15 +271,15 @@
    <LINK srcnodeid="30" srcpinname="Layer" dstnodeid="2" dstpinname="Layers">
    </LINK>
    <NODE systemname="Damper (Animation)" nodename="Damper (Animation)" componentmode="Hidden" id="38">
-   <BOUNDS type="Node" left="6630" top="8160" width="100" height="100">
+   <BOUNDS type="Node" left="2475" top="7680" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Go To Position" visible="1">
    </PIN>
    </NODE>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="39" systemname="IOBox (Value Advanced)">
-   <BOUNDS type="Box" left="6630" top="8640" width="795" height="240">
+   <BOUNDS type="Box" left="2475" top="8160" width="795" height="240">
    </BOUNDS>
-   <BOUNDS type="Node" left="6630" top="8640" width="0" height="0">
+   <BOUNDS type="Node" left="2475" top="8160" width="0" height="0">
    </BOUNDS>
    <PIN pinname="Units" slicecount="1" values="||">
    </PIN>
@@ -289,7 +289,7 @@
    <LINK srcnodeid="38" srcpinname="Position Out" dstnodeid="39" dstpinname="Y Input Value">
    </LINK>
    <NODE systemname="Pipet (EX9.Texture)" nodename="Pipet (EX9.Texture)" componentmode="Hidden" id="40">
-   <BOUNDS type="Node" left="6630" top="7140" width="100" height="100">
+   <BOUNDS type="Node" left="2475" top="6660" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Texture" visible="1" slicecount="1" values="||">
    </PIN>
@@ -297,7 +297,7 @@
    </PIN>
    </NODE>
    <NODE systemname="HSL (Color Split)" nodename="HSL (Color Split)" componentmode="Hidden" id="41">
-   <BOUNDS type="Node" left="6630" top="7665" width="100" height="100">
+   <BOUNDS type="Node" left="2475" top="7185" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Input" visible="1" slicecount="1" values="|0.25098,0.25098,0.87843,1.00000|">
    </PIN>
@@ -313,10 +313,10 @@
    </BOUNDS>
    <BOUNDS type="Box" left="9645" top="9030" width="2400" height="1800">
    </BOUNDS>
-   <BOUNDS type="Window" left="17100" top="6795" width="11355" height="5190">
+   <BOUNDS type="Window" left="16005" top="2505" width="11355" height="5190">
    </BOUNDS>
    </NODE>
-   <NODE systemname="Inspektor (VVVV)" nodename="Inspektor (VVVV)" componentmode="InAWindow" id="43">
+   <NODE systemname="Inspektor (VVVV)" nodename="Inspektor (VVVV)" componentmode="Hidden" id="43">
    <BOUNDS type="Node" left="9645" top="9915" width="100" height="100">
    </BOUNDS>
    <BOUNDS type="Box" left="9645" top="9915" width="2595" height="3195">
@@ -407,5 +407,145 @@
    <LINK srcnodeid="4" srcpinname="Usage" dstnodeid="1" dstpinname="TextureUsage">
    </LINK>
    <LINK srcnodeid="4" srcpinname="Shared Handle" dstnodeid="1" dstpinname="TextureHandle">
+   </LINK>
+   <NODE systemname="SDIOut (Bluefish)" filename="%VVVV%\packs\VVVV.Packs.Image\nodes\plugins\VVVV.Nodes.Bluefish.dll" nodename="SDIOut (Bluefish)" componentmode="Hidden" id="49">
+   <BOUNDS type="Node" left="4845" top="9585" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Memory Channel" visible="1">
+   </PIN>
+   <PIN pinname="SDIOut" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Device" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Dual Link" slicecount="1" values="0">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="1" srcpinname="Out Channel" dstnodeid="49" dstpinname="Memory Channel">
+   </LINK>
+   <NODE systemname="SDIOut (Bluefish)" filename="%VVVV%\packs\VVVV.Packs.Image\nodes\plugins\VVVV.Nodes.Bluefish.dll" nodename="SDIOut (Bluefish)" componentmode="Hidden" id="50">
+   <BOUNDS type="Node" left="8730" top="9570" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Memory Channel" visible="1" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Dual Link" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="SDIOut" slicecount="1" values="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="VideoOut (Bluefish)" filename="%VVVV%\packs\VVVV.Packs.Image\nodes\plugins\VVVV.Nodes.Bluefish.dll" nodename="VideoOut (Bluefish)" componentmode="Hidden" id="55">
+   <BOUNDS type="Node" left="7755" top="8115" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Handle" visible="1">
+   </PIN>
+   <PIN pinname="Usage" visible="1">
+   </PIN>
+   <PIN pinname="Format" visible="1">
+   </PIN>
+   <PIN pinname="Sync" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="Mode" slicecount="1" values="VID_FMT_1080I_6000">
+   </PIN>
+   <PIN pinname="Height" visible="1">
+   </PIN>
+   <PIN pinname="Width" visible="1">
+   </PIN>
+   <PIN pinname="Device" visible="1" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Dual Link">
+   </PIN>
+   <PIN pinname="Dual Link Signal Format" slicecount="1" values="Signal_FormatType_4224">
+   </PIN>
+   <PIN pinname="Out Color Space" slicecount="1" values="YUV_ON_CONNECTOR">
+   </PIN>
+   <PIN pinname="TextureWidth" visible="1">
+   </PIN>
+   <PIN pinname="TextureHeight" visible="1">
+   </PIN>
+   <PIN pinname="TextureFormat" visible="1">
+   </PIN>
+   <PIN pinname="TextureUsage" visible="1">
+   </PIN>
+   <PIN pinname="TextureHandle" visible="1">
+   </PIN>
+   <PIN pinname="Enabled" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="Out Channel" slicecount="1" visible="1" values="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Info (EX9.Texture)" nodename="Info (EX9.Texture)" componentmode="Hidden" id="53">
+   <BOUNDS type="Node" left="8505" top="7080" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="Width" visible="1">
+   </PIN>
+   <PIN pinname="Height" visible="1">
+   </PIN>
+   <PIN pinname="Format" visible="1">
+   </PIN>
+   <PIN pinname="Usage" visible="1">
+   </PIN>
+   <PIN pinname="Shared Handle" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="DX9Texture (EX9.Texture)" nodename="DX9Texture (EX9.Texture)" componentmode="Hidden" id="52">
+   <BOUNDS type="Node" left="8490" top="6255" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Source" visible="1" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Texture Out" visible="1">
+   </PIN>
+   <PIN pinname="Width" visible="1" pintype="Input" slicecount="1" values="1920">
+   </PIN>
+   <PIN pinname="Height" visible="1" pintype="Input" slicecount="1" values="1080">
+   </PIN>
+   <PIN pinname="Format" slicecount="1" visible="1" pintype="Input" values="|No Specific|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="52" srcpinname="Texture Out" dstnodeid="53" dstpinname="Texture">
+   </LINK>
+   <NODE systemname="RetroColors (Color)" nodename="RetroColors (Color)" componentmode="Hidden" id="51">
+   <BOUNDS type="Node" left="8205" top="4920" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   <PIN pinname="Index" visible="1" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Mode" slicecount="1" values="Commodore64">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="53" srcpinname="Width" dstnodeid="55" dstpinname="TextureWidth">
+   </LINK>
+   <LINK srcnodeid="53" srcpinname="Height" dstnodeid="55" dstpinname="TextureHeight">
+   </LINK>
+   <LINK srcnodeid="53" srcpinname="Format" dstnodeid="55" dstpinname="TextureFormat">
+   </LINK>
+   <LINK srcnodeid="53" srcpinname="Usage" dstnodeid="55" dstpinname="TextureUsage">
+   </LINK>
+   <LINK srcnodeid="53" srcpinname="Shared Handle" dstnodeid="55" dstpinname="TextureHandle">
+   </LINK>
+   <LINK srcnodeid="55" srcpinname="Out Channel" dstnodeid="50" dstpinname="Memory Channel">
+   </LINK>
+   <NODE systemname="Renderer (EX9)" nodename="Renderer (EX9)" componentmode="InAWindow" id="56">
+   <BOUNDS type="Node" left="8025" top="5385" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="8025" top="5385" width="2400" height="1800">
+   </BOUNDS>
+   <BOUNDS type="Window" left="570" top="7575" width="6120" height="4860">
+   </BOUNDS>
+   <PIN pinname="EX9 Out" visible="1">
+   </PIN>
+   <PIN pinname="Background Color" visible="1">
+   </PIN>
+   <PIN pinname="Layers" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="56" srcpinname="EX9 Out" dstnodeid="52" dstpinname="Source">
+   <LINKPOINT x="9480" y="5610">
+   </LINKPOINT>
+   </LINK>
+   <LINK srcnodeid="51" srcpinname="Output" dstnodeid="56" dstpinname="Background Color">
+   </LINK>
+   <LINK srcnodeid="30" srcpinname="Layer" dstnodeid="56" dstpinname="Layers">
    </LINK>
    </PATCH>

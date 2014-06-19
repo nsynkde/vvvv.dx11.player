@@ -808,6 +808,14 @@ namespace VVVV.Nodes.Bluefish
             VIDEO_CARDPROPERTY_INVALID = 1000
         };
 
+        
+        public enum EHdSdiTransport
+        {
+	        HD_SDI_TRANSPORT_1_5G =			0x1,			/* HD as 1.5G */
+	        HD_SDI_TRANSPORT_3G_LEVEL_A =	0x2,			/* 3G Level A */
+	        HD_SDI_TRANSPORT_3G_LEVEL_B =	0x3,			/* 3G Level B */
+        };
+
         // more definitions in header file...
         // lazy to do it now... ;)
     }

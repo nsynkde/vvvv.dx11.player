@@ -1,4 +1,4 @@
-﻿#region usings
+﻿/*#region usings
 using System;
 using System.ComponentModel.Composition;
 using System.Drawing;
@@ -8,7 +8,6 @@ using VVVV.PluginInterfaces.V1;
 using VVVV.PluginInterfaces.V2;
 using VVVV.Utils.VMath;
 using VVVV.Core.Logging;
-using BluePlaybackNetLib;
 
 #endregion usings
 
@@ -111,14 +110,6 @@ namespace VVVV.Nodes.Bluefish
                     FLogger.Log(LogType.Message, "Bluefish: About: device serial number: " + sn);
                 }
 
-                /*
-                FLogger.Log(LogType.Message, "get version");
-                string velvetVersion = blueVelvet.BlueVelvetVersion();
-			
-                FPinOutVelvetVersion[0] = velvetVersion;
-				
-				FPinOutStatus[0] = "OK";
-                */
 			}
 
 			catch (Exception e)
@@ -131,3 +122,4 @@ namespace VVVV.Nodes.Bluefish
 
 	}
 }
+*/

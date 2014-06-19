@@ -76,15 +76,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Lib\BlueFish_h.cs" />
-    <Compile Include="Lib\DeviceRegister.cs" />
-    <Compile Include="Lib\ModeRegister.cs" />
+    <Compile Include="Lib\BlueSDIOut.cs" />
     <Compile Include="Lib\ReadTexture.cs" />
     <Compile Include="Lib\WorkerThread.cs" />
     <Compile Include="Nodes\About.cs" />
     <None Include="Nodes\DeviceAttributes.cs" />
-    <Compile Include="Lib\Source.cs" />
+    <Compile Include="Lib\BlueSource.cs" />
     <None Include="Nodes\EnumerateOutputModes.cs" />
     <None Include="Nodes\InterimTextureInfo.cs" />
+    <Compile Include="Nodes\SDIOut.cs" />
     <Compile Include="Nodes\VideoOut.cs" />
     <Compile Include="Nodes\ListDevices.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -97,12 +97,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="VVVV.PluginInterfaces.dll" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\..\bluefish_sdk\sdk_5_11_0_5\samples\CSharpSamples\BluePlaybackNetLib\BluePlaybackNetLib.csproj">
-      <Project>{171447d6-0d89-46fa-ba7e-a80f065c7233}</Project>
-      <Name>BluePlaybackNetLib</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

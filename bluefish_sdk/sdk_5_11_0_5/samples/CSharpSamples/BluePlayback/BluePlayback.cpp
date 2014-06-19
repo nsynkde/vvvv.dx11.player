@@ -6,6 +6,7 @@
 
 #include "BluePlayback.h"
 #include "PlaybackDevice.h"
+#include "BlueSDIOut.h"
 
 
 #ifdef _MANAGED
@@ -275,5 +276,43 @@ extern "C"
 
 		return pBluePlayback->GetBytesPerFrame();
 	}
+
+
+	BLUEPLAYBACK_API BLUEPLAYBACK_HANDLE BlueSDIOutCreate(int device, int sdi_out)
+	{
+		return new CPlaybackSDIOut(device,sdi_out);
+	}
+
+	BLUEPLAYBACK_API void BlueSDIOutRoute(BLUEPLAYBACK_HANDLE pBPHandle, int mem_channel)
+	{
+		CPlaybackSDIOut * pBlueSDIOut = (CPlaybackSDIOut *)pBPHandle;
+
+		if (!pBlueSDIOut)
+			return;
+
+		pBlueSDIOut->Route(mem_channel);
+	}
+
+	BLUEPLAYBACK_API void BlueSDIOutSetDualLink(BLUEPLAYBACK_HANDLE pBPHandle, unsigned int dualLink)
+	{
+		CPlaybackSDIOut * pBlueSDIOut = (CPlaybackSDIOut *)pBPHandle;
+
+		if (!pBlueSDIOut)
+			return;
+
+		pBlueSDIOut->SetDualLink(dualLink);
+	}
+
+	BLUEPLAYBACK_API void BlueSDIOutSetTransport(BLUEPLAYBACK_HANDLE pBPHandle, unsigned int transport)
+	{
+		CPlaybackSDIOut * pBlueSDIOut = (CPlaybackSDIOut *)pBPHandle;
+
+		if (!pBlueSDIOut)
+			return;
+
+		pBlueSDIOut->SetTransport((EHdSdiTransport)transport);
+	}
+
+
 
 }	//end of extern "C"
