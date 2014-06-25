@@ -77,6 +77,7 @@
   <ItemGroup>
     <Compile Include="Lib\BlueFish_h.cs" />
     <Compile Include="Lib\BlueSDIOut.cs" />
+    <Compile Include="Lib\ReadTextureDX11.cs" />
     <Compile Include="Lib\ReadTexture.cs" />
     <Compile Include="Lib\WorkerThread.cs" />
     <Compile Include="Nodes\About.cs" />
@@ -96,6 +97,7 @@
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Shaders\ColorSpaceConversionDX11.hlsl" />
     <Content Include="VVVV.PluginInterfaces.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -10,7 +10,6 @@ namespace VVVV.Nodes.Bluefish
 	public class WorkerThread : IDisposable
 	{
 		public delegate void WorkItemDelegate();
-		public static WorkerThread Singleton = new WorkerThread();
 
 		Thread FThread;
 		bool FRunning;
@@ -117,11 +116,6 @@ namespace VVVV.Nodes.Bluefish
 
 		public void BlockUntilEmpty()
 		{
-            /*lock (FLock)
-            {
-                if (FWorkQueue.Count == 0)
-                    return;
-            }*/
             FEmptyQueueEvent.WaitOne();
 		}
 

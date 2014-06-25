@@ -3,8 +3,6 @@ using System;
 using System.ComponentModel.Composition;
 using System.Runtime.InteropServices;
 
-using SlimDX;
-using SlimDX.Direct3D9;
 using VVVV.Core.Logging;
 using VVVV.PluginInterfaces.V1;
 using VVVV.PluginInterfaces.V2;
@@ -37,17 +35,14 @@ namespace VVVV.Nodes.Bluefish
 		class Instance : IDisposable
 		{
 			public BluefishSource Source;
-			public ReadTexture ReadTexture;
-            private uint FTextureWidth;
-            private uint FTextureHeight;
+			public ReadTextureDX11 ReadTexture;
             private uint FTextureHandle;
-            private EnumEntry FTextureFormat;
-            private EnumEntry FTextureUsage;
             private uint FDeviceID;
+            private uint FDroppedFrames = 0;
 
             ILogger FLogger;
 
-            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, uint width, uint height, uint textureHandle, EnumEntry format, EnumEntry usage, bool syncLoop, ILogger FLogger)
+            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, BlueFish_h.EMemoryFormat outFormat, uint textureHandle, bool syncLoop, ILogger FLogger)
 			{
                 this.FLogger = FLogger;
                 FDeviceID = deviceID;
@@ -55,15 +50,13 @@ namespace VVVV.Nodes.Bluefish
 				try
 				{
                     bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
-                    this.Source = new BluefishSource(deviceID, channel, videoMode, useCallback, FLogger);
+                    this.ReadTexture = new ReadTextureDX11(textureHandle, outFormat, FLogger);
+                    this.Source = new BluefishSource(deviceID, channel, videoMode, outFormat, useCallback, FLogger);
+                    this.ReadTexture.OutWidth = this.Source.Width;
+                    this.ReadTexture.OutHeight = this.Source.Height;
                     FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
-                    this.ReadTexture = new ReadTexture((int)width, (int)height, Source.Width, Source.Height, textureHandle, format, usage, FLogger);
                     this.SyncLoop = syncLoop;
                     this.FTextureHandle = textureHandle;
-                    this.FTextureFormat = format;
-                    this.FTextureUsage = usage;
-                    this.FTextureWidth = width;
-                    this.FTextureHeight = height;
 
 					if (useCallback)
 					{
@@ -93,7 +86,22 @@ namespace VVVV.Nodes.Bluefish
 			public void PullFromTexture()
 			{
                 
-                this.ReadTexture.ReadBack(Source);
+                if (Source.DoneLastFrame())
+                {
+                    var memory = this.ReadTexture.ReadBack();
+                    if (memory != (IntPtr)0)
+                    {
+                        Source.SendFrame(memory);
+                    }
+                }
+                else
+                {
+                    FDroppedFrames++;
+                }
+                if (this.SyncLoop)
+                {
+                    Source.WaitSync();
+                }
 
 			}
 
@@ -103,16 +111,17 @@ namespace VVVV.Nodes.Bluefish
 				this.ReadTexture.Dispose();
 			}
 
+            bool FSyncLoop;
             public bool SyncLoop
             {
                 set
                 {
-                    this.ReadTexture.FVSync = value;
+                    this.FSyncLoop = value;
                 }
 
                 get
                 {
-                    return this.ReadTexture.FVSync;
+                    return this.FSyncLoop;
                 }
             }
 
@@ -176,9 +185,8 @@ namespace VVVV.Nodes.Bluefish
                     {
                         this.Source.VideoMode = value;
                         FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
-                        bool sync = this.SyncLoop;
-                        this.ReadTexture = new ReadTexture((int)FTextureWidth, (int)FTextureHeight, Source.Width, Source.Height, FTextureHandle, FTextureFormat, FTextureUsage, FLogger);
-                        this.ReadTexture.FVSync = sync;
+                        this.ReadTexture.OutWidth = this.Source.Width;
+                        this.ReadTexture.OutHeight = this.Source.Height;
                     }
                 }
 
@@ -208,6 +216,14 @@ namespace VVVV.Nodes.Bluefish
                     return this.Source.SerialNumber;
                 }
             }
+
+            public uint DroppedFrames
+            {
+                get
+                {
+                    return FDroppedFrames;
+                }
+            }
 		}
 
         #region fields & pins
@@ -220,6 +236,9 @@ namespace VVVV.Nodes.Bluefish
 
         [Input("Mode")]
         IDiffSpread<BlueFish_h.EVideoMode> FInMode;
+
+        [Input("Format")]
+        IDiffSpread<BlueFish_h.EMemoryFormat> FInFormat;
 
         [Input("Out Color Space")]
         IDiffSpread<BlueFish_h.EConnectorSignalColorSpace> FInOutputColorSpace;
@@ -239,18 +258,6 @@ namespace VVVV.Nodes.Bluefish
 		[Input("Enabled")]
         IDiffSpread<bool> FInEnabled;
 
-        [Input("TextureWidth")]
-        IDiffSpread<uint> FInWidth;
-
-        [Input("TextureHeight")]
-        IDiffSpread<uint> FInHeight;
-
-        [Input("TextureFormat", EnumName = "TextureFormat")]
-        IDiffSpread<EnumEntry> FInFormat;
-
-        [Input("TextureUsage", EnumName = "TextureUsage")]
-        IDiffSpread<EnumEntry> FInUsage;
-
         [Input("TextureHandle")]
         IDiffSpread<uint> FInHandle;
 
@@ -259,6 +266,9 @@ namespace VVVV.Nodes.Bluefish
 
         [Output("Serial Number")]
         ISpread<string> FOutSerialNumber;
+
+        [Output("Dropped Frames")]
+        ISpread<uint> FOutDroppedFrames;
 
         [Output("Out Channel")]
         ISpread<uint> FOutOutChannel;
@@ -283,7 +293,7 @@ namespace VVVV.Nodes.Bluefish
 
         public void Evaluate(int SpreadMax)
         {
-            if (FFirstRun || FInDevice.IsChanged || FInWidth.IsChanged || FInHeight.IsChanged || FInFormat.IsChanged || FInUsage.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
+            if (FFirstRun || FInDevice.IsChanged || FInFormat.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
 			{
 				foreach(var slice in FInstances)
 					if (slice != null)
@@ -299,7 +309,7 @@ namespace VVVV.Nodes.Bluefish
 						if (FInEnabled[i] == false)
 							throw (new Exception("Disabled"));
 
-                        Instance inst = new Instance(FInDevice[i], FInOutChannel[i], FInMode[i], FInWidth[i], FInHeight[i], FInHandle[i], FInFormat[i], FInUsage[i], true, FLogger); 
+                        Instance inst = new Instance(FInDevice[i], FInOutChannel[i], FInMode[i], FInFormat[i], FInHandle[i], true, FLogger); 
 
 						FInstances.Add(inst);
 						FOutStatus[i] = "OK";
@@ -380,8 +390,9 @@ namespace VVVV.Nodes.Bluefish
         }
 
 		public void OnImportsSatisfied()
-		{
-			FHDEHost.MainLoop.OnPresent += MainLoop_Present;
+        {
+            FHDEHost.MainLoop.OnRender += MainLoop_Present;
+			//FHDEHost.MainLoop.OnPresent += MainLoop_Present;
 		}
 
 		void MainLoop_Present(object o, EventArgs e)
@@ -392,10 +403,8 @@ namespace VVVV.Nodes.Bluefish
                 if (instance == null)
                     continue;
 
-                /*if (FInSyncLoop[i] == SyncLoop.VVVV)
-                {*/
                 instance.PullFromTexture();
-                //}
+                FOutDroppedFrames[i] = instance.DroppedFrames;
             }
 		}
 
@@ -406,7 +415,8 @@ namespace VVVV.Nodes.Bluefish
 					slice.Dispose();
 			GC.SuppressFinalize(this);
 
-			FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
+            FHDEHost.MainLoop.OnRender -= MainLoop_Present;
+			//FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
 		}
 
 	}

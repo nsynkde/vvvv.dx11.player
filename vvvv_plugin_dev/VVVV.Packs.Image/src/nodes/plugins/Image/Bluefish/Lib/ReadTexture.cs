@@ -164,7 +164,7 @@ namespace VVVV.Nodes.Bluefish
                 if (Source.DoneLastFrame())
                 {
                     // Texture pool, send previous frame
-                    if (FBackLocked)
+                    /*if (FBackLocked)
                     {
                         this.FTexturePool[frontTexture].UnlockRectangle(0);
                         FBackLocked = false;
@@ -186,10 +186,10 @@ namespace VVVV.Nodes.Bluefish
                     else
                     {
                         FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
-                    }
+                    }*/
 
                     //Threaded texture upload, should be faster
-                    /*if (FInWidth != FOutWidth || FInHeight != FOutHeight)
+                    if (FInWidth != FOutWidth || FInHeight != FOutHeight)
                     {
                         FDevice.StretchRectangle(this.FTextureShared.GetSurfaceLevel(0), this.FResizeTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.Linear);
                         FDevice.StretchRectangle(this.FResizeTexturePool[backTexture].GetSurfaceLevel(0), this.FTexturePool[backTexture].GetSurfaceLevel(0), TextureFilter.None);
@@ -200,7 +200,7 @@ namespace VVVV.Nodes.Bluefish
                     }
                     Source.SendFrame(this.FTexturePool[backTexture]);
                     backTexture++;
-                    backTexture %= this.FTexturePool.Length;*/
+                    backTexture %= this.FTexturePool.Length;
 
                     // 1 texture, send immediately, seems as fast as texture pool
                     /*if (FBackLocked)

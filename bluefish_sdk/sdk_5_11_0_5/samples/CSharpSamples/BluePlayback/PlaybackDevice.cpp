@@ -23,6 +23,7 @@ CPlaybackDevice::~CPlaybackDevice()
 {
 	if(m_pSDK)
 	{
+		Stop();
 		if(m_DeviceID != -1)
 			m_pSDK->device_detach();
 

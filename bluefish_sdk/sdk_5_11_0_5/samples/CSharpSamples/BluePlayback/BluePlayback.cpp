@@ -293,16 +293,6 @@ extern "C"
 		pBlueSDIOut->Route(mem_channel);
 	}
 
-	BLUEPLAYBACK_API void BlueSDIOutSetDualLink(BLUEPLAYBACK_HANDLE pBPHandle, unsigned int dualLink)
-	{
-		CPlaybackSDIOut * pBlueSDIOut = (CPlaybackSDIOut *)pBPHandle;
-
-		if (!pBlueSDIOut)
-			return;
-
-		pBlueSDIOut->SetDualLink(dualLink);
-	}
-
 	BLUEPLAYBACK_API void BlueSDIOutSetTransport(BLUEPLAYBACK_HANDLE pBPHandle, unsigned int transport)
 	{
 		CPlaybackSDIOut * pBlueSDIOut = (CPlaybackSDIOut *)pBPHandle;
