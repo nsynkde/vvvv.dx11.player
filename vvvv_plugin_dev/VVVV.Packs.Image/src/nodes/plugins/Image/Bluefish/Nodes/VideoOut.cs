@@ -277,7 +277,7 @@ namespace VVVV.Nodes.Bluefish
 
         public void Evaluate(int SpreadMax)
         {
-            if (FFirstRun || FInDevice.IsChanged || FInFormat.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
+            if (FFirstRun || FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
 			{
 				foreach(var slice in FInstances)
 					if (slice != null)
@@ -309,26 +309,6 @@ namespace VVVV.Nodes.Bluefish
 
                 FFirstRun = true;
 			}
-
-            if (FFirstRun || FInMode.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    try
-                    {
-                        if (FInEnabled[i] != false && FInstances[i] != null)
-                        {
-                            FInstances[i].VideoMode = FInMode[i];
-                            FOutStatus[i] = "OK";
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        FOutStatus[i] = e.ToString();
-                    }
-                }
-
-            }
 
             if (FFirstRun || FInOutputColorSpace.IsChanged)
             {

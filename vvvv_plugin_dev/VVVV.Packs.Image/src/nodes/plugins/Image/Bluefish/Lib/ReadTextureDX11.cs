@@ -169,24 +169,38 @@ namespace VVVV.Nodes.Bluefish
                     }
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_V210:
-                    if (!IsRGBA(auxSharedTexture.Description.Format))
+                    if (!IsRGBA(auxSharedTexture.Description.Format) && IsR10G10B10A2(auxSharedTexture.Description.Format))
                         throw new Exception("Input texture doesn't have the correct format: RGBA");
                     if (backBufferWidth * 4 / 6 < ((float)backBufferWidth) * 4.0 / 6.0)
                         throw new Exception("Format size cannot be packed as V210 efficiently");
                     backBufferFormat = Format.R10G10B10A2_UNorm;
                     backTextureFormat = backBufferFormat;
-                    backBufferWidth = backBufferWidth * 4 / 6;
-                    pixelShaderSrc = "PSRGBA8888_to_V210";
+                    if (auxSharedTexture.Description.Format != Format.R10G10B10A2_UNorm)
+                    {
+                        backBufferWidth = backBufferWidth * 4 / 6;
+                        pixelShaderSrc = "PSRGBA8888_to_V210";
+                    }
+                    else
+                    {
+                        this.FDirectCopy = true;
+                    }
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_Y210:
-                    if (!IsRGBA(auxSharedTexture.Description.Format))
+                    if (!IsRGBA(auxSharedTexture.Description.Format) && IsR10G10B10A2(auxSharedTexture.Description.Format))
                         throw new Exception("Input texture doesn't have the correct format: RGBA");
                     if (backBufferWidth * 4 / 6 < ((float)backBufferWidth) * 4.0 / 6.0)
                         throw new Exception("Format size cannot be packed as Y210 efficiently");
                     backBufferFormat = Format.R10G10B10A2_UNorm;
                     backTextureFormat = backBufferFormat;
-                    backBufferWidth = backBufferWidth * 4 / 6;
-                    pixelShaderSrc = "PSRGBA8888_to_Y210";
+                    if (auxSharedTexture.Description.Format != Format.R10G10B10A2_UNorm)
+                    {
+                        backBufferWidth = backBufferWidth * 4 / 6;
+                        pixelShaderSrc = "PSRGBA8888_to_Y210";
+                    }
+                    else
+                    {
+                        this.FDirectCopy = true;
+                    }
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_ARGB:
                 case BlueFish_h.EMemoryFormat.MEM_FMT_BV10:
@@ -436,6 +450,14 @@ namespace VVVV.Nodes.Bluefish
                 format == Format.B8G8R8X8_Typeless ||
                 format == Format.B8G8R8X8_UNorm ||
                 format == Format.B8G8R8X8_UNorm_SRGB;
+        }
+
+        private bool IsR10G10B10A2(Format format)
+        {
+            return format == Format.R10G10B10_XR_Bias_A2_UNorm ||
+                format == Format.R10G10B10A2_Typeless ||
+                format == Format.R10G10B10A2_UInt ||
+                format == Format.R10G10B10A2_UNorm;
         }
 	}
 }
