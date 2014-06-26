@@ -163,12 +163,12 @@ namespace VVVV.Nodes.Bluefish
 		}
 
 
-        public BluefishSource(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, bool useDeviceCallbacks, ILogger FLogger)
+        public BluefishSource(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ILogger FLogger)
 		{
-			this.Initialise(device, channel, mode, format, useDeviceCallbacks,FLogger);
+			this.Initialise(device, channel, mode, format, FLogger);
 		}
 
-        public void Initialise(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, bool useDeviceCallbacks, ILogger FLogger)
+        public void Initialise(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ILogger FLogger)
 		{
 			try
 			{
@@ -203,22 +203,7 @@ namespace VVVV.Nodes.Bluefish
                 {
                     throw new Exception("Error on blue interface config");
                 }
-				//--
-				//scheduled playback
-				if (useDeviceCallbacks == true)
-				{
-                    /*
-					FOutputDevice.SetScheduledFrameCompletionCallback(this);
-					this.FFrameIndex = 0;
-					for (int i = 0; i < (int)this.Framerate; i++)
-					{
-						ScheduleFrame(true);
-					}
-					FOutputDevice.StartScheduledPlayback(0, 100, 1.0);
-                        */
-				}
-				//
-				//--
+
                 this.FLogger = FLogger;
 				FRunning = true;
 

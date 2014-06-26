@@ -49,19 +49,16 @@ namespace VVVV.Nodes.Bluefish
 
 				try
 				{
-                    bool useCallback = false; // syncLoop != SyncLoop.Bluefish;
                     this.ReadTexture = new ReadTextureDX11(textureHandle, outFormat, FLogger);
-                    this.Source = new BluefishSource(deviceID, channel, videoMode, outFormat, useCallback, FLogger);
-                    this.ReadTexture.OutWidth = this.Source.Width;
-                    this.ReadTexture.OutHeight = this.Source.Height;
+                    this.Source = new BluefishSource(deviceID, channel, videoMode, outFormat, FLogger);
+                    if (Source.Width != ReadTexture.InputTexWidth || Source.Height != ReadTexture.InputTexHeight)
+                    {
+                        throw new Exception("Input texture and video format have different sizes");
+                    }
+
                     FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
                     this.SyncLoop = syncLoop;
                     this.FTextureHandle = textureHandle;
-
-					if (useCallback)
-					{
-						//this.Source.NewFrame += Source_NewFrame;
-					}
 				}
 				catch(Exception e)
 				{
@@ -73,19 +70,8 @@ namespace VVVV.Nodes.Bluefish
 				}
 			}
 
-            
-
-			/*void Source_NewFrame(IntPtr data)
-			{
-				lock (Source.LockBuffer)
-				{
-                    this.ReadTexture.ReadBack(data);
-				}
-			}*/
-
 			public void PullFromTexture()
 			{
-                
                 if (Source.DoneLastFrame())
                 {
                     var memory = this.ReadTexture.ReadBack();
@@ -181,12 +167,10 @@ namespace VVVV.Nodes.Bluefish
             {
                 set
                 {
-                    if (this.Source.VideoMode != value)
+                    this.Source.VideoMode = value;
+                    if (Source.Width != ReadTexture.InputTexWidth || Source.Height != ReadTexture.InputTexHeight)
                     {
-                        this.Source.VideoMode = value;
-                        FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
-                        this.ReadTexture.OutWidth = this.Source.Width;
-                        this.ReadTexture.OutHeight = this.Source.Height;
+                        throw new Exception("Input texture and video format have different sizes");
                     }
                 }
 
@@ -330,8 +314,18 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
-                        FInstances[i].VideoMode = FInMode[i];
+                    try
+                    {
+                        if (FInEnabled[i] != false && FInstances[i] != null)
+                        {
+                            FInstances[i].VideoMode = FInMode[i];
+                            FOutStatus[i] = "OK";
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        FOutStatus[i] = e.ToString();
+                    }
                 }
 
             }
@@ -340,7 +334,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
+                    if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].OutputColorSpace = FInOutputColorSpace[i];
                 }
 
@@ -350,7 +344,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
+                    if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].SyncLoop = FInSyncLoop[i];
                 }
 
@@ -360,7 +354,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
+                    if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].DualLink = FInDualLink[i];
                 }
 
@@ -370,7 +364,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
+                    if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].DualLinkSignalFormat = FInDualLinkSignalFormat[i];
                 }
 
@@ -380,7 +374,7 @@ namespace VVVV.Nodes.Bluefish
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
-                    if (FInstances[i] != null)
+                    if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].ColorMatrix = FInColorMatrix[i];
                 }
 

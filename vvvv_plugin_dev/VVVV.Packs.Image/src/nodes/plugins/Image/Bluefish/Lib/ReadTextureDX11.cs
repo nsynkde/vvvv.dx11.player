@@ -26,22 +26,10 @@ namespace VVVV.Nodes.Bluefish
         SwapChain FSwapChain;
         RenderTargetView FRenderTargetView;
 
-        bool FBackLocked = false;
-        int FOutWidth;
-        int FOutHeight;
-		IntPtr FHandle;
-
         Texture2D FBackBuffer;
+        Texture2D FSharedTexture;
         Texture2D[] FTexturePool;
-        Texture2D[] FRenderTargetPool;
         DataBox FReadBackData;
-
-        VertexShader FVertexShader;
-        PixelShader FPixelShader;
-        ShaderSignature FInputSignature;
-        Effect FShaderEffect;
-
-        BlueFish_h.EMemoryFormat FOutFormat;
 
         ILogger FLogger;
         bool FDirectCopy = false;
@@ -49,33 +37,17 @@ namespace VVVV.Nodes.Bluefish
 
 
 		public ReadTextureDX11(uint handle, BlueFish_h.EMemoryFormat outFormat, ILogger FLogger)
-		{
-			this.FHandle = (IntPtr)unchecked((int)handle);
-            FLogger.Log(LogType.Message, "shared tex shared handle " + this.FHandle.ToString());
-            this.FLogger = FLogger;
-            this.FOutFormat = outFormat;
-            try
-            {
-                Initialise();
-            }
-            catch (Exception e)
-            {
-                FLogger.Log(e);
-                throw e;
-            }
-		}
-
-        void Initialise()
         {
-            FLogger.Log(LogType.Message, "Initialize");
-            if (this.FHandle == (IntPtr)0)
+            if (handle == 0)
             {
-                FLogger.Log(LogType.Message, "shared tex shared handle 0" + this.FHandle.ToString());
                 throw (new Exception("No shared texture handle set"));
             }
+            this.FLogger = FLogger;
+			var texHandle = (IntPtr)unchecked((int)handle);
+
 
             var auxDevice = new SlimDX.Direct3D11.Device(DriverType.Hardware);
-            var auxSharedTexture = auxDevice.OpenSharedResource<Texture2D>(this.FHandle);
+            var auxSharedTexture = auxDevice.OpenSharedResource<Texture2D>(texHandle);
 
             FLogger.Log(LogType.Message, auxSharedTexture.Description.Width.ToString() + "x" + auxSharedTexture.Description.Height.ToString());
             FLogger.Log(LogType.Message, "ArraySize " + auxSharedTexture.Description.ArraySize.ToString());
@@ -87,12 +59,12 @@ namespace VVVV.Nodes.Bluefish
             FLogger.Log(LogType.Message, "SampleDescription " + auxSharedTexture.Description.SampleDescription.ToString());
             FLogger.Log(LogType.Message, "Usage " + auxSharedTexture.Description.Usage.ToString());
 
-            var pixelShader = "";
+            var pixelShaderSrc = "";
             var backBufferFormat = Format.R8G8B8A8_UNorm;
             var backTextureFormat = Format.R8G8B8A8_UNorm;
             var backBufferWidth = auxSharedTexture.Description.Width;
             var backBufferHeight = auxSharedTexture.Description.Height;
-            switch (this.FOutFormat)
+            switch (outFormat)
             {
                 case BlueFish_h.EMemoryFormat.MEM_FMT_BGRA:
                     if (auxSharedTexture.Description.Format != Format.B8G8R8A8_UNorm && auxSharedTexture.Description.Format != Format.B8G8R8X8_UNorm)
@@ -109,18 +81,35 @@ namespace VVVV.Nodes.Bluefish
                     backTextureFormat = backBufferFormat;
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_BGRA_16_16_16_16:
-                    if (auxSharedTexture.Description.Format != Format.R16G16B16A16_UNorm)
-                        throw new Exception("Input texture doesn't have the correct format " + Format.R16G16B16A16_UNorm.ToString());
-                    pixelShader = "SwapRB";
-                    backBufferFormat = Format.R16G16B16A16_UNorm;
+                    if (auxSharedTexture.Description.Format != Format.R16G16B16A16_Float)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R16G16B16A16_Float.ToString());
+                    pixelShaderSrc = "SwapRB";
+                    backBufferFormat = Format.R16G16B16A16_UInt;
+                    backTextureFormat = Format.R16G16B16A16_Float;
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_BGR_16_16_16:
+                    if (auxSharedTexture.Description.Format != Format.R16G16B16A16_Float)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R16G16B16A16_Float.ToString());
+                    if (backBufferWidth * 3 / 4 < ((float)backBufferWidth) * 3.0 / 4.0)
+                        throw new Exception("Format size cannot be packed as RGB efficiently");
+                    backBufferFormat = Format.R16G16B16A16_Float;
+                    backTextureFormat = backBufferFormat;
+                    backBufferWidth = backBufferWidth * 3 / 4;
+                    pixelShaderSrc = "PSRGBA8888_to_BGR888";
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_2VUY:
+                    if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
+                    pixelShaderSrc = "PSRGBA8888_to_2VUY";
+                    backBufferWidth = backBufferWidth / 2;
+                    backBufferFormat = Format.R8G8B8A8_UNorm;
                     backTextureFormat = backBufferFormat;
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_YUVS:
                     if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm)
                         throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
-                    pixelShader = "PSRGB888_to_YUVS";
+                    pixelShaderSrc = "PSRGBA8888_to_YUVS";
                     backBufferWidth = backBufferWidth / 2;
-                    //backBufferHeight = backBufferHeight / 2;
                     backBufferFormat = Format.R8G8B8A8_UNorm;
                     backTextureFormat = backBufferFormat;
                     break;
@@ -129,22 +118,84 @@ namespace VVVV.Nodes.Bluefish
                         throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
                     backBufferFormat = Format.R8G8B8A8_UNorm;
                     backTextureFormat = backBufferFormat;
-                    pixelShader = "PSRGB888_to_VUYA_4444";
+                    pixelShaderSrc = "PSRGBA8888_to_VUYA_4444";
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_YUV_ALPHA:
                     if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm)
                         throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
                     backBufferFormat = Format.R8G8B8A8_UNorm;
                     backTextureFormat = backBufferFormat;
-                    pixelShader = "PSRGB888_to_YUV_ALPHA";
+                    pixelShaderSrc = "PSRGBA8888_to_YUV_ALPHA";
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_RGB:
+                    if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm &&
+                        auxSharedTexture.Description.Format != Format.B8G8R8A8_UNorm &&
+                        auxSharedTexture.Description.Format != Format.B8G8R8X8_UNorm)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
+                    if (backBufferWidth * 3 / 4 < ((float)backBufferWidth) * 3.0 / 4.0)
+                        throw new Exception("Format size cannot be packed as RGB efficiently");
+                    backBufferFormat = Format.R8G8B8A8_UNorm;
+                    backTextureFormat = backBufferFormat;
+                    backBufferWidth = backBufferWidth * 3 / 4;
+                    if (auxSharedTexture.Description.Format == Format.R8G8B8A8_UNorm)
+                    {
+                        pixelShaderSrc = "PSRGBA8888_to_RGB888";
+                    }
+                    else
+                    {
+                        pixelShaderSrc = "PSRGBA8888_to_BGR888";
+                    }
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_BGR:
+                    if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm &&
+                        auxSharedTexture.Description.Format != Format.B8G8R8A8_UNorm &&
+                        auxSharedTexture.Description.Format != Format.B8G8R8X8_UNorm)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
+                    if (backBufferWidth * 3 / 4 < ((float)backBufferWidth) * 3.0 / 4.0)
+                        throw new Exception("Format size cannot be packed as RGB efficiently");
+                    backBufferFormat = Format.R8G8B8A8_UNorm;
+                    backTextureFormat = backBufferFormat;
+                    backBufferWidth = backBufferWidth * 3 / 4;
+                    if (auxSharedTexture.Description.Format == Format.R8G8B8A8_UNorm)
+                    {
+                        pixelShaderSrc = "PSRGBA8888_to_BGR888";
+                    }
+                    else
+                    {
+                        pixelShaderSrc = "PSRGBA8888_to_RGB888";
+                    }
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_V210:
+                    if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
+                    if (backBufferWidth * 4 / 6 < ((float)backBufferWidth) * 4.0 / 6.0)
+                        throw new Exception("Format size cannot be packed as V210 efficiently");
+                    backBufferFormat = Format.R10G10B10A2_UNorm;
+                    backTextureFormat = backBufferFormat;
+                    backBufferWidth = backBufferWidth * 4 / 6;
+                    pixelShaderSrc = "PSRGBA8888_to_V210";
+                    break;
+                case BlueFish_h.EMemoryFormat.MEM_FMT_Y210:
+                    if (auxSharedTexture.Description.Format != Format.R8G8B8A8_UNorm)
+                        throw new Exception("Input texture doesn't have the correct format " + Format.R8G8B8A8_UNorm.ToString());
+                    if (backBufferWidth * 4 / 6 < ((float)backBufferWidth) * 4.0 / 6.0)
+                        throw new Exception("Format size cannot be packed as V210 efficiently");
+                    backBufferFormat = Format.R10G10B10A2_UNorm;
+                    backTextureFormat = backBufferFormat;
+                    backBufferWidth = backBufferWidth * 4 / 6;
+                    pixelShaderSrc = "PSRGBA8888_to_Y210";
                     break;
                 case BlueFish_h.EMemoryFormat.MEM_FMT_ARGB:
-                case BlueFish_h.EMemoryFormat.MEM_FMT_BGR_16_16_16:
-                case BlueFish_h.EMemoryFormat.MEM_FMT_BGR:
-                case BlueFish_h.EMemoryFormat.MEM_FMT_RGB:
+                case BlueFish_h.EMemoryFormat.MEM_FMT_BV10:
+                case BlueFish_h.EMemoryFormat.MEM_FMT_CINEON_LITTLE_ENDIAN:
+                case BlueFish_h.EMemoryFormat.MEM_FMT_CINEON:
+                case BlueFish_h.EMemoryFormat.MEM_FMT_V216:
+                case BlueFish_h.EMemoryFormat.MEM_FMT_Y216:
                 default:
-                    throw new Exception("Unsupported output format " + this.FOutFormat.ToString());
+                    throw new Exception("Unsupported output format " + outFormat.ToString());
             }
+            auxSharedTexture.Dispose();
+            auxDevice.Dispose();
 
             this.FHiddenControl = new Control();
             this.FHiddenControl.Visible = false;
@@ -164,14 +215,14 @@ namespace VVVV.Nodes.Bluefish
             SlimDX.Direct3D11.Device.CreateWithSwapChain(DriverType.Hardware, DeviceCreationFlags.Debug, desc, out this.FDevice, out this.FSwapChain);
             this.FBackBuffer = Texture2D.FromSwapChain<Texture2D>(this.FSwapChain, 0);
             this.FRenderTargetView = new RenderTargetView(this.FDevice, this.FBackBuffer);
-            FDevice.ImmediateContext.OutputMerger.SetTargets(this.FRenderTargetView);
-            FDevice.ImmediateContext.Rasterizer.SetViewports(new Viewport(0, 0, backBufferWidth, backBufferHeight, 0.0f, 1.0f));
+            this.FDevice.ImmediateContext.OutputMerger.SetTargets(this.FRenderTargetView);
+            this.FDevice.ImmediateContext.Rasterizer.SetViewports(new Viewport(0, 0, backBufferWidth, backBufferHeight, 0.0f, 1.0f));
 
+            this.FSharedTexture = this.FDevice.OpenSharedResource<Texture2D>(texHandle);
 
-            var textureShared = this.TextureShared;
             
             this.FTexturePool = new Texture2D[8];
-            var texDescription = textureShared.Description;
+            var texDescription = this.FSharedTexture.Description;
             texDescription.MipLevels = 1;
             texDescription.ArraySize = 1;
             texDescription.SampleDescription = new SampleDescription(1, 0);
@@ -190,28 +241,22 @@ namespace VVVV.Nodes.Bluefish
             texDescription.Usage = ResourceUsage.Default;
             texDescription.BindFlags = BindFlags.RenderTarget;
             texDescription.CpuAccessFlags = CpuAccessFlags.None;
-            this.FRenderTargetPool = new Texture2D[8];
-            for (int i = 0; i < this.FTexturePool.Length; i++)
-            {
-                this.FRenderTargetPool[i] = new Texture2D(this.FDevice, texDescription);
-            }
 
             //FLogger.Log(LogType.Message, Environment.CurrentDirectory);
 
             if (!this.FDirectCopy)
             {
-                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", "Render", "fx_5_0", ShaderFlags.None, EffectFlags.None))
-                {
-                    this.FShaderEffect = new Effect(this.FDevice, bytecode);
-                }
+                ShaderSignature inputSignature;
+                VertexShader vertexShader;
+                PixelShader pixelShader;
                 using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", "VShader", "vs_4_0", ShaderFlags.None, EffectFlags.None))
                 {
-                    this.FInputSignature = ShaderSignature.GetInputSignature(bytecode);
-                    this.FVertexShader = new VertexShader(this.FDevice, bytecode);
+                    inputSignature = ShaderSignature.GetInputSignature(bytecode);
+                    vertexShader = new VertexShader(this.FDevice, bytecode);
                 }
-                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", pixelShader, "ps_4_0", ShaderFlags.None, EffectFlags.None))
+                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", pixelShaderSrc, "ps_4_0", ShaderFlags.None, EffectFlags.None))
                 {
-                    this.FPixelShader = new PixelShader(this.FDevice, bytecode);
+                    pixelShader = new PixelShader(this.FDevice, bytecode);
                 }
 
                 var quad = new DataStream(6 * 3 * sizeof(float) + 6 * 2 * sizeof(float), true, true);
@@ -232,12 +277,12 @@ namespace VVVV.Nodes.Bluefish
                 quad.Position = 0;
 
                 var elements = new[] { new InputElement("POSITION", 0, Format.R32G32B32_Float, 0), new InputElement("TEXCOORD", 0, Format.R32G32_Float, 3 * sizeof(float), 0) };
-                var layout = new InputLayout(this.FDevice, this.FInputSignature, elements);
+                var layout = new InputLayout(this.FDevice, inputSignature, elements);
                 var vertexBuffer = new SlimDX.Direct3D11.Buffer(this.FDevice, quad, 6 * 3 * sizeof(float) + 6 * 2 * sizeof(float), ResourceUsage.Default, BindFlags.VertexBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
 
-                var context = FDevice.ImmediateContext;
-                context.VertexShader.Set(this.FVertexShader);
-                context.PixelShader.Set(this.FPixelShader);
+                var context = this.FDevice.ImmediateContext;
+                context.VertexShader.Set(vertexShader);
+                context.PixelShader.Set(pixelShader);
                 context.InputAssembler.InputLayout = layout;
                 context.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
                 context.InputAssembler.SetVertexBuffers(0, new VertexBufferBinding(vertexBuffer, 5 * sizeof(float), 0));
@@ -255,13 +300,18 @@ namespace VVVV.Nodes.Bluefish
                 context.PixelShader.SetSampler(samplerState, 0);
 
                 var shaderVars = new DataStream(4*sizeof(float),true,true);
-                shaderVars.Write((float)textureShared.Description.Width);
-                shaderVars.Write((float)textureShared.Description.Height);
+                shaderVars.Write((float)this.FSharedTexture.Description.Width);
+                shaderVars.Write((float)this.FSharedTexture.Description.Height);
                 shaderVars.Write((float)backBufferWidth);
                 shaderVars.Write((float)backBufferHeight);
                 shaderVars.Position = 0;
                 var varsBuffer = new SlimDX.Direct3D11.Buffer(this.FDevice,shaderVars,4*sizeof(float),ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
                 context.PixelShader.SetConstantBuffer(varsBuffer,0);
+
+
+                var shaderResourceView = new ShaderResourceView(this.FDevice, this.FSharedTexture);
+                context.PixelShader.SetShaderResource(shaderResourceView, 0);
+                shaderResourceView.Dispose();
             }
 		}
 
@@ -276,32 +326,23 @@ namespace VVVV.Nodes.Bluefish
                 //Stopwatch Timer = new Stopwatch();
                 //Timer.Start();
 
-                var context = FDevice.ImmediateContext;
-                if (FBackLocked)
+                var context = this.FDevice.ImmediateContext;
+                if (this.FReadBackData != null)
                 {
                     context.UnmapSubresource(this.FTexturePool[0], 0);
-                    FBackLocked = false;
+                    this.FReadBackData = null;
                 }
                 if (this.FDirectCopy)
                 {
-                    var sharedTexture = this.TextureShared;
-                    context.CopyResource(sharedTexture, this.FTexturePool[0]);
-                    sharedTexture.Dispose();
+                    context.CopyResource(this.FSharedTexture, this.FTexturePool[0]);
                 }
                 else
                 {
-                    var sharedTexture = this.TextureShared;
-                    var shaderResourceView = new ShaderResourceView(this.FDevice, sharedTexture);
-                    context.PixelShader.SetShaderResource(shaderResourceView, 0);
-                    this.FShaderEffect.GetVariableByName("tex0").AsResource().SetResource(shaderResourceView);
                     context.Draw(6, 0);
                     FSwapChain.Present(0, PresentFlags.None);
                     context.CopyResource(this.FBackBuffer, this.FTexturePool[0]);
-                    shaderResourceView.Dispose();
-                    sharedTexture.Dispose();
                 }
                 this.FReadBackData = context.MapSubresource(this.FTexturePool[0], 0, 0, MapMode.Read, SlimDX.Direct3D11.MapFlags.None);
-                FBackLocked = true;
                 return this.FReadBackData.Data.DataPointer;
 			}
 			catch (Exception e)
@@ -313,58 +354,43 @@ namespace VVVV.Nodes.Bluefish
 
 		public void Dispose()
 		{
+            this.FSharedTexture.Dispose();
+            this.FBackBuffer.Dispose();
+            this.FRenderTargetView.Dispose();
+
+            if (this.FReadBackData!=null)
+            {
+                this.FDevice.ImmediateContext.UnmapSubresource(this.FTexturePool[0], 0);
+                this.FReadBackData = null;
+            }
             for (int i = 0; i < FTexturePool.Length; i++)
             {
                 FTexturePool[i].Dispose();
             }
-
-            FDevice.Dispose();
-            if (FBackLocked)
-            {
-                this.FDevice.ImmediateContext.UnmapSubresource(this.FTexturePool[0], 0);
-                FBackLocked = false;
-            }
-		}
+            this.FDevice.Dispose();
+        }
 
         public Format TexFormat
         {
             get
             {
-                return this.TextureShared.Description.Format;
+                return this.FSharedTexture.Description.Format;
             }
         }
 
-        public int OutWidth
+        public int InputTexWidth
         {
             get
             {
-                return FOutWidth;
-            }
-
-            set
-            {
-                FOutWidth = value;
+                return FSharedTexture.Description.Width;
             }
         }
 
-        public int OutHeight
+        public int InputTexHeight
         {
             get
             {
-                return FOutHeight;
-            }
-
-            set
-            {
-                FOutHeight = value;
-            }
-        }
-
-        private Texture2D TextureShared
-        {
-            get
-            {
-                return this.FDevice.OpenSharedResource<Texture2D>(this.FHandle);
+                return FSharedTexture.Description.Height;
             }
         }
 	}

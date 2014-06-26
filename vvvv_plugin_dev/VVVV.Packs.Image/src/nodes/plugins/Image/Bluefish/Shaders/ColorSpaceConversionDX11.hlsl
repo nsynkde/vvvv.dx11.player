@@ -100,7 +100,7 @@ float4 SwapRB(psInput In):SV_Target
 	return tex0.SampleLevel(s0,In.uv,0).bgra;
 }
 
-float3 PSRGB888_to_YUV444_8(psInput In):SV_Target
+float3 PSRGBA8888_to_YUV444_8(psInput In):SV_Target
 {
 	float3 rgb = tex0.SampleLevel(s0,In.uv,0).rgb;
 	
@@ -111,7 +111,7 @@ float3 PSRGB888_to_YUV444_8(psInput In):SV_Target
 	return float3(y, u, v);
 }
 
-float4 PSRGB888_to_YUV_ALPHA(psInput In):SV_Target
+float4 PSRGBA8888_to_YUV_ALPHA(psInput In):SV_Target
 {
 	float4 rgba = tex0.SampleLevel(s0,In.uv,0);
 	
@@ -122,7 +122,7 @@ float4 PSRGB888_to_YUV_ALPHA(psInput In):SV_Target
 	return float4(y, u, v, rgba.a);
 }
 
-float4 PSRGB888_to_VUYA_4444(psInput In):SV_Target
+float4 PSRGBA8888_to_VUYA_4444(psInput In):SV_Target
 {
 	float4 rgba = tex0.SampleLevel(s0,In.uv,0);
 	
@@ -133,7 +133,7 @@ float4 PSRGB888_to_VUYA_4444(psInput In):SV_Target
 	return float4(v, u, y, rgba.a);
 }
 
-float4 PSRGB888_to_YUVS(psInput In):SV_Target
+float4 PSRGBA8888_to_YUVS(psInput In):SV_Target
 {
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
 	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
@@ -149,6 +149,155 @@ float4 PSRGB888_to_YUVS(psInput In):SV_Target
 	return float4(y1, u, y2, v);
 }
 
+float4 PSRGBA8888_to_2VUY(psInput In):SV_Target
+{
+	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
+	
+	float3 yuvA = YUV(rgbA);
+	float3 yuvB = YUV(rgbB);
+	
+	float y1 = Y(rgbA);
+	float y2 = Y(rgbB);
+	float u = U(rgbA);
+	float v = V(rgbA);
+
+	return float4(u, y1, v, y2);
+}
+
+float4 PSRGBA8888_to_RGB888(psInput In):SV_Target
+{
+	float x = In.uv.x * OutputWidth;
+	float y = In.uv.y;
+	uint begin = ((uint)x) % (uint)3;
+	uint offset = ((uint)x) / (uint)3;
+	x = (x + (float)offset) / InputWidth;
+	float onePixel = 1.0/InputWidth;
+	float4 rgba;
+	if(begin==0)
+	{
+		rgba.rgb = tex0.SampleLevel(s0,float2(x,y),0).rgb;
+		rgba.a = tex0.SampleLevel(s0,float2(x+onePixel,y),0).r;
+	}
+	else if(begin==1)
+	{
+		rgba.rg = tex0.SampleLevel(s0,float2(x,y),0).gb;
+		rgba.ba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).rg;
+	}
+	else
+	{
+		rgba.r = tex0.SampleLevel(s0,float2(x,y),0).b;
+		rgba.gba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb;
+	}
+	
+	return rgba;
+}
+
+float4 PSRGBA8888_to_BGR888(psInput In):SV_Target
+{
+	float x = In.uv.x * OutputWidth;
+	float y = In.uv.y;
+	uint begin = ((uint)x) % (uint)3;
+	uint offset = ((uint)x) / (uint)3;
+	x = (x + (float)offset) / InputWidth;
+	float onePixel = 1.0/InputWidth;
+	float4 rgba;
+	if(begin==0)
+	{
+		rgba.rgb = tex0.SampleLevel(s0,float2(x,y),0).bgr;
+		rgba.a = tex0.SampleLevel(s0,float2(x+onePixel,y),0).b;
+	}
+	else if(begin==1)
+	{
+		rgba.rg = tex0.SampleLevel(s0,float2(x,y),0).gr;
+		rgba.ba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).bg;
+	}
+	else
+	{
+		rgba.r = tex0.SampleLevel(s0,float2(x,y),0).r;
+		rgba.gba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).bgr;
+	}
+	
+	return rgba;
+}
+
+float4 PSRGBA8888_to_V210(psInput In):SV_Target
+{
+	float x = In.uv.x * OutputWidth;
+	float y = In.uv.y;
+	uint begin = ((uint)x) % (uint)4;
+	uint offset = ((uint)x) / (uint)4 * (uint)2;
+	x = (x + (float)offset) / InputWidth;
+	float onePixel = 1.0/InputWidth;
+	float r;
+	float g;
+	float b;
+	if(begin==0)
+	{
+		r = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		b = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+	}
+	else if(begin==1)
+	{
+		r = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = U(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		b = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+	}
+	else if(begin==2)
+	{
+		r = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		b = U(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+	}
+	else
+	{
+		r = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		g = V(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		b = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+	}
+
+	return float4(r,g,b,0.0);
+}
+
+float4 PSRGBA8888_to_Y210(psInput In):SV_Target
+{
+	float x = In.uv.x * OutputWidth;
+	float y = In.uv.y;
+	uint begin = ((uint)x) % (uint)4;
+	uint offset = ((uint)x) / (uint)4 * (uint)2;
+	x = (x + (float)offset) / InputWidth;
+	float onePixel = 1.0/InputWidth;
+	float r;
+	float g;
+	float b;
+	if(begin==0)
+	{
+		r = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		b = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+	}
+	else if(begin==1)
+	{
+		r = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		b = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+	}
+	else if(begin==2)
+	{
+		r = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		g = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		b = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+	}
+	else
+	{
+		r = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		g = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+		b = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+	}
+
+	return float4(r,g,b,0.0);
+}
 
 /*float4 PSYUV444_to_RGB888_8(psInput In):SV_Target
 {
