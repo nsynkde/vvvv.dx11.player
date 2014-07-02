@@ -102,8 +102,12 @@ float4 SwapRB(psInput In):SV_Target
 
 float3 PSRGBA8888_to_YUV444_8(psInput In):SV_Target
 {
+#if SWAP_RB
+	float3 rgb = tex0.SampleLevel(s0,In.uv,0).bgr;
+#else
 	float3 rgb = tex0.SampleLevel(s0,In.uv,0).rgb;
-	
+#endif
+
 	float y = Y(rgb);
 	float u = U(rgb);
 	float v = V(rgb);
@@ -113,8 +117,12 @@ float3 PSRGBA8888_to_YUV444_8(psInput In):SV_Target
 
 float4 PSRGBA8888_to_YUV_ALPHA(psInput In):SV_Target
 {
+#if SWAP_RB
+	float4 rgba = tex0.SampleLevel(s0,In.uv,0).bgra;
+#else
 	float4 rgba = tex0.SampleLevel(s0,In.uv,0);
-	
+#endif
+
 	float y = Y(rgba.rgb);
 	float u = U(rgba.rgb);
 	float v = V(rgba.rgb);
@@ -124,7 +132,11 @@ float4 PSRGBA8888_to_YUV_ALPHA(psInput In):SV_Target
 
 float4 PSRGBA8888_to_VUYA_4444(psInput In):SV_Target
 {
+#if SWAP_RB
+	float4 rgba = tex0.SampleLevel(s0,In.uv,0).bgra;
+#else
 	float4 rgba = tex0.SampleLevel(s0,In.uv,0);
+#endif
 	
 	float y = Y(rgba.rgb);
 	float u = U(rgba.rgb);
@@ -135,8 +147,13 @@ float4 PSRGBA8888_to_VUYA_4444(psInput In):SV_Target
 
 float4 PSRGBA8888_to_YUVS(psInput In):SV_Target
 {
+#if SWAP_RB
+	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).bgr;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).bgr;
+#else
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
 	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
+#endif
 	
 	float3 yuvA = YUV(rgbA);
 	float3 yuvB = YUV(rgbB);
@@ -151,8 +168,13 @@ float4 PSRGBA8888_to_YUVS(psInput In):SV_Target
 
 float4 PSRGBA8888_to_2VUY(psInput In):SV_Target
 {
+#if SWAP_RB
+	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).bgr;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).bgr;
+#else
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
 	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
+#endif
 	
 	float3 yuvA = YUV(rgbA);
 	float3 yuvB = YUV(rgbB);
@@ -232,29 +254,38 @@ float4 PSRGBA8888_to_V210(psInput In):SV_Target
 	float r;
 	float g;
 	float b;
+#if SWAP_RB
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).bgr;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).bgr;
+#else
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).rgb;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).rgb;
+#endif
 	if(begin==0)
 	{
-		r = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		b = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		r = U(rgb0);
+		g = Y(rgb0);
+		b = V(rgb0);
 	}
 	else if(begin==1)
 	{
-		r = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = U(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		b = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		r = Y(rgb0);
+		g = U(rgb1);
+		b = Y(rgb1);
 	}
 	else if(begin==2)
 	{
-		r = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		b = U(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+		r = V(rgb0);
+		g = Y(rgb1);
+		b = U(rgb2);
 	}
 	else
 	{
-		r = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		g = V(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		b = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+		r = Y(rgb1);
+		g = V(rgb1);
+		b = Y(rgb2);
 	}
 
 	return float4(r,g,b,0.0);
@@ -271,64 +302,42 @@ float4 PSRGBA8888_to_Y210(psInput In):SV_Target
 	float r;
 	float g;
 	float b;
+#if SWAP_RB
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).bgr;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).bgr;
+#else
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).rgb;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).rgb;
+#endif
 	if(begin==0)
 	{
-		r = Y(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		b = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
+		r = Y(rgb0);
+		g = U(rgb0);
+		b = Y(rgb1);
 	}
 	else if(begin==1)
 	{
-		r = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		b = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		r = V(rgb0);
+		g = Y(rgb1);
+		b = U(rgb0);
 	}
 	else if(begin==2)
 	{
-		r = Y(tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb);
-		g = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		b = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
+		r = Y(rgb1);
+		g = V(rgb0);
+		b = Y(rgb2);
 	}
 	else
 	{
-		r = U(tex0.SampleLevel(s0,float2(x,y),0).rgb);
-		g = Y(tex0.SampleLevel(s0,float2(x+onePixel+onePixel,y),0).rgb);
-		b = V(tex0.SampleLevel(s0,float2(x,y),0).rgb);
+		r = U(rgb0);
+		g = Y(rgb2);
+		b = V(rgb0);
 	}
 
 	return float4(r,g,b,0.0);
 }
-
-/*float4 PSYUV444_to_RGB888_8(psInput In):SV_Target
-{
-	float3 yuv = tex0.SampleLevel(s0,In.uv,0).rgb;
-	yuv[0] -= 16.0f / 255.0f;
-	
-	float3 rgb = mul(yuv, YUV2RGBTransform);
-	
-	return float4(rgb.r, rgb.g, rgb.b, 1.0f);
-}
-
-float4 PSYUV422_to_RGB888_8(psInput In):SV_Target
-{
-	int2 outputIndex = (int2) (toOutputIndex(In.uv) + float2(0,0));
-	int2 inputIndex = outputIndex;
-	inputIndex.x /= (uint) 2;
-	float2 inputCoord = toInputCoord((float2)inputIndex);
-	
-	float4 yuv2 = tex0.SampleLevel(s0, inputCoord, 0).rgba;
-	
-	bool rightPixel = outputIndex.x % (uint) 2;
-	
-	float y = rightPixel ? yuv2.a : yuv2.g;
-	float u = yuv2.b - 0.5f;
-	float v = yuv2.r - 0.5f;
-	
-	y -= 16.0f / 255.0f;
-	
-	float3 rgb = saturate(mul(float3(y,u,v), YUV2RGBTransform));
-	return float4(rgb.r, rgb.g, rgb.b, 1.0f);
-}*/
 
 float4 PSNotSupported(psInput In):SV_Target
 {
@@ -336,34 +345,3 @@ float4 PSNotSupported(psInput In):SV_Target
 	outputIndex /= 10.0f;
 	return sin(outputIndex.x + outputIndex.y);
 }
-
-
-/*technique10 Passthrough
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSPassthrough()));}
-}
-
-technique10 RGB888_to_YUV444_8
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSRGB888_to_YUV444_8()));}
-}
-
-technique10 RGB888_to_YUV422_8
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSRGB888_to_YUV422_8()));}
-}
-
-technique10 YUV444_to_RGB888_8
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSYUV444_to_RGB888_8()));}
-}
-
-technique10 YUV422_to_RGB888_8
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSYUV422_to_RGB888_8()));}
-}
-
-technique10 NotSupported
-{
-	pass P0 {SetPixelShader(CompileShader(ps_4_0,PSNotSupported()));}
-}*/

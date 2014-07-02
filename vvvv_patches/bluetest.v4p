@@ -51,7 +51,7 @@
    </BOUNDS>
    <BOUNDS type="Box" left="4230" top="5535" width="2400" height="1800">
    </BOUNDS>
-   <BOUNDS type="Window" left="1200" top="4170" width="16830" height="8715">
+   <BOUNDS type="Window" left="21735" top="9555" width="5190" height="4185">
    </BOUNDS>
    <PIN pinname="EX9 Out" visible="1">
    </PIN>
@@ -392,6 +392,8 @@
    <PIN pinname="Device" slicecount="1" values="0">
    </PIN>
    <PIN pinname="Dual Link" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Transport" slicecount="1" values="HD_SDI_TRANSPORT_3G_LEVEL_A">
    </PIN>
    </NODE>
    <LINK srcnodeid="1" srcpinname="Out Channel" dstnodeid="49" dstpinname="Memory Channel">

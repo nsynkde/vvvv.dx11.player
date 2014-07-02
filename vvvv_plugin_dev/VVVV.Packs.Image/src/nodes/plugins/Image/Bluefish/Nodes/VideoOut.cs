@@ -270,6 +270,21 @@ namespace VVVV.Nodes.Bluefish
         bool FFirstRun = true;
         #endregion fields & pins
 
+        [DllImport("kernel32.dll", SetLastError = false)]
+        internal static extern int AddDllDirectory(string directory);
+
+        static VideoOut()
+        {
+            try{
+                var type = System.Type.;
+                var codebase = System.Reflection.Assembly.GetAssembly(type).GetName().CodeBase;
+                var pluginfolder = System.IO.Path.GetDirectoryName(codebase);
+                AddDllDirectory(pluginfolder);
+            }catch(Exception e){
+            }
+
+        }
+
         [ImportingConstructor]
 		public VideoOut(IPluginHost host)
         {
@@ -365,8 +380,8 @@ namespace VVVV.Nodes.Bluefish
 
 		public void OnImportsSatisfied()
         {
-            FHDEHost.MainLoop.OnRender += MainLoop_Present;
-			//FHDEHost.MainLoop.OnPresent += MainLoop_Present;
+            //FHDEHost.MainLoop.OnRender += MainLoop_Present;
+			FHDEHost.MainLoop.OnPresent += MainLoop_Present;
 		}
 
 		void MainLoop_Present(object o, EventArgs e)
@@ -389,8 +404,8 @@ namespace VVVV.Nodes.Bluefish
 					slice.Dispose();
 			GC.SuppressFinalize(this);
 
-            FHDEHost.MainLoop.OnRender -= MainLoop_Present;
-			//FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
+            //FHDEHost.MainLoop.OnRender -= MainLoop_Present;
+			FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
 		}
 
 	}
