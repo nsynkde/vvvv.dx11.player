@@ -1,6 +1,6 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta32.1.dtd" >
-   <PATCH nodename="C:\DEV\bluefish\vvvv_patches\bluetest_dx11.v4p" systemname="bluetest_dx11" filename="C:\DEV\bluefish\vvvv_patches\bluetest_dx11.v4p">
-   <BOUNDS type="Window" left="9510" top="3960" width="11460" height="10455">
+   <PATCH nodename="C:\DEV\bluefish\vvvv_patches\bluetest_dx11_CHANNEL1.v4p" systemname="bluetest_dx11" filename="C:\DEV\bluefish\vvvv_patches\bluetest_dx11.v4p">
+   <BOUNDS type="Window" left="5490" top="3270" width="19290" height="10455">
    </BOUNDS>
    <NODE systemname="LFO (Animation)" nodename="LFO (Animation)" componentmode="Hidden" id="3">
    <BOUNDS type="Node" left="6015" top="960" width="100" height="100">
@@ -65,7 +65,7 @@
    <LINK srcnodeid="2" srcpinname="Transform Out" dstnodeid="7" dstpinname="Transform In">
    </LINK>
    <NODE systemname="RetroColors (Color)" nodename="RetroColors (Color)" componentmode="Hidden" id="8">
-   <BOUNDS type="Node" left="6255" top="3075" width="100" height="100">
+   <BOUNDS type="Node" left="3930" top="3585" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Output" visible="1">
    </PIN>
@@ -111,9 +111,9 @@
    <NODE systemname="MainLoop (VVVV)" nodename="MainLoop (VVVV)" componentmode="Hidden" id="-6">
    <BOUNDS type="Node" left="9615" top="9615" width="100" height="100">
    </BOUNDS>
-   <PIN pinname="Maximum forground fps" slicecount="1" values="60">
+   <PIN pinname="Maximum forground fps" slicecount="1" values="120">
    </PIN>
-   <PIN pinname="Maximum background fpsS" slicecount="1" values="60">
+   <PIN pinname="Maximum background fpsS" slicecount="1" values="120">
    </PIN>
    </NODE>
    <NODE systemname="Renderer (TTY)" nodename="Renderer (TTY)" componentmode="InAWindow" id="12">
@@ -183,21 +183,13 @@
    </BOUNDS>
    <BOUNDS type="Box" left="3705" top="9150" width="6000" height="4500">
    </BOUNDS>
-   <BOUNDS type="Window" left="19050" top="7335" width="6690" height="4110">
+   <BOUNDS type="Window" left="22110" top="7590" width="6690" height="4110">
    </BOUNDS>
    <PIN pinname="Layers" visible="1" slicecount="1" values="||">
    </PIN>
    <PIN pinname="Background Color" visible="1" slicecount="1" values="|0.25098,0.25098,0.87843,1.00000|">
    </PIN>
    <PIN pinname="Texture Out" visible="1">
-   </PIN>
-   </NODE>
-   <NODE systemname="AsSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="AsSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="26">
-   <BOUNDS type="Node" left="3720" top="6525" width="100" height="100">
-   </BOUNDS>
-   <PIN pinname="Texture In" visible="1" slicecount="1" values="||">
-   </PIN>
-   <PIN pinname="Pointer" visible="1">
    </PIN>
    </NODE>
    <NODE systemname="Renderer (DX11 TempTarget)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11 TempTarget)" componentmode="Hidden" id="27">
@@ -222,8 +214,6 @@
    </LINK>
    <LINK srcnodeid="8" srcpinname="Output" dstnodeid="27" dstpinname="Background Color">
    </LINK>
-   <LINK srcnodeid="27" srcpinname="Buffers" dstnodeid="26" dstpinname="Texture In">
-   </LINK>
    <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="29">
    <BOUNDS type="Node" left="3870" top="8400" width="100" height="100">
    </BOUNDS>
@@ -244,6 +234,12 @@
    <PIN pinname="Memory Channel" slicecount="1" values="1">
    </PIN>
    <PIN pinname="SDIOut" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="SDIOut 1 Memory Channel" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="SDIOut 2 Memory Channel" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="SDIOut 3 Memory Channel" slicecount="1" values="3">
    </PIN>
    </NODE>
    <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="32">
@@ -275,19 +271,19 @@
    </PIN>
    <PIN pinname="Enabled" slicecount="1" values="1">
    </PIN>
-   <PIN pinname="Sync" slicecount="1" values="0">
+   <PIN pinname="Sync" slicecount="1" values="1">
    </PIN>
-   <PIN pinname="Out Channel" slicecount="1" values="1">
+   <PIN pinname="Out Channel" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="TextureHandle" slicecount="1" values="0">
    </PIN>
    </NODE>
-   <LINK srcnodeid="26" srcpinname="Pointer" dstnodeid="34" dstpinname="TextureHandle">
-   </LINK>
    <NODE systemname="FromSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="FromSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="35">
    <BOUNDS type="Node" left="4215" top="7605" width="100" height="100">
    </BOUNDS>
+   <PIN pinname="Pointer" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="26" srcpinname="Pointer" dstnodeid="35" dstpinname="Pointer">
-   </LINK>
    <LINK srcnodeid="35" srcpinname="Texture" dstnodeid="29" dstpinname="Texture">
    </LINK>
    <NODE systemname="Transform (Transform 2d)" nodename="Transform (Transform 2d)" componentmode="Hidden" id="36">
@@ -307,7 +303,7 @@
    <LINK srcnodeid="36" srcpinname="Transform Out" dstnodeid="32" dstpinname="Transform">
    </LINK>
    <NODE systemname="UniformScale (Transform)" nodename="UniformScale (Transform)" componentmode="Hidden" id="37">
-   <BOUNDS type="Node" left="7845" top="5655" width="100" height="100">
+   <BOUNDS type="Node" left="3480" top="8010" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Transform Out" visible="1">
    </PIN>
@@ -335,5 +331,233 @@
    <LINK srcnodeid="38" srcpinname="Output" dstnodeid="39" dstpinname="Input">
    </LINK>
    <LINK srcnodeid="39" srcpinname="Output" dstnodeid="36" dstpinname="TranslateX">
+   </LINK>
+   <NODE systemname="VideoOut (Bluefish)" filename="%VVVV%\packs\VVVV.Packs.Image\nodes\plugins\VVVV.Nodes.Bluefish.dll" nodename="VideoOut (Bluefish)" componentmode="Hidden" id="41">
+   <BOUNDS type="Node" left="6360" top="7650" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Mode" slicecount="1" values="VID_FMT_1080P_6000">
+   </PIN>
+   <PIN pinname="Format" slicecount="1" values="MEM_FMT_YUVS">
+   </PIN>
+   <PIN pinname="Enabled" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="Sync" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Out Channel" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="TextureHandle" slicecount="1" visible="1" values="0">
+   </PIN>
+   </NODE>
+   <NODE systemname="Renderer (DX11)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11)" componentmode="InAWindow" id="48">
+   <BOUNDS type="Node" left="8685" top="8220" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="8685" top="8220" width="6000" height="4500">
+   </BOUNDS>
+   <BOUNDS type="Window" left="22110" top="7590" width="6690" height="4110">
+   </BOUNDS>
+   <PIN pinname="Layers" visible="1">
+   </PIN>
+   <PIN pinname="Background Color" visible="1" slicecount="1" values="|0.25098,0.25098,0.87843,1.00000|">
+   </PIN>
+   <PIN pinname="Texture Out" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="47">
+   <BOUNDS type="Node" left="8850" top="7470" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="Layer" visible="1">
+   </PIN>
+   <PIN pinname="Transform" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="47" srcpinname="Layer" dstnodeid="48" dstpinname="Layers">
+   </LINK>
+   <NODE systemname="FromSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="FromSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="46">
+   <BOUNDS type="Node" left="9195" top="6675" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Pointer" slicecount="1" values="0">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="46" srcpinname="Texture" dstnodeid="47" dstpinname="Texture">
+   </LINK>
+   <NODE systemname="UniformScale (Transform)" nodename="UniformScale (Transform)" componentmode="Hidden" id="45">
+   <BOUNDS type="Node" left="8460" top="7080" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Transform Out" visible="1">
+   </PIN>
+   <PIN pinname="XYZ" slicecount="1" values="2">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="45" srcpinname="Transform Out" dstnodeid="47" dstpinname="Transform">
+   </LINK>
+   <NODE systemname="Renderer (DX11 TempTarget)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11 TempTarget)" componentmode="Hidden" id="49">
+   <BOUNDS type="Node" left="7485" top="5100" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture SizeXY" visible="1" slicecount="2" values="400,300">
+   </PIN>
+   <PIN pinname="Layer" visible="1" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Background Color" visible="1" slicecount="1" values="|0.62745,1.00000,0.62745,1.00000|">
+   </PIN>
+   <PIN pinname="Buffers" visible="1">
+   </PIN>
+   <PIN pinname="Target Format" slicecount="1" values="R8G8B8A8_UNorm">
+   </PIN>
+   <PIN pinname="AA Samples per Pixel" slicecount="1" values="4">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="10" srcpinname="Layer Out" dstnodeid="49" dstpinname="Layer">
+   </LINK>
+   <LINK srcnodeid="23" srcpinname="Y Output Value" dstnodeid="49" dstpinname="Texture SizeXY">
+   </LINK>
+   <NODE systemname="RetroColors (Color)" nodename="RetroColors (Color)" componentmode="Hidden" id="50">
+   <BOUNDS type="Node" left="8430" top="3555" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   <PIN pinname="Index" slicecount="1" values="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="50" srcpinname="Output" dstnodeid="49" dstpinname="Background Color">
+   </LINK>
+   <NODE systemname="AsSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="AsSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="51">
+   <BOUNDS type="Node" left="8700" top="5595" width="100" height="100">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="51" srcpinname="Pointer" dstnodeid="46" dstpinname="Pointer">
+   </LINK>
+   <LINK srcnodeid="49" srcpinname="Buffers" dstnodeid="51" dstpinname="Texture In">
+   </LINK>
+   <LINK srcnodeid="51" srcpinname="Pointer" dstnodeid="41" dstpinname="TextureHandle">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="60" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="11505" top="3900" width="795" height="480">
+   </BOUNDS>
+   <BOUNDS type="Node" left="11505" top="3900" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Y Input Value" slicecount="2" values="1920,1080">
+   </PIN>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Vector Size" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="Rows" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="Y Output Value" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="VideoOut (Bluefish)" filename="%VVVV%\packs\VVVV.Packs.Image\nodes\plugins\VVVV.Nodes.Bluefish.dll" nodename="VideoOut (Bluefish)" componentmode="Hidden" id="59">
+   <BOUNDS type="Node" left="11955" top="6990" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Mode" slicecount="1" values="VID_FMT_1080P_6000">
+   </PIN>
+   <PIN pinname="Format" slicecount="1" values="MEM_FMT_YUVS">
+   </PIN>
+   <PIN pinname="Enabled" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Sync" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="Out Channel" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="TextureHandle" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Renderer (DX11)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11)" componentmode="InAWindow" id="58">
+   <BOUNDS type="Node" left="14280" top="7560" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="14280" top="7560" width="6000" height="4500">
+   </BOUNDS>
+   <BOUNDS type="Window" left="22110" top="7590" width="6690" height="4110">
+   </BOUNDS>
+   <PIN pinname="Layers" visible="1">
+   </PIN>
+   <PIN pinname="Background Color" visible="1" slicecount="1" values="|0.25098,0.25098,0.87843,1.00000|">
+   </PIN>
+   <PIN pinname="Texture Out" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="57">
+   <BOUNDS type="Node" left="14445" top="6810" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="Layer" visible="1">
+   </PIN>
+   <PIN pinname="Transform" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="57" srcpinname="Layer" dstnodeid="58" dstpinname="Layers">
+   </LINK>
+   <NODE systemname="FromSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="FromSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="56">
+   <BOUNDS type="Node" left="14790" top="6015" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Pointer">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="56" srcpinname="Texture" dstnodeid="57" dstpinname="Texture">
+   </LINK>
+   <NODE systemname="UniformScale (Transform)" nodename="UniformScale (Transform)" componentmode="Hidden" id="55">
+   <BOUNDS type="Node" left="14055" top="6420" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Transform Out" visible="1">
+   </PIN>
+   <PIN pinname="XYZ" slicecount="1" values="2">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="55" srcpinname="Transform Out" dstnodeid="57" dstpinname="Transform">
+   </LINK>
+   <NODE systemname="Renderer (DX11 TempTarget)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11 TempTarget)" componentmode="Hidden" id="54">
+   <BOUNDS type="Node" left="13080" top="4440" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture SizeXY" visible="1">
+   </PIN>
+   <PIN pinname="Layer" visible="1" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Background Color" visible="1">
+   </PIN>
+   <PIN pinname="Buffers" visible="1">
+   </PIN>
+   <PIN pinname="Target Format" slicecount="1" values="R8G8B8A8_UNorm">
+   </PIN>
+   <PIN pinname="AA Samples per Pixel" slicecount="1" values="4">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="60" srcpinname="Y Output Value" dstnodeid="54" dstpinname="Texture SizeXY">
+   </LINK>
+   <NODE systemname="RetroColors (Color)" nodename="RetroColors (Color)" componentmode="Hidden" id="53">
+   <BOUNDS type="Node" left="14025" top="2895" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   <PIN pinname="Index" slicecount="1" values="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="53" srcpinname="Output" dstnodeid="54" dstpinname="Background Color">
+   </LINK>
+   <NODE systemname="AsSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="AsSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="52">
+   <BOUNDS type="Node" left="14295" top="4935" width="100" height="100">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="52" srcpinname="Pointer" dstnodeid="56" dstpinname="Pointer">
+   </LINK>
+   <LINK srcnodeid="54" srcpinname="Buffers" dstnodeid="52" dstpinname="Texture In">
+   </LINK>
+   <LINK srcnodeid="52" srcpinname="Pointer" dstnodeid="59" dstpinname="TextureHandle">
+   </LINK>
+   <NODE systemname="AsSharedTexture (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="AsSharedTexture (DX11.Texture 2d)" componentmode="Hidden" id="81">
+   <BOUNDS type="Node" left="3720" top="6525" width="100" height="100">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="81" srcpinname="Pointer" dstnodeid="34" dstpinname="TextureHandle">
+   </LINK>
+   <LINK srcnodeid="81" srcpinname="Pointer" dstnodeid="35" dstpinname="Pointer">
+   </LINK>
+   <LINK srcnodeid="27" srcpinname="Buffers" dstnodeid="81" dstpinname="Texture In">
+   <LINKPOINT x="3780" y="6480">
+   </LINKPOINT>
    </LINK>
    </PATCH>

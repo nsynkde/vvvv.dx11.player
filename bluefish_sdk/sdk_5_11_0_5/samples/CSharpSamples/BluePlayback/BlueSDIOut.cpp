@@ -15,8 +15,22 @@ void CPlaybackSDIOut::Route(int memory_channel)
 	VARIANT varVal;
 	int err;
 	varVal.vt = VT_UI4;
-
-	varVal.ulVal = EPOCH_SET_ROUTING(EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHA + memory_channel, EPOCH_DEST_SDI_OUTPUT_A + m_SDIOut, BLUE_CONNECTOR_PROP_SINGLE_LINK);
+	int out_memory_channel;
+	switch(memory_channel){
+	case 0:
+		out_memory_channel = EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHA;
+		break;
+	case 1:
+		out_memory_channel = EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHB;
+		break;
+	case 2:
+		out_memory_channel = EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHC;
+		break;
+	case 3:
+		out_memory_channel = EPOCH_SRC_OUTPUT_MEM_INTERFACE_CHD;
+		break;
+	}
+	varVal.ulVal = EPOCH_SET_ROUTING(out_memory_channel, EPOCH_DEST_SDI_OUTPUT_A + m_SDIOut, BLUE_CONNECTOR_PROP_SINGLE_LINK);
 	err = m_pSDK->SetCardProperty(MR2_ROUTING, varVal);
 	VARIANT objVar;
 	objVar.vt = VT_UI4;

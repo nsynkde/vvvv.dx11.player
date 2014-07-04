@@ -40,17 +40,32 @@ namespace VVVV.Nodes.Bluefish
         [Input("Device")]
         IDiffSpread<uint> FInDevice;
 
-		[Input("SDIOut")]
-        IDiffSpread<uint> FInSDIOut;
+		[Input("SDIOut 0 Memory Channel")]
+        IDiffSpread<uint> FInSDIOut0;
 
-        [Input("Transport")]
-        IDiffSpread<BlueFish_h.EHdSdiTransport> FInTransport;
+        [Input("SDIOut 1 Memory Channel")]
+        IDiffSpread<uint> FInSDIOut1;
 
-        [Input("Memory Channel")]
-        IDiffSpread<uint> FInMemChannel;
+        [Input("SDIOut 2 Memory Channel")]
+        IDiffSpread<uint> FInSDIOut2;
 
-		[Output("Status")]
-        ISpread<string> FOutStatus;
+        [Input("SDIOut 3 Memory Channel")]
+        IDiffSpread<uint> FInSDIOut3;
+
+        [Input("Transport use B on 3")]
+        IDiffSpread<bool> FInTransport;
+
+		[Output("Status SDIOut 0")]
+        ISpread<string> FOutStatus0;
+
+        [Output("Status SDIOut 1")]
+        ISpread<string> FOutStatus1;
+
+        [Output("Status SDIOut 2")]
+        ISpread<string> FOutStatus2;
+
+        [Output("Status SDIOut 3")]
+        ISpread<string> FOutStatus3;
 
         [Import]
         ILogger FLogger;
@@ -59,69 +74,65 @@ namespace VVVV.Nodes.Bluefish
 		IHDEHost FHDEHost;
 
 #pragma warning restore
+        #endregion fields & pins
 
         bool FFirstRun = true;
-        #endregion fields & pins
-        Spread<BlueSDIOut> FInstances = new Spread<BlueSDIOut>();
+        BlueSDIOut[] FInstances = new BlueSDIOut[4];
+        IDiffSpread<uint>[] FInSDIOutRef = new IDiffSpread<uint>[4];
+        ISpread<string>[] FOutStatusRef = new ISpread<string>[4];
 
         [ImportingConstructor]
 		public SDIOut(IPluginHost host)
         {
+            
         }
 
         public void Evaluate(int SpreadMax)
         {
-            if (FFirstRun || FInSDIOut.IsChanged || FInMemChannel.IsChanged )
+            if (FFirstRun)
+            {
+
+                FInSDIOutRef[0] = FInSDIOut0;
+                FInSDIOutRef[1] = FInSDIOut1;
+                FInSDIOutRef[2] = FInSDIOut2;
+                FInSDIOutRef[3] = FInSDIOut3;
+
+
+                FOutStatusRef[0] = FOutStatus0;
+                FOutStatusRef[1] = FOutStatus1;
+                FOutStatusRef[2] = FOutStatus2;
+                FOutStatusRef[3] = FOutStatus3;
+
+                for (int i = 0; i < 4; i++)
+                {
+                    try
+                    {
+                        FOutStatusRef[i].SliceCount = 1;
+                        FInSDIOutRef[i].SliceCount = 1;
+                        BlueSDIOut inst = new BlueSDIOut((int)FInDevice[0], i);
+
+                        FInstances[i] = inst;
+                        FOutStatusRef[i][0] = "OK";
+                    }
+                    catch (Exception e)
+                    {
+                        FInstances[i] = null;
+                        FOutStatusRef[i][0] = e.ToString();
+                    }
+                }
+
+
+                FFirstRun = false;
+            }
+            if (FFirstRun || FInSDIOut0.IsChanged || FInSDIOut1.IsChanged || FInSDIOut2.IsChanged || FInSDIOut3.IsChanged)
 			{
-				/*foreach(var slice in FInstances)
-					if (slice != null)
-						slice.Dispose();*/
-
-				FInstances.SliceCount = 0;
-				FOutStatus.SliceCount = SpreadMax;
-
-				for (int i=0; i<SpreadMax; i++)
-				{
-					try
-					{
-
-                        BlueSDIOut inst = new BlueSDIOut((int)FInDevice[i], (int)FInSDIOut[i]); 
-
-						FInstances.Add(inst);
-						FOutStatus[i] = "OK";
-					}
-					catch(Exception e)
-					{
-						FInstances.Add(null);
-						FOutStatus[i] = e.ToString();
-					}
-				}
-
-                FFirstRun = true;
+                for (int i = 0; i < 4; i++)
+                {
+                    FLogger.Log(LogType.Message, "Routing " + FInSDIOutRef[i][0]  + " to " + i);
+                    FInstances[i].Route((int)FInSDIOutRef[i][0]);
+                    FFirstRun = true;
+                }
 			}
-
-            if (FFirstRun || FInMemChannel.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    if (FInstances[i] != null)
-                        FInstances[i].Route((int)FInMemChannel[i]);
-                }
-
-            }
-
-            if (FFirstRun || FInTransport.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    if (FInstances[i] != null)
-                        FInstances[i].Transport = FInTransport[i];
-                }
-
-            }
-
-
-            FFirstRun = false;
         }
 
         public void OnImportsSatisfied()

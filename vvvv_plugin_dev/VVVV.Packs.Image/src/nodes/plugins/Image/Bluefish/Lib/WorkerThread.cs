@@ -16,8 +16,8 @@ namespace VVVV.Nodes.Bluefish
 		Object FLock = new Object();
 		Queue<WorkItemDelegate> FWorkQueue = new Queue<WorkItemDelegate>();
 		Exception FException;
-        ManualResetEvent FNewWorkEvent = new ManualResetEvent(false);
-        ManualResetEvent FEmptyQueueEvent = new ManualResetEvent(true);
+        ManualResetEventSlim FNewWorkEvent = new ManualResetEventSlim(false);
+        //ManualResetEvent FEmptyQueueEvent = new ManualResetEvent(true);
 
 		public WorkerThread()
 		{
@@ -25,6 +25,7 @@ namespace VVVV.Nodes.Bluefish
 			FThread = new Thread(Loop);
 			FThread.SetApartmentState(ApartmentState.MTA);
 			FThread.Name = "Bluefish Worker";
+            //FThread.Priority = ThreadPriority.AboveNormal;
 			FThread.Start();
 		}
 
@@ -32,7 +33,7 @@ namespace VVVV.Nodes.Bluefish
 		{
 			while (FRunning)
 			{
-                FNewWorkEvent.WaitOne();
+                FNewWorkEvent.Wait();
                 WorkItemDelegate nextWork;
                 do
                 {
@@ -45,7 +46,7 @@ namespace VVVV.Nodes.Bluefish
                         else
                         {
                             nextWork = null;
-                            FEmptyQueueEvent.Set();
+                            //FEmptyQueueEvent.Set();
                             FNewWorkEvent.Reset();
                         }
                     }
@@ -71,7 +72,7 @@ namespace VVVV.Nodes.Bluefish
 			FThread.Join();
 		}
 
-		public void PerformBlocking(WorkItemDelegate item)
+		/*public void PerformBlocking(WorkItemDelegate item)
 		{
 			if (Thread.CurrentThread == this.FThread)
 			{
@@ -89,7 +90,7 @@ namespace VVVV.Nodes.Bluefish
 					throw (e);
 				}
 			}
-		}
+		}*/
 
 		public void Perform(WorkItemDelegate item)
 		{
@@ -97,7 +98,7 @@ namespace VVVV.Nodes.Bluefish
 			{
 				FWorkQueue.Enqueue(item);
                 FNewWorkEvent.Set();
-                FEmptyQueueEvent.Reset();
+                //FEmptyQueueEvent.Reset();
 			}
 		}
 
@@ -109,15 +110,15 @@ namespace VVVV.Nodes.Bluefish
                 {
                     FWorkQueue.Enqueue(item);
                     FNewWorkEvent.Set();
-                    FEmptyQueueEvent.Reset();
+                    //FEmptyQueueEvent.Reset();
                 }
 			}
 		}
 
-		public void BlockUntilEmpty()
+		/*public void BlockUntilEmpty()
 		{
             FEmptyQueueEvent.WaitOne();
-		}
+		}*/
 
         public int QueueSize{
             get{

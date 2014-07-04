@@ -18,7 +18,7 @@ namespace VVVV.Nodes.Bluefish
 
         private IntPtr pBluePlayback;
         private ILogger FLogger;
-        private WorkerThread worker = new WorkerThread();
+        //private WorkerThread worker = new WorkerThread();
 
 		
 		public int Width
@@ -232,7 +232,7 @@ namespace VVVV.Nodes.Bluefish
 
 		public Object LockBuffer = new Object();
 
-		public void SendFrame(byte[] buffer)
+		/*public void SendFrame(byte[] buffer)
 		{
             worker.Perform(() =>
             {
@@ -257,36 +257,19 @@ namespace VVVV.Nodes.Bluefish
 
             
 
-		}
+		}*/
 
         public void SendFrame(IntPtr data)
         {
-            worker.Perform(() =>
-            {
+            //worker.Perform(() =>
+            //{
                 int result = BluePlaybackNativeInterface.BluePlaybackRender(pBluePlayback, data);
 
                 if (result < 0)
                 {
                     FLogger.Log(LogType.Error, "error writing bytes");
                 }
-            });
-
-        }
-
-        public void SendFrame(Texture texture)
-        {
-            worker.Perform(() =>
-            {
-
-                var rect = texture.LockRectangle(0, LockFlags.ReadOnly);
-                int result = BluePlaybackNativeInterface.BluePlaybackRender(pBluePlayback, rect.Data.DataPointer);
-                texture.UnlockRectangle(0);
-
-                if (result < 0)
-                {
-                    FLogger.Log(LogType.Error, "error writing bytes");
-                }
-            });
+            //});
 
         }
 
@@ -296,10 +279,10 @@ namespace VVVV.Nodes.Bluefish
             BluePlaybackNativeInterface.BluePlaybackWaitSync(pBluePlayback);
         }
 
-        public bool DoneLastFrame()
+        /*public bool DoneLastFrame()
         {
             return worker.QueueSize == 0;
-        }
+        }**/
 
 		public void Dispose()
 		{

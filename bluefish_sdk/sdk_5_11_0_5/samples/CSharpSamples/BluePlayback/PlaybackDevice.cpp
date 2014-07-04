@@ -63,7 +63,24 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 		//set default video output channel (only for cards with more than 1 stream)
 		if(err == 0 && m_CardType != CRD_BLUE_EPOCH_2K)
 		{
-			err = SetCardProperty(DEFAULT_VIDEO_OUTPUT_CHANNEL, (UINT32)inChannel);
+			UINT32 out_memory_channel = BLUE_VIDEO_OUTPUT_CHANNEL_A;
+			switch(inChannel){
+
+			case 0:
+				out_memory_channel = BLUE_VIDEO_OUTPUT_CHANNEL_A;
+				break;
+			case 1:
+				out_memory_channel = BLUE_VIDEO_OUTPUT_CHANNEL_B;
+				break;
+			case 2:
+				out_memory_channel = BLUE_VIDEO_OUTPUT_CHANNEL_C;
+				break;
+			case 3:
+				out_memory_channel = BLUE_VIDEO_OUTPUT_CHANNEL_D;
+				break;
+			} 
+
+			err = SetCardProperty(DEFAULT_VIDEO_OUTPUT_CHANNEL, out_memory_channel);
 			m_VideoChannel = inChannel;
 			swprintf_s(DebugString, 256, L"channel %d", err);
 			OutputDebugString(DebugString);
@@ -103,6 +120,14 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 
 
 		//set video engine here??
+		if(err == 0)
+		{
+			err = SetCardProperty(VIDEO_OUTPUT_ENGINE, (UINT32)VIDEO_ENGINE_FRAMESTORE);
+			swprintf_s(DebugString, 256, L"engine type %d", err);
+			OutputDebugString(DebugString);
+		}
+
+		
 
 
 		//switch off black generator (enables video output)
@@ -172,11 +197,17 @@ void CPlaybackDevice::Render(BYTE* pBuffer)
 	if (!pBuffer || !m_pSDK)
 		return;
 
-	m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL, m_ActiveBuffer, 0);
-	m_pSDK->render_buffer_update(m_ActiveBuffer);
+	unsigned long	BytesReturnedChA;
+	int frontBuffer = m_ActiveBuffer+2;
+	frontBuffer %= 4;
+	m_pSDK->render_buffer_update(frontBuffer);
 
+	m_pSDK->system_buffer_write_async((unsigned char *)pBuffer, m_Buffersize, NULL/* &OverlapChA*/, m_ActiveBuffer, 0);
+	//GetOverlappedResult(m_pSDK->m_hDevice, &OverlapChA, &BytesReturnedChA, TRUE);
 	m_ActiveBuffer++;
-	m_ActiveBuffer %= 2;
+	m_ActiveBuffer %= 4;
+	//m_ActiveBuffer++;
+	//m_ActiveBuffer %= 4;
 }
 
 void CPlaybackDevice::RefreshProperties(){

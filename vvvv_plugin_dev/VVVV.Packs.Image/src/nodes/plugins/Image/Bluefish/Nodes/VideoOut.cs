@@ -39,6 +39,7 @@ namespace VVVV.Nodes.Bluefish
             private uint FTextureHandle;
             private uint FDeviceID;
             private uint FDroppedFrames = 0;
+            private WorkerThread thread = new WorkerThread();
 
             ILogger FLogger;
 
@@ -71,14 +72,21 @@ namespace VVVV.Nodes.Bluefish
 			}
 
 			public void PullFromTexture()
-			{
-                if (Source.DoneLastFrame())
+            {
+                if (thread.QueueSize==0)
                 {
-                    var memory = this.ReadTexture.ReadBack();
-                    if (memory != (IntPtr)0)
+                    thread.Perform(() =>
                     {
-                        Source.SendFrame(memory);
-                    }
+                        var memory = this.ReadTexture.ReadBack();
+                        if (memory != (IntPtr)0)
+                        {
+                            Source.SendFrame(memory);
+                        }
+                        else
+                        {
+                            FDroppedFrames++;
+                        }
+                    });
                 }
                 else
                 {
@@ -88,7 +96,6 @@ namespace VVVV.Nodes.Bluefish
                 {
                     Source.WaitSync();
                 }
-
 			}
 
 			public void Dispose()
@@ -273,7 +280,7 @@ namespace VVVV.Nodes.Bluefish
         [DllImport("kernel32.dll", SetLastError = false)]
         internal static extern int AddDllDirectory(string directory);
 
-        static VideoOut()
+        /*static VideoOut()
         {
             try{
                 var type = System.Type.;
@@ -283,7 +290,7 @@ namespace VVVV.Nodes.Bluefish
             }catch(Exception e){
             }
 
-        }
+        }*/
 
         [ImportingConstructor]
 		public VideoOut(IPluginHost host)
@@ -345,22 +352,22 @@ namespace VVVV.Nodes.Bluefish
 
             }
 
-            if (FFirstRun || FInDualLink.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    if (FInEnabled[i] != false && FInstances[i] != null)
-                        FInstances[i].DualLink = FInDualLink[i];
-                }
-
-            }
-
             if (FFirstRun || FInDualLinkSignalFormat.IsChanged)
             {
                 for (int i = 0; i < FInstances.SliceCount; i++)
                 {
                     if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].DualLinkSignalFormat = FInDualLinkSignalFormat[i];
+                }
+
+            }
+
+            if (FFirstRun || FInDualLink.IsChanged)
+            {
+                for (int i = 0; i < FInstances.SliceCount; i++)
+                {
+                    if (FInEnabled[i] != false && FInstances[i] != null)
+                        FInstances[i].DualLink = FInDualLink[i];
                 }
 
             }

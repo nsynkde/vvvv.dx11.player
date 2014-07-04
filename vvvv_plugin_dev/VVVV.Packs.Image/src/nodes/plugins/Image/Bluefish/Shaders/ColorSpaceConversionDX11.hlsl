@@ -17,6 +17,7 @@ float InputWidth <string uiname="Input Width";> = 1920.0;
 float InputHeight <string uiname="Input Height";> = 1080.0;
 float OutputWidth <string uiname="Output Width";> = 1920.0;
 float OutputHeight <string uiname="Output Height";> = 1080.0;
+float OnePixelX = 1.0/1920.0;
 	
 //float3x3 YUV2RGBTransform <string uiname="rgb2yuv matrix";>;
 	
@@ -149,10 +150,10 @@ float4 PSRGBA8888_to_YUVS(psInput In):SV_Target
 {
 #if SWAP_RB
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).bgr;
-	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).bgr;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + OnePixelX, In.uv.y), 0).bgr;
 #else
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
-	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + OnePixelX, In.uv.y), 0).rgb;
 #endif
 	
 	float3 yuvA = YUV(rgbA);
@@ -170,10 +171,10 @@ float4 PSRGBA8888_to_2VUY(psInput In):SV_Target
 {
 #if SWAP_RB
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).bgr;
-	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).bgr;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + OnePixelX, In.uv.y), 0).bgr;
 #else
 	float3 rgbA = tex0.SampleLevel(s0, float2(In.uv.x, In.uv.y), 0).rgb;
-	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + 1.0/InputWidth, In.uv.y), 0).rgb;
+	float3 rgbB = tex0.SampleLevel(s0, float2(In.uv.x + OnePixelX, In.uv.y), 0).rgb;
 #endif
 	
 	float3 yuvA = YUV(rgbA);
@@ -194,22 +195,21 @@ float4 PSRGBA8888_to_RGB888(psInput In):SV_Target
 	uint begin = ((uint)x) % (uint)3;
 	uint offset = ((uint)x) / (uint)3;
 	x = (x + (float)offset) / InputWidth;
-	float onePixel = 1.0/InputWidth;
 	float4 rgba;
 	if(begin==0)
 	{
 		rgba.rgb = tex0.SampleLevel(s0,float2(x,y),0).rgb;
-		rgba.a = tex0.SampleLevel(s0,float2(x+onePixel,y),0).r;
+		rgba.a = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).r;
 	}
 	else if(begin==1)
 	{
 		rgba.rg = tex0.SampleLevel(s0,float2(x,y),0).gb;
-		rgba.ba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).rg;
+		rgba.ba = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).rg;
 	}
 	else
 	{
 		rgba.r = tex0.SampleLevel(s0,float2(x,y),0).b;
-		rgba.gba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).rgb;
+		rgba.gba = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).rgb;
 	}
 	
 	return rgba;
@@ -222,22 +222,21 @@ float4 PSRGBA8888_to_BGR888(psInput In):SV_Target
 	uint begin = ((uint)x) % (uint)3;
 	uint offset = ((uint)x) / (uint)3;
 	x = (x + (float)offset) / InputWidth;
-	float onePixel = 1.0/InputWidth;
 	float4 rgba;
 	if(begin==0)
 	{
 		rgba.rgb = tex0.SampleLevel(s0,float2(x,y),0).bgr;
-		rgba.a = tex0.SampleLevel(s0,float2(x+onePixel,y),0).b;
+		rgba.a = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).b;
 	}
 	else if(begin==1)
 	{
 		rgba.rg = tex0.SampleLevel(s0,float2(x,y),0).gr;
-		rgba.ba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).bg;
+		rgba.ba = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).bg;
 	}
 	else
 	{
 		rgba.r = tex0.SampleLevel(s0,float2(x,y),0).r;
-		rgba.gba = tex0.SampleLevel(s0,float2(x+onePixel,y),0).bgr;
+		rgba.gba = tex0.SampleLevel(s0,float2(x+OnePixelX,y),0).bgr;
 	}
 	
 	return rgba;
@@ -250,18 +249,17 @@ float4 PSRGBA8888_to_V210(psInput In):SV_Target
 	uint begin = ((uint)x) % (uint)4;
 	uint offset = ((uint)x) / (uint)4 * (uint)2;
 	x = (x + (float)offset) / InputWidth;
-	float onePixel = 1.0/InputWidth;
 	float r;
 	float g;
 	float b;
 #if SWAP_RB
 	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).bgr;
-	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).bgr;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).bgr;
 #else
 	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).rgb;
-	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).rgb;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).rgb;
 #endif
 	if(begin==0)
 	{
@@ -298,18 +296,17 @@ float4 PSRGBA8888_to_Y210(psInput In):SV_Target
 	uint begin = ((uint)x) % (uint)4;
 	uint offset = ((uint)x) / (uint)4 * (uint)2;
 	x = (x + (float)offset) / InputWidth;
-	float onePixel = 1.0/InputWidth;
 	float r;
 	float g;
 	float b;
 #if SWAP_RB
 	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).bgr;
-	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).bgr;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).bgr;
 #else
 	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-	float3 rgb1 = tex0.SampleLevel(s0, float2(x+onePixel,y), 0).rgb;
-	float3 rgb2 = tex0.SampleLevel(s0, float2(x+onePixel+onePixel,y), 0).rgb;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).rgb;
 #endif
 	if(begin==0)
 	{

@@ -28,8 +28,10 @@ namespace VVVV.Nodes.Bluefish
 
         Texture2D FBackBuffer;
         Texture2D FSharedTexture;
-        Texture2D FTextureBack;
+        Texture2D[] FTextureBack;
         DataBox FReadBackData;
+        int FCurrentBack;
+        int FCurrentFront;
 
         ILogger FLogger;
         bool FDirectCopy = false;
@@ -206,13 +208,13 @@ namespace VVVV.Nodes.Bluefish
             this.FHiddenControl.Height = backBufferHeight;
             var desc = new SwapChainDescription()
             {
-                BufferCount = 1,
-                ModeDescription = new ModeDescription(backBufferWidth, backBufferHeight, new Rational(60, 1), backBufferFormat),
-                IsWindowed = true,
+                BufferCount = 4,
+                ModeDescription = new ModeDescription(backBufferWidth, backBufferHeight, new Rational(120, 1), backBufferFormat),
+                IsWindowed = false,
                 OutputHandle = this.FHiddenControl.Handle,
                 SampleDescription = new SampleDescription(1, 0),
                 SwapEffect = SwapEffect.Discard,
-                Usage = Usage.RenderTargetOutput
+                Usage = Usage.BackBuffer | Usage.RenderTargetOutput
             };
 
             SlimDX.Direct3D11.Device.CreateWithSwapChain(DriverType.Hardware, DeviceCreationFlags.Debug, desc, out this.FDevice, out this.FSwapChain);
@@ -235,7 +237,11 @@ namespace VVVV.Nodes.Bluefish
             texDescription.Width = backBufferWidth;
             texDescription.Height = backBufferHeight;
             texDescription.Format = backTextureFormat;
-            this.FTextureBack = new Texture2D(this.FDevice, texDescription);
+            this.FTextureBack = new Texture2D[8];
+            for (int i = 0; i < this.FTextureBack.Length; i++)
+            {
+                this.FTextureBack[i] = new Texture2D(this.FDevice, texDescription);
+            }
 
             texDescription.Usage = ResourceUsage.Default;
             texDescription.BindFlags = BindFlags.RenderTarget;
@@ -309,11 +315,12 @@ namespace VVVV.Nodes.Bluefish
 
                 context.PixelShader.SetSampler(samplerState, 0);
 
-                var shaderVars = new DataStream(4*sizeof(float),true,true);
+                var shaderVars = new DataStream(5*sizeof(float),true,true);
                 shaderVars.Write((float)this.FSharedTexture.Description.Width);
                 shaderVars.Write((float)this.FSharedTexture.Description.Height);
                 shaderVars.Write((float)backBufferWidth);
                 shaderVars.Write((float)backBufferHeight);
+                shaderVars.Write((float)1.0 / (float)this.FSharedTexture.Description.Width);
                 shaderVars.Position = 0;
                 var varsBuffer = new SlimDX.Direct3D11.Buffer(this.FDevice,shaderVars,4*sizeof(float),ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
                 context.PixelShader.SetConstantBuffer(varsBuffer,0);
@@ -333,28 +340,43 @@ namespace VVVV.Nodes.Bluefish
 		{
 			try
             {
-
                 var context = this.FDevice.ImmediateContext;
                 if (this.FReadBackData != null)
                 {
-                    context.UnmapSubresource(this.FTextureBack, 0);
+                    context.UnmapSubresource(this.FTextureBack[FCurrentFront], 0);
                     this.FReadBackData = null;
+                    FCurrentBack += 1;
+                    FCurrentBack %= FTextureBack.Length;
                 }
+                FCurrentFront = FCurrentBack + 6;
+                FCurrentFront %= FTextureBack.Length;
+
                 //Stopwatch Timer = new Stopwatch();
                 //Timer.Start();
+
+
                 if (this.FDirectCopy)
                 {
-                    context.CopyResource(this.FSharedTexture, this.FTextureBack);
+                    context.CopyResource(this.FSharedTexture, this.FTextureBack[FCurrentBack]);
                 }
                 else
                 {
                     context.Draw(6, 0);
                     FSwapChain.Present(0, PresentFlags.None);
-                    context.CopyResource(this.FBackBuffer, this.FTextureBack);
+                    context.CopyResource(this.FBackBuffer, this.FTextureBack[FCurrentBack]);
                 }
-                //FLogger.Log(LogType.Message,Timer.Elapsed.TotalMilliseconds.ToString());
-                this.FReadBackData = context.MapSubresource(this.FTextureBack, 0, 0, MapMode.Read, SlimDX.Direct3D11.MapFlags.None);
-                return this.FReadBackData.Data.DataPointer;
+
+                var ret = (IntPtr)0;
+                try
+                {
+                    this.FReadBackData = context.MapSubresource(this.FTextureBack[FCurrentFront], 0, 0, MapMode.Read, SlimDX.Direct3D11.MapFlags.None);
+                    ret = this.FReadBackData.Data.DataPointer;
+                }
+                catch (Exception e)
+                {
+                    ret = (IntPtr)0;
+                }
+                return ret;
 			}
 			catch (Exception e)
             {
@@ -371,10 +393,13 @@ namespace VVVV.Nodes.Bluefish
 
             if (this.FReadBackData!=null)
             {
-                this.FDevice.ImmediateContext.UnmapSubresource(this.FTextureBack, 0);
+                this.FDevice.ImmediateContext.UnmapSubresource(this.FTextureBack[FCurrentFront], 0);
                 this.FReadBackData = null;
             }
-            FTextureBack.Dispose();
+            foreach (var tex in this.FTextureBack)
+            {
+                tex.Dispose();
+            }
             this.FDevice.Dispose();
         }
 
