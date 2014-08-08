@@ -22,16 +22,14 @@ namespace VVVV.Nodes.Bluefish
 	class ReadTextureDX11 : IDisposable
 	{
         SlimDX.Direct3D11.Device FDevice;
-        Control FHiddenControl;
-        SwapChain FSwapChain;
-        RenderTargetView FRenderTargetView;
-
-        Texture2D FBackBuffer;
+        RenderTargetView[] FRenderTargetView;
+        Texture2D[] FBackBuffer;
         Texture2D FSharedTexture;
         Texture2D[] FTextureBack;
         DataBox FReadBackData;
         int FCurrentBack;
         int FCurrentFront;
+        int FRendererOutput;
 
         ILogger FLogger;
         bool FDirectCopy = false;
@@ -48,8 +46,8 @@ namespace VVVV.Nodes.Bluefish
 			var texHandle = (IntPtr)unchecked((int)handle);
 
 
-            var auxDevice = new SlimDX.Direct3D11.Device(DriverType.Hardware);
-            var auxSharedTexture = auxDevice.OpenSharedResource<Texture2D>(texHandle);
+            this.FDevice = new SlimDX.Direct3D11.Device(DriverType.Hardware,DeviceCreationFlags.SingleThreaded);
+            var auxSharedTexture = this.FDevice.OpenSharedResource<Texture2D>(texHandle);
 
             FLogger.Log(LogType.Message, auxSharedTexture.Description.Width.ToString() + "x" + auxSharedTexture.Description.Height.ToString());
             FLogger.Log(LogType.Message, "ArraySize " + auxSharedTexture.Description.ArraySize.ToString());
@@ -199,34 +197,29 @@ namespace VVVV.Nodes.Bluefish
                     throw new Exception("Unsupported output format " + outFormat.ToString());
             }
 
-            auxSharedTexture.Dispose();
-            auxDevice.Dispose();
-
-            this.FHiddenControl = new Control();
-            this.FHiddenControl.Visible = false;
-            this.FHiddenControl.Width = backBufferWidth;
-            this.FHiddenControl.Height = backBufferHeight;
-            var desc = new SwapChainDescription()
+            this.FSharedTexture = auxSharedTexture;//.FDevice.OpenSharedResource<Texture2D>(texHandle);
+            var texDescription = this.FSharedTexture.Description;
+            texDescription.MipLevels = 1;
+            texDescription.ArraySize = 1;
+            texDescription.SampleDescription = new SampleDescription(1, 0);
+            texDescription.Usage = ResourceUsage.Default;
+            texDescription.BindFlags = BindFlags.RenderTarget;
+            texDescription.CpuAccessFlags = CpuAccessFlags.None;
+            texDescription.OptionFlags = ResourceOptionFlags.None;
+            texDescription.Width = backBufferWidth;
+            texDescription.Height = backBufferHeight;
+            texDescription.Format = backTextureFormat;
+            this.FBackBuffer = new Texture2D[4];
+            this.FRenderTargetView = new RenderTargetView[4];
+            for (int i = 0; i < this.FBackBuffer.Length; i++)
             {
-                BufferCount = 4,
-                ModeDescription = new ModeDescription(backBufferWidth, backBufferHeight, new Rational(120, 1), backBufferFormat),
-                IsWindowed = false,
-                OutputHandle = this.FHiddenControl.Handle,
-                SampleDescription = new SampleDescription(1, 0),
-                SwapEffect = SwapEffect.Discard,
-                Usage = Usage.BackBuffer | Usage.RenderTargetOutput
-            };
-
-            SlimDX.Direct3D11.Device.CreateWithSwapChain(DriverType.Hardware, DeviceCreationFlags.Debug, desc, out this.FDevice, out this.FSwapChain);
-            this.FBackBuffer = Texture2D.FromSwapChain<Texture2D>(this.FSwapChain, 0);
-            this.FRenderTargetView = new RenderTargetView(this.FDevice, this.FBackBuffer);
-            this.FDevice.ImmediateContext.OutputMerger.SetTargets(this.FRenderTargetView);
+                this.FBackBuffer[i] = new Texture2D(this.FDevice, texDescription);
+                this.FRenderTargetView[i] = new RenderTargetView(this.FDevice, this.FBackBuffer[i]);
+            }
+            this.FDevice.ImmediateContext.OutputMerger.SetTargets(this.FRenderTargetView[0]);
             this.FDevice.ImmediateContext.Rasterizer.SetViewports(new Viewport(0, 0, backBufferWidth, backBufferHeight, 0.0f, 1.0f));
 
-            this.FSharedTexture = this.FDevice.OpenSharedResource<Texture2D>(texHandle);
 
-            
-            var texDescription = this.FSharedTexture.Description;
             texDescription.MipLevels = 1;
             texDescription.ArraySize = 1;
             texDescription.SampleDescription = new SampleDescription(1, 0);
@@ -237,7 +230,7 @@ namespace VVVV.Nodes.Bluefish
             texDescription.Width = backBufferWidth;
             texDescription.Height = backBufferHeight;
             texDescription.Format = backTextureFormat;
-            this.FTextureBack = new Texture2D[8];
+            this.FTextureBack = new Texture2D[4];
             for (int i = 0; i < this.FTextureBack.Length; i++)
             {
                 this.FTextureBack[i] = new Texture2D(this.FDevice, texDescription);
@@ -348,11 +341,9 @@ namespace VVVV.Nodes.Bluefish
                     FCurrentBack += 1;
                     FCurrentBack %= FTextureBack.Length;
                 }
-                FCurrentFront = FCurrentBack + 6;
+                FCurrentFront = FCurrentBack + 2;
                 FCurrentFront %= FTextureBack.Length;
 
-                //Stopwatch Timer = new Stopwatch();
-                //Timer.Start();
 
 
                 if (this.FDirectCopy)
@@ -361,10 +352,16 @@ namespace VVVV.Nodes.Bluefish
                 }
                 else
                 {
+                    var renderTargetView = this.FRenderTargetView[FRendererOutput];
+                    this.FDevice.ImmediateContext.OutputMerger.SetTargets(renderTargetView);
                     context.Draw(6, 0);
-                    FSwapChain.Present(0, PresentFlags.None);
-                    context.CopyResource(this.FBackBuffer, this.FTextureBack[FCurrentBack]);
+
+                    var FrontBuffer = this.FBackBuffer[(FRendererOutput + 1) % this.FBackBuffer.Length];
+                    context.CopyResource(FrontBuffer, this.FTextureBack[FCurrentBack]);
+                    FRendererOutput++;
+                    FRendererOutput %= this.FBackBuffer.Length;
                 }
+
 
                 var ret = (IntPtr)0;
                 try
@@ -376,6 +373,7 @@ namespace VVVV.Nodes.Bluefish
                 {
                     ret = (IntPtr)0;
                 }
+                context.Flush();
                 return ret;
 			}
 			catch (Exception e)
@@ -388,8 +386,7 @@ namespace VVVV.Nodes.Bluefish
 		public void Dispose()
 		{
             this.FSharedTexture.Dispose();
-            this.FBackBuffer.Dispose();
-            this.FRenderTargetView.Dispose();
+            //this.FBackBuffer.Dispose();
 
             if (this.FReadBackData!=null)
             {

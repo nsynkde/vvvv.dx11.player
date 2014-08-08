@@ -39,7 +39,13 @@ namespace VVVV.Nodes.Bluefish
             private uint FTextureHandle;
             private uint FDeviceID;
             private uint FDroppedFrames = 0;
-            private WorkerThread thread = new WorkerThread();
+            private WorkerThread FUploadThread = new WorkerThread();
+            private WorkerThread FRenderThread = new WorkerThread();
+            private Stopwatch FLogTimer = new Stopwatch();
+            double FAccTime;
+            double FAvgTime;
+            double FMaxTime;
+            uint FNumFrames;
 
             ILogger FLogger;
 
@@ -60,6 +66,7 @@ namespace VVVV.Nodes.Bluefish
                     FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
                     this.SyncLoop = syncLoop;
                     this.FTextureHandle = textureHandle;
+                    this.FLogTimer.Start();
 				}
 				catch(Exception e)
 				{
@@ -73,10 +80,24 @@ namespace VVVV.Nodes.Bluefish
 
 			public void PullFromTexture()
             {
-                if (thread.QueueSize==0)
+                if (FRenderThread.QueueSize < 4)
                 {
-                    thread.Perform(() =>
+                    FRenderThread.Perform(() =>
                     {
+                        Stopwatch timer = new Stopwatch();
+                        timer.Start();
+                        Source.RenderNext();
+                        timer.Stop();
+                        LogTime(timer.Elapsed.TotalMilliseconds,true);
+                    });
+
+                }
+                if (FUploadThread.QueueSize<4)
+                {
+                    FUploadThread.Perform(() =>
+                    {
+                        Stopwatch timer = new Stopwatch();
+                        timer.Start();
                         var memory = this.ReadTexture.ReadBack();
                         if (memory != (IntPtr)0)
                         {
@@ -86,6 +107,8 @@ namespace VVVV.Nodes.Bluefish
                         {
                             FDroppedFrames++;
                         }
+                        timer.Stop();
+                        LogTime(timer.Elapsed.TotalMilliseconds,false);
                     });
                 }
                 else
@@ -97,6 +120,32 @@ namespace VVVV.Nodes.Bluefish
                     Source.WaitSync();
                 }
 			}
+
+            private void LogTime(double lastTime, bool renderTime)
+            {
+                /*if (lastTime > 15)
+                {
+                    FLogger.Log(LogType.Error, "Error!!!!  Total Time: " + lastTime.ToString());
+                }*/
+                FAccTime += lastTime;
+                if(!renderTime) FNumFrames++;
+                if (lastTime > FMaxTime)
+                {
+                    FMaxTime = lastTime;
+                }
+                if (FLogTimer.ElapsedMilliseconds >= 2000)
+                {
+                    FLogTimer.Reset();
+                    FAccTime /= FNumFrames;
+                    //FLogger.Log(LogType.Message, "Total Avg Time: " + FAvgTime);
+                    //FLogger.Log(LogType.Message, "Total Max Time: " + FMaxTime);
+                    FAvgTime = FAccTime;
+                    FAccTime = 0;
+                    FNumFrames = 0;
+                    FMaxTime = 0;
+                    FLogTimer.Start();
+                }
+            }
 
 			public void Dispose()
 			{
@@ -215,6 +264,22 @@ namespace VVVV.Nodes.Bluefish
                     return FDroppedFrames;
                 }
             }
+
+            public double AvgFrameTime
+            {
+                get
+                {
+                    return FAvgTime;
+                }
+            }
+
+            public double MaxFrameTime
+            {
+                get
+                {
+                    return FMaxTime;
+                }
+            }
 		}
 
         #region fields & pins
@@ -260,6 +325,12 @@ namespace VVVV.Nodes.Bluefish
 
         [Output("Dropped Frames")]
         ISpread<uint> FOutDroppedFrames;
+
+        [Output("Avg. Frame Time")]
+        ISpread<double> FOutAvgFrameTime;
+
+        [Output("Max. Frame Time")]
+        ISpread<double> FOutMaxFrameTime;
 
         [Output("Out Channel")]
         ISpread<uint> FOutOutChannel;
@@ -307,6 +378,10 @@ namespace VVVV.Nodes.Bluefish
 
 				FInstances.SliceCount = 0;
 				FOutStatus.SliceCount = SpreadMax;
+                FOutAvgFrameTime.SliceCount = SpreadMax;
+                FOutDroppedFrames.SliceCount = SpreadMax;
+                FOutMaxFrameTime.SliceCount = SpreadMax;
+                FOutOutChannel.SliceCount = SpreadMax;
 
 				for (int i=0; i<SpreadMax; i++)
 				{
@@ -383,6 +458,14 @@ namespace VVVV.Nodes.Bluefish
             }
 
             FFirstRun = false;
+            for (int i = 0; i < FInstances.SliceCount; i++)
+            {
+                if (FInEnabled[i] != false && FInstances[i] != null){
+                    FOutDroppedFrames[i] = FInstances[i].DroppedFrames;
+                    FOutAvgFrameTime[i] = FInstances[i].AvgFrameTime;
+                    FOutMaxFrameTime[i] = FInstances[i].MaxFrameTime;
+                }
+            }
         }
 
 		public void OnImportsSatisfied()
@@ -400,7 +483,6 @@ namespace VVVV.Nodes.Bluefish
                     continue;
 
                 instance.PullFromTexture();
-                FOutDroppedFrames[i] = instance.DroppedFrames;
             }
 		}
 

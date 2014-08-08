@@ -13,7 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{4BB46D
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BluePlayback", "..\..\..\..\..\..\..\bluefish_sdk\sdk_5_11_0_5\samples\CSharpSamples\BluePlayback\BluePlayback.vcxproj", "{B5085B11-906F-4957-BCEF-2AD5C310BA29}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BluePlayback", "..\..\..\..\..\..\..\bluefish_sdk\sdk_5_11_0_9\samples\CSharpSamples\BluePlayback\BluePlayback.vcxproj", "{B5085B11-906F-4957-BCEF-2AD5C310BA29}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

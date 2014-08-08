@@ -42,12 +42,14 @@ namespace VVVV.Nodes.Bluefish
                         if (FWorkQueue.Count > 0)
                         {
                             nextWork = FWorkQueue.Dequeue();
+                            this.Working = true;
                         }
                         else
                         {
                             nextWork = null;
                             //FEmptyQueueEvent.Set();
                             FNewWorkEvent.Reset();
+                            this.Working = false;
                         }
                     }
                     if (nextWork!=null)
@@ -126,6 +128,20 @@ namespace VVVV.Nodes.Bluefish
 			    {
                     return FWorkQueue.Count;
                 }
+            }
+        }
+
+        private bool FWorking;
+        public bool Working
+        {
+            get
+            {
+                return FWorking && FWorkQueue.Count==0;
+            }
+
+            private set
+            {
+                this.FWorking = value;
             }
         }
 	}

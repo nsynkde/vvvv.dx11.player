@@ -263,13 +263,24 @@ namespace VVVV.Nodes.Bluefish
         {
             //worker.Perform(() =>
             //{
-                int result = BluePlaybackNativeInterface.BluePlaybackRender(pBluePlayback, data);
+                int result = BluePlaybackNativeInterface.BluePlaybackUpload(pBluePlayback, data);
 
                 if (result < 0)
                 {
                     FLogger.Log(LogType.Error, "error writing bytes");
                 }
             //});
+
+        }
+
+        public void RenderNext()
+        {
+            int result = BluePlaybackNativeInterface.BluePlaybackRenderNext(pBluePlayback);
+
+            if (result < 0)
+            {
+                FLogger.Log(LogType.Error, "error rendering frame");
+            }
 
         }
 
@@ -339,7 +350,10 @@ namespace VVVV.Nodes.Bluefish
         internal static extern int BluePlaybackWaitSync(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
-        internal static extern int BluePlaybackRender(IntPtr pBluePlaybackObject, IntPtr pBuffer);
+        internal static extern int BluePlaybackUpload(IntPtr pBluePlaybackObject, IntPtr pBuffer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern int BluePlaybackRenderNext(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern void BluePlaybackDestroy(IntPtr pBluePlaybackObject);
