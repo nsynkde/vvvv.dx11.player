@@ -36,18 +36,17 @@ namespace VVVV.Nodes.Bluefish
 
 
 
-		public ReadTextureDX11(uint handle, BlueFish_h.EMemoryFormat outFormat, ILogger FLogger)
+        public ReadTextureDX11(ulong handle, BlueFish_h.EMemoryFormat outFormat, ILogger FLogger)
         {
             if (handle == 0)
             {
                 throw (new Exception("No shared texture handle set"));
             }
             this.FLogger = FLogger;
-			var texHandle = (IntPtr)unchecked((int)handle);
 
 
             this.FDevice = new SlimDX.Direct3D11.Device(DriverType.Hardware,DeviceCreationFlags.SingleThreaded);
-            var auxSharedTexture = this.FDevice.OpenSharedResource<Texture2D>(texHandle);
+            var auxSharedTexture = this.FDevice.OpenSharedResource<Texture2D>((IntPtr)handle);
 
             FLogger.Log(LogType.Message, auxSharedTexture.Description.Width.ToString() + "x" + auxSharedTexture.Description.Height.ToString());
             FLogger.Log(LogType.Message, "ArraySize " + auxSharedTexture.Description.ArraySize.ToString());

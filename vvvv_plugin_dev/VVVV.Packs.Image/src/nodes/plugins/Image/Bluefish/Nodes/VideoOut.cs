@@ -36,7 +36,7 @@ namespace VVVV.Nodes.Bluefish
 		{
 			public BluefishSource Source;
 			public ReadTextureDX11 ReadTexture;
-            private uint FTextureHandle;
+            private ulong FTextureHandle;
             private uint FDeviceID;
             private uint FDroppedFrames = 0;
             private WorkerThread FUploadThread = new WorkerThread();
@@ -49,7 +49,7 @@ namespace VVVV.Nodes.Bluefish
 
             ILogger FLogger;
 
-            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, BlueFish_h.EMemoryFormat outFormat, uint textureHandle, bool syncLoop, ILogger FLogger)
+            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, BlueFish_h.EMemoryFormat outFormat, ulong textureHandle, bool syncLoop, ILogger FLogger)
 			{
                 this.FLogger = FLogger;
                 FDeviceID = deviceID;
@@ -315,7 +315,7 @@ namespace VVVV.Nodes.Bluefish
         IDiffSpread<bool> FInEnabled;
 
         [Input("TextureHandle")]
-        IDiffSpread<uint> FInHandle;
+        IDiffSpread<ulong> FInHandle;
 
 		[Output("Status")]
         ISpread<string> FOutStatus;
