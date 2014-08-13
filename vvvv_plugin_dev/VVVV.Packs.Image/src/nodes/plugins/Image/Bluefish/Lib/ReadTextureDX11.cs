@@ -44,7 +44,6 @@ namespace VVVV.Nodes.Bluefish
             }
             this.FLogger = FLogger;
 
-
             this.FDevice = new SlimDX.Direct3D11.Device(DriverType.Hardware,DeviceCreationFlags.SingleThreaded);
             var auxSharedTexture = this.FDevice.OpenSharedResource<Texture2D>((IntPtr)handle);
 
@@ -235,10 +234,6 @@ namespace VVVV.Nodes.Bluefish
                 this.FTextureBack[i] = new Texture2D(this.FDevice, texDescription);
             }
 
-            texDescription.Usage = ResourceUsage.Default;
-            texDescription.BindFlags = BindFlags.RenderTarget;
-            texDescription.CpuAccessFlags = CpuAccessFlags.None;
-
             FLogger.Log(LogType.Message, Environment.CurrentDirectory);
 
             if (!this.FDirectCopy)
@@ -257,12 +252,12 @@ namespace VVVV.Nodes.Bluefish
                 {
                     defines[0].Value = "0";
                 }
-                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", "VShader", "vs_4_0", ShaderFlags.None, EffectFlags.None))
+                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", "VShader", "vs_5_0", ShaderFlags.None, EffectFlags.None))
                 {
                     inputSignature = ShaderSignature.GetInputSignature(bytecode);
                     vertexShader = new VertexShader(this.FDevice, bytecode);
                 }
-                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", pixelShaderSrc, "ps_4_0", ShaderFlags.None, EffectFlags.None, defines, null))
+                using (var bytecode = ShaderBytecode.CompileFromFile("Shaders/ColorSpaceConversionDX11.hlsl", pixelShaderSrc, "ps_5_0", ShaderFlags.None, EffectFlags.None, defines, null))
                 {
                     pixelShader = new PixelShader(this.FDevice, bytecode);
                 }
@@ -368,7 +363,7 @@ namespace VVVV.Nodes.Bluefish
                     this.FReadBackData = context.MapSubresource(this.FTextureBack[FCurrentFront], 0, 0, MapMode.Read, SlimDX.Direct3D11.MapFlags.None);
                     ret = this.FReadBackData.Data.DataPointer;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     ret = (IntPtr)0;
                 }

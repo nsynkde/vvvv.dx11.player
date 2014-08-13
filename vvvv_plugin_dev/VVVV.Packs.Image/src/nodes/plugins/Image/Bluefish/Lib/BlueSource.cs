@@ -8,6 +8,8 @@ using System.Threading;
 using System.Timers;
 using VVVV.Core.Logging;
 using SlimDX.Direct3D9;
+using System.Runtime.ExceptionServices;
+
 
 
 
@@ -15,10 +17,9 @@ namespace VVVV.Nodes.Bluefish
 {
 	class BluefishSource : IDisposable
 	{
-
+        private IntPtr pBlueRenderer;
         private IntPtr pBluePlayback;
         private ILogger FLogger;
-        //private WorkerThread worker = new WorkerThread();
 
 		
 		public int Width
@@ -151,29 +152,31 @@ namespace VVVV.Nodes.Bluefish
             }
         }
 
-		public delegate void FrameServeHandler(IntPtr data);
-		/// <summary>
-		/// Callback for scheduled playback
-		/// </summary>
-		public event FrameServeHandler NewFrame;
-		void OnNewFrame(IntPtr data)
+
+        public BluefishSource(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ulong tex_handle, ILogger FLogger)
 		{
-			if (NewFrame != null)
-				NewFrame(data);
+			this.Initialise(device, channel, mode, format, tex_handle, FLogger);
 		}
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        public static extern void OutputDebugString(string message);
 
-        public BluefishSource(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ILogger FLogger)
-		{
-			this.Initialise(device, channel, mode, format, FLogger);
-		}
-
-        public void Initialise(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ILogger FLogger)
+        public void Initialise(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ulong tex_handle, ILogger FLogger)
 		{
 			try
-			{
-
-                pBluePlayback = BluePlaybackNativeInterface.BluePlaybackCreate();
+            {
+                //pBluePlayback = BluePlaybackNativeInterface.BluePlaybackCreate();
+                OutputDebugString("Creating renderer");
+                pBlueRenderer = BluePlaybackNativeInterface.BlueRendererCreate((IntPtr)tex_handle, (int)format);
+                if (pBlueRenderer == (IntPtr)0)
+                {
+                    throw new Exception("Couldn't create renderer");
+                }
+                OutputDebugString("Got renderer: " + pBlueRenderer);
+                FLogger.Log(LogType.Message, "Got renderer: " + pBlueRenderer);
+                pBluePlayback = BluePlaybackNativeInterface.BlueRendererGetPlaybackDevice(pBlueRenderer);
+                FLogger.Log(LogType.Message, "Got device: " + pBluePlayback);
+                OutputDebugString("Got device: " + pBluePlayback);
                 //--
                 //attach to device
                 //
@@ -197,7 +200,9 @@ namespace VVVV.Nodes.Bluefish
                                                     0, // audio destination
                                                     0  // audio channel mask
                                                     );
+                OutputDebugString("Config set on blueplayback");
                 BluePlaybackNativeInterface.BluePlaybackStart(pBluePlayback);
+                OutputDebugString("blueplayback started");
 
                 if (err != 0)
                 {
@@ -206,8 +211,6 @@ namespace VVVV.Nodes.Bluefish
 
                 this.FLogger = FLogger;
 				FRunning = true;
-
-                FLogger.Log(LogType.Message, "config device");
 			}
 			catch (Exception e)
 			{
@@ -216,119 +219,68 @@ namespace VVVV.Nodes.Bluefish
 			}
 		}
 
-		public void Stop()
+        public void OnPresent()
         {
+            if (!FRunning)
+                return;
 
-            // stop device, black frame...
-
-			if (!FRunning)
-				return;
-
-			//stop new frames from being scheduled
-			FRunning = false;
-
-            BluePlaybackNativeInterface.BluePlaybackStop(pBluePlayback);
-		}
-
-		public Object LockBuffer = new Object();
-
-		/*public void SendFrame(byte[] buffer)
-		{
-            worker.Perform(() =>
-            {
-                unsafe
-                {
-                    fixed (byte* p = buffer)
-                    {
-                        IntPtr ptr = (IntPtr)p;
-                    
-                        // send bytes blocking
-                        int result = BluePlaybackNativeInterface.BluePlaybackRender(pBluePlayback, ptr);
-
-                        if (result < 0)
-                        {
-                            Console.WriteLine("error writing bytes");
-                        }
-                    } 
-                }
-            });
-
-            
-
-            
-
-		}*/
-
-        public void SendFrame(IntPtr data)
-        {
-            //worker.Perform(() =>
-            //{
-                int result = BluePlaybackNativeInterface.BluePlaybackUpload(pBluePlayback, data);
-
-                if (result < 0)
-                {
-                    FLogger.Log(LogType.Error, "error writing bytes");
-                }
-            //});
-
-        }
-
-        public void RenderNext()
-        {
-            int result = BluePlaybackNativeInterface.BluePlaybackRenderNext(pBluePlayback);
-
-            if (result < 0)
-            {
-                FLogger.Log(LogType.Error, "error rendering frame");
-            }
-
+            BluePlaybackNativeInterface.BlueRendererOnPresent(pBlueRenderer);
         }
 
         public void WaitSync()
         {
-            //worker.BlockUntilEmpty();
+            if (!FRunning)
+                return;
+
             BluePlaybackNativeInterface.BluePlaybackWaitSync(pBluePlayback);
         }
 
-        /*public bool DoneLastFrame()
+        public double AvgDuration
         {
-            return worker.QueueSize == 0;
-        }**/
+            get
+            {
+                if (!FRunning)
+                    return 0;
+                return BluePlaybackNativeInterface.BlueRendererGetAvgDuration(pBlueRenderer);
+            }
+        }
+
+        public double MaxDuration
+        {
+            get
+            {
+                if (!FRunning)
+                    return 0;
+                return BluePlaybackNativeInterface.BlueRendererGetMaxDuration(pBlueRenderer);
+            }
+        }
+
+        public void Stop()
+        {
+
+            // stop device, black frame...
+
+            if (!FRunning)
+                return;
+
+            //stop new frames from being scheduled
+            FRunning = false;
+
+            BluePlaybackNativeInterface.BlueRendererStop(pBluePlayback);
+        }
 
 		public void Dispose()
 		{
 			Stop();
-		}
-
-        
-		void ScheduleFrame(bool preRoll)
-		{
-			if (!preRoll && !FRunning)
-			{
-				return;
-			}
-            /*
-			IntPtr data;
-			FVideoFrame.GetBytes(out data);
-			OnNewFrame(data);
-
-
-			long displayTime = FFrameIndex * FFrameDuration;
-			FOutputDevice.ScheduleVideoFrame(FVideoFrame, displayTime, FFrameDuration, FFrameTimescale);
-			FFrameIndex++;
-            */
-		}
-
-		public void ScheduledPlaybackHasStopped()
-		{
+            //TODO: BluePlaybackNativeInterface.BlueRendererDestroy(pBlueRenderer);
 		}
 
 	}
 
     internal class BluePlaybackNativeInterface
     {
-        [DllImport("BluePlayback.dll", SetLastError = false)]
-        internal static extern IntPtr BluePlaybackCreate();
+        /*[DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern IntPtr BluePlaybackCreate();*/
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern Int32 BluePlaybackConfig(IntPtr pBluePlaybackObject, Int32 inDevNo,
@@ -343,20 +295,20 @@ namespace VVVV.Nodes.Bluefish
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern void BluePlaybackStart(IntPtr pBluePlaybackObject);
 
-        [DllImport("BluePlayback.dll", SetLastError = false)]
-        internal static extern void BluePlaybackStop(IntPtr pBluePlaybackObject);
+        /*[DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern void BluePlaybackStop(IntPtr pBluePlaybackObject);*/
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackWaitSync(IntPtr pBluePlaybackObject);
 
-        [DllImport("BluePlayback.dll", SetLastError = false)]
+        /*[DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackUpload(IntPtr pBluePlaybackObject, IntPtr pBuffer);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackRenderNext(IntPtr pBluePlaybackObject);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
-        internal static extern void BluePlaybackDestroy(IntPtr pBluePlaybackObject);
+        internal static extern void BluePlaybackDestroy(IntPtr pBluePlaybackObject);*/
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackSetCardProperty(IntPtr pBluePlaybackObject, int nProp, uint nValue);
@@ -393,6 +345,27 @@ namespace VVVV.Nodes.Bluefish
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern ulong BluePlaybackGetBytesPerFrame(IntPtr pBPHandle);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern IntPtr BlueRendererCreate(IntPtr tex_handle, int outFormat);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern void BlueRendererDestroy(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern void BlueRendererStop(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+	    internal static extern IntPtr BlueRendererGetPlaybackDevice(IntPtr renderer);
+        
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern IntPtr BlueRendererOnPresent(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern double BlueRendererGetAvgDuration(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern double BlueRendererGetMaxDuration(IntPtr renderer);
     }
 }
 

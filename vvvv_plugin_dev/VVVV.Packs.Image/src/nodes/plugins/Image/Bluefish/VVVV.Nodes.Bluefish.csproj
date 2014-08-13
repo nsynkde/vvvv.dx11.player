@@ -77,16 +77,9 @@
   <ItemGroup>
     <Compile Include="Lib\BlueFish_h.cs" />
     <Compile Include="Lib\BlueSDIOut.cs" />
-    <Compile Include="Lib\ReadTextureDX11.cs" />
-    <Compile Include="Lib\WorkerThread.cs" />
-    <Compile Include="Nodes\About.cs" />
-    <None Include="Nodes\DeviceAttributes.cs" />
     <Compile Include="Lib\BlueSource.cs" />
-    <None Include="Nodes\EnumerateOutputModes.cs" />
-    <None Include="Nodes\InterimTextureInfo.cs" />
     <Compile Include="Nodes\SDIOut.cs" />
     <Compile Include="Nodes\VideoOut.cs" />
-    <Compile Include="Nodes\ListDevices.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="packages.config">
       <SubType>Designer</SubType>

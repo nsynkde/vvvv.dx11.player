@@ -32,256 +32,6 @@ namespace VVVV.Nodes.Bluefish
 	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {
 
-		class Instance : IDisposable
-		{
-			public BluefishSource Source;
-			public ReadTextureDX11 ReadTexture;
-            private ulong FTextureHandle;
-            private uint FDeviceID;
-            private uint FDroppedFrames = 0;
-            private WorkerThread FUploadThread = new WorkerThread();
-            private WorkerThread FRenderThread = new WorkerThread();
-            private Stopwatch FLogTimer = new Stopwatch();
-            double FAccTime;
-            double FAvgTime;
-            double FMaxTime;
-            uint FNumFrames;
-
-            ILogger FLogger;
-
-            public Instance(uint deviceID, uint channel, BlueFish_h.EVideoMode videoMode, BlueFish_h.EMemoryFormat outFormat, ulong textureHandle, bool syncLoop, ILogger FLogger)
-			{
-                this.FLogger = FLogger;
-                FDeviceID = deviceID;
-
-				try
-				{
-                    this.ReadTexture = new ReadTextureDX11(textureHandle, outFormat, FLogger);
-                    this.Source = new BluefishSource(deviceID, channel, videoMode, outFormat, FLogger);
-                    if (Source.Width != ReadTexture.InputTexWidth || Source.Height != ReadTexture.InputTexHeight)
-                    {
-                        throw new Exception("Input texture and video format have different sizes");
-                    }
-
-                    FLogger.Log(LogType.Message, "Device video mode: " + Source.Width + "x" + Source.Height);
-                    this.SyncLoop = syncLoop;
-                    this.FTextureHandle = textureHandle;
-                    this.FLogTimer.Start();
-				}
-				catch(Exception e)
-				{
-					if (this.Source != null)
-						this.Source.Dispose();
-					if (this.ReadTexture != null)
-						this.ReadTexture.Dispose();
-					throw e;
-				}
-			}
-
-			public void PullFromTexture()
-            {
-                if (FRenderThread.QueueSize < 4)
-                {
-                    FRenderThread.Perform(() =>
-                    {
-                        Stopwatch timer = new Stopwatch();
-                        timer.Start();
-                        Source.RenderNext();
-                        timer.Stop();
-                        LogTime(timer.Elapsed.TotalMilliseconds,true);
-                    });
-
-                }
-                if (FUploadThread.QueueSize<4)
-                {
-                    FUploadThread.Perform(() =>
-                    {
-                        Stopwatch timer = new Stopwatch();
-                        timer.Start();
-                        var memory = this.ReadTexture.ReadBack();
-                        if (memory != (IntPtr)0)
-                        {
-                            Source.SendFrame(memory);
-                        }
-                        else
-                        {
-                            FDroppedFrames++;
-                        }
-                        timer.Stop();
-                        LogTime(timer.Elapsed.TotalMilliseconds,false);
-                    });
-                }
-                else
-                {
-                    FDroppedFrames++;
-                }
-                if (this.SyncLoop)
-                {
-                    Source.WaitSync();
-                }
-			}
-
-            private void LogTime(double lastTime, bool renderTime)
-            {
-                /*if (lastTime > 15)
-                {
-                    FLogger.Log(LogType.Error, "Error!!!!  Total Time: " + lastTime.ToString());
-                }*/
-                FAccTime += lastTime;
-                if(!renderTime) FNumFrames++;
-                if (lastTime > FMaxTime)
-                {
-                    FMaxTime = lastTime;
-                }
-                if (FLogTimer.ElapsedMilliseconds >= 2000)
-                {
-                    FLogTimer.Reset();
-                    FAccTime /= FNumFrames;
-                    //FLogger.Log(LogType.Message, "Total Avg Time: " + FAvgTime);
-                    //FLogger.Log(LogType.Message, "Total Max Time: " + FMaxTime);
-                    FAvgTime = FAccTime;
-                    FAccTime = 0;
-                    FNumFrames = 0;
-                    FMaxTime = 0;
-                    FLogTimer.Start();
-                }
-            }
-
-			public void Dispose()
-			{
-				this.Source.Dispose();
-				this.ReadTexture.Dispose();
-			}
-
-            bool FSyncLoop;
-            public bool SyncLoop
-            {
-                set
-                {
-                    this.FSyncLoop = value;
-                }
-
-                get
-                {
-                    return this.FSyncLoop;
-                }
-            }
-
-            public bool DualLink
-            {
-                set
-                {
-                    this.Source.DualLink = value;
-                }
-
-                get
-                {
-                    return this.Source.DualLink;
-                }
-            }
-
-            public BlueFish_h.EDualLinkSignalFormatType DualLinkSignalFormat
-            {
-                set
-                {
-                    this.Source.DualLinkSignalFormat = value;
-                }
-
-                get
-                {
-                    return this.Source.DualLinkSignalFormat;
-                }
-            }
-
-            public BlueFish_h.EPreDefinedColorSpaceMatrix ColorMatrix
-            {
-                set
-                {
-                    this.Source.ColorMatrix = value;
-                }
-
-                get
-                {
-                    return this.Source.ColorMatrix;
-                }
-            }
-
-            public BlueFish_h.EConnectorSignalColorSpace OutputColorSpace
-            {
-                set
-                {
-                    this.Source.OutputColorSpace = value;
-                }
-
-                get
-                {
-                    return this.Source.OutputColorSpace;
-                }
-            }
-
-            public BlueFish_h.EVideoMode VideoMode
-            {
-                set
-                {
-                    this.Source.VideoMode = value;
-                    if (Source.Width != ReadTexture.InputTexWidth || Source.Height != ReadTexture.InputTexHeight)
-                    {
-                        throw new Exception("Input texture and video format have different sizes");
-                    }
-                }
-
-                get
-                {
-                    return this.Source.VideoMode;
-                }
-            }
-
-            public uint Channel
-            {
-                set
-                {
-                    this.Source.Channel = value;
-                }
-
-                get
-                {
-                    return this.Source.Channel;
-                }
-            }
-
-            public string DeviceSerialNumber
-            {
-                get
-                {
-                    return this.Source.SerialNumber;
-                }
-            }
-
-            public uint DroppedFrames
-            {
-                get
-                {
-                    return FDroppedFrames;
-                }
-            }
-
-            public double AvgFrameTime
-            {
-                get
-                {
-                    return FAvgTime;
-                }
-            }
-
-            public double MaxFrameTime
-            {
-                get
-                {
-                    return FMaxTime;
-                }
-            }
-		}
-
         #region fields & pins
 #pragma warning disable 0649
 		[Input("Device")]
@@ -314,8 +64,11 @@ namespace VVVV.Nodes.Bluefish
 		[Input("Enabled")]
         IDiffSpread<bool> FInEnabled;
 
-        [Input("TextureHandle")]
-        IDiffSpread<ulong> FInHandle;
+        [Input("TextureHandleDX11")]
+        IDiffSpread<ulong> FInHandleDX11;
+
+        [Input("TextureHandleDX9")]
+        IDiffSpread<uint> FInHandleDX9;
 
 		[Output("Status")]
         ISpread<string> FOutStatus;
@@ -344,12 +97,10 @@ namespace VVVV.Nodes.Bluefish
 #pragma warning restore
 
         //track the current texture slice
-		Spread<Instance> FInstances = new Spread<Instance>();
+        Spread<BluefishSource> FInstances = new Spread<BluefishSource>();
         bool FFirstRun = true;
         #endregion fields & pins
-
-        [DllImport("kernel32.dll", SetLastError = false)]
-        internal static extern int AddDllDirectory(string directory);
+        bool DX11ChangedLast;
 
         /*static VideoOut()
         {
@@ -368,13 +119,26 @@ namespace VVVV.Nodes.Bluefish
         {
         }
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        public static extern void OutputDebugString(string message);
+
         public void Evaluate(int SpreadMax)
         {
-            if (FFirstRun || FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInHandle.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
+            if(FInHandleDX11.IsChanged)
+            {
+                DX11ChangedLast = true;
+            }
+            else if (FInHandleDX9.IsChanged)
+            {
+                DX11ChangedLast = false;
+            }
+
+            if (FFirstRun || FInDevice.IsChanged || FInMode.IsChanged || FInFormat.IsChanged || FInHandleDX11.IsChanged || FInHandleDX9.IsChanged || FInEnabled.IsChanged || FInOutChannel.IsChanged)
 			{
 				foreach(var slice in FInstances)
 					if (slice != null)
 						slice.Dispose();
+
 
 				FInstances.SliceCount = 0;
 				FOutStatus.SliceCount = SpreadMax;
@@ -390,11 +154,13 @@ namespace VVVV.Nodes.Bluefish
 						if (FInEnabled[i] == false)
 							throw (new Exception("Disabled"));
 
-                        Instance inst = new Instance(FInDevice[i], FInOutChannel[i], FInMode[i], FInFormat[i], FInHandle[i], true, FLogger); 
+                        var handle = (DX11ChangedLast && FInHandleDX11[i] != 0) ? FInHandleDX11[i] : FInHandleDX9[i];
 
-						FInstances.Add(inst);
-						FOutStatus[i] = "OK";
-                        FOutSerialNumber[i] = inst.DeviceSerialNumber;
+                        BluefishSource inst = new BluefishSource(FInDevice[i], FInOutChannel[i], FInMode[i], FInFormat[i], handle, FLogger);
+
+                        FInstances.Add(inst);
+                        FOutStatus[i] = "OK";
+                        FOutSerialNumber[i] = inst.SerialNumber;
                         FOutOutChannel[i] = FInOutChannel[i];
 					}
 					catch(Exception e)
@@ -413,16 +179,6 @@ namespace VVVV.Nodes.Bluefish
                 {
                     if (FInEnabled[i] != false && FInstances[i] != null)
                         FInstances[i].OutputColorSpace = FInOutputColorSpace[i];
-                }
-
-            }
-
-            if (FFirstRun || FInSyncLoop.IsChanged)
-            {
-                for (int i = 0; i < FInstances.SliceCount; i++)
-                {
-                    if (FInEnabled[i] != false && FInstances[i] != null)
-                        FInstances[i].SyncLoop = FInSyncLoop[i];
                 }
 
             }
@@ -461,9 +217,9 @@ namespace VVVV.Nodes.Bluefish
             for (int i = 0; i < FInstances.SliceCount; i++)
             {
                 if (FInEnabled[i] != false && FInstances[i] != null){
-                    FOutDroppedFrames[i] = FInstances[i].DroppedFrames;
-                    FOutAvgFrameTime[i] = FInstances[i].AvgFrameTime;
-                    FOutMaxFrameTime[i] = FInstances[i].MaxFrameTime;
+                    //FOutDroppedFrames[i] = FInstances[i].DroppedFrames;
+                    FOutAvgFrameTime[i] = FInstances[i].AvgDuration;
+                    FOutMaxFrameTime[i] = FInstances[i].MaxDuration;
                 }
             }
         }
@@ -482,7 +238,11 @@ namespace VVVV.Nodes.Bluefish
                 if (instance == null)
                     continue;
 
-                instance.PullFromTexture();
+                instance.OnPresent();
+                if (this.FInSyncLoop[i])
+                {
+                    instance.WaitSync();
+                }
             }
 		}
 
