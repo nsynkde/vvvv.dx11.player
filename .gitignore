@@ -204,3 +204,7 @@ UpgradeLog*.htm
 FakesAssemblies/
 
 packages.config
+
+vvvv_plugin_dev/VVVV.Packs.Image/src/nodes/plugins/Image/Bluefish/Shaders/*.h
+
+.nuget

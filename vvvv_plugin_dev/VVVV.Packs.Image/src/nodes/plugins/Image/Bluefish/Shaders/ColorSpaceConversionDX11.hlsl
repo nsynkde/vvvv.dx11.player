@@ -1,33 +1,4 @@
-//@author: vux
-//@help: template for texture fx
-//@tags: texture
-//@credits: 
-
-Texture2D tex0;// : PREVIOUS;
-SamplerState s0;
-
-float2 R:TARGETSIZE;
-/*float InputWidth;
-float InputHeight <string uiname="Input Height";> = 1080.0;
-float OutputWidth <string uiname="Output Width";> = 1920.0;
-float OutputHeight <string uiname="Output Height";> = 1080.0;*/
-
-cbuffer controls:register(b0){
-float InputWidth <string uiname="Input Width";> = 1920.0;
-float InputHeight <string uiname="Input Height";> = 1080.0;
-float OutputWidth <string uiname="Output Width";> = 1920.0;
-float OutputHeight <string uiname="Output Height";> = 1080.0;
-float OnePixelX = 1.0/1920.0;
-	
-//float3x3 YUV2RGBTransform <string uiname="rgb2yuv matrix";>;
-	
-};
-
-struct psInput
-{
-	float4 p : SV_Position;
-	float2 uv : TEXCOORD0;
-};
+#include "HeadersPixelS.hlsl"
 
 psInput VShaderSimple(float3 position : POSITION)
 {
@@ -49,57 +20,6 @@ psInput VShader(float3 position : POSITION, float2 uv:TEXCOORD)
 // PIXELSHADERS:
 // --------------------------------------------------------------------------------------------------
 
-float2 toOutputIndex(float2 textureCoord)
-{
-	float2 R = float2(OutputWidth, OutputHeight);
-	float2 pixelCoord = textureCoord * R;
-	return pixelCoord;
-}
-
-float2 toInputCoord(float2 pixelCoord)
-{
-	float2 R = float2(InputWidth, InputHeight);
-	return pixelCoord / R;
-}
-
-static float3 offset = {0.0625, 0.5, 0.5};
-static float3 ycoeff = {0.256816, 0.504154, 0.0979137};
-static float3 ucoeff = {-0.148246, -0.29102, 0.439266};
-static float3 vcoeff = {0.439271, -0.367833, -0.071438};
-static float4x4 yuvmatrix = {float4(ycoeff,0.0),float4(ucoeff,0.0),float4(vcoeff,0.0),float4(offset,1.0)};
-
-float Y(float3 RGB)
-{
-	float value = dot(RGB,ycoeff);
-	return saturate(value + offset.x);
-}
-
-float U(float3 RGB)
-{
-	float value = dot(RGB,ucoeff);
-	return saturate(value + offset.y);
-}
-
-float V(float3 RGB)
-{
-	float value = dot(RGB,vcoeff);
-	return saturate(value + offset.z);
-}
-
-float3 YUV(float3 RGB)
-{
-	return float3(Y(RGB), U(RGB), V(RGB));
-}
-
-float4 PSPassthrough(psInput In):SV_Target
-{
-	return tex0.SampleLevel(s0,In.uv,0);
-}
-
-float4 SwapRB(psInput In):SV_Target
-{
-	return tex0.SampleLevel(s0,In.uv,0).bgra;
-}
 
 float3 PSRGBA8888_to_YUV444_8(psInput In):SV_Target
 {
@@ -252,54 +172,35 @@ float4 PSRGBA8888_to_V210(psInput In):SV_Target
 	float r;
 	float g;
 	float b;
+#if SWAP_RB
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).bgr;
+#else
+	float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
+	float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
+	float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX+OnePixelX,y), 0).rgb;
+#endif
 	if(begin==0)
 	{
-		#if SWAP_RB
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-		#else
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-		#endif
 		r = U(rgb0);
 		g = Y(rgb0);
 		b = V(rgb0);
 	}
 	else if(begin==1)
 	{
-		#if SWAP_RB
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
-		#else
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
-		#endif
 		r = Y(rgb0);
 		g = U(rgb1);
 		b = Y(rgb1);
 	}
 	else if(begin==2)
 	{
-		#if SWAP_RB
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x-OnePixelX,y), 0).bgr;
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-			float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
-		#else
-			float3 rgb0 = tex0.SampleLevel(s0, float2(x-OnePixelX,y), 0).rgb;
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-			float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
-		#endif
 		r = V(rgb0);
 		g = Y(rgb1);
 		b = U(rgb2);
 	}
 	else
 	{
-		#if SWAP_RB
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x,y), 0).bgr;
-			float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).bgr;
-		#else
-			float3 rgb1 = tex0.SampleLevel(s0, float2(x,y), 0).rgb;
-			float3 rgb2 = tex0.SampleLevel(s0, float2(x+OnePixelX,y), 0).rgb;
-		#endif
 		r = Y(rgb1);
 		g = V(rgb1);
 		b = Y(rgb2);
