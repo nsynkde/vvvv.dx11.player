@@ -12,6 +12,7 @@
 
 typedef void * BLUEPLAYBACK_HANDLE;
 typedef void * BLUERENDERER_HANDLE;
+typedef void * DX11_HANDLE;
 
 extern "C"
 {
@@ -57,7 +58,9 @@ extern "C"
 	BLUEPLAYBACK_API BLUERENDERER_HANDLE BlueRendererCreate(HANDLE tex_handle, int outFormat, int num_render_target_buffers, int num_read_back_buffers, int num_bluefish_buffers);
 	BLUEPLAYBACK_API void BlueRendererDestroy(BLUERENDERER_HANDLE renderer);
 	BLUEPLAYBACK_API void BlueRendererStop(BLUERENDERER_HANDLE pBPHandle);
+	BLUEPLAYBACK_API void BlueRendererSetSharedHandle(BLUERENDERER_HANDLE renderer, HANDLE tex_handle);
 	BLUEPLAYBACK_API BLUEPLAYBACK_HANDLE BlueRendererGetPlaybackDevice(BLUERENDERER_HANDLE renderer);
+	BLUEPLAYBACK_API DX11_HANDLE BlueRendererGetDX11Device(BLUERENDERER_HANDLE renderer);
 	BLUEPLAYBACK_API void BlueRendererOnPresent(BLUERENDERER_HANDLE renderer);
 	BLUEPLAYBACK_API double BlueRendererGetAvgDuration(BLUERENDERER_HANDLE renderer);
 	BLUEPLAYBACK_API double BlueRendererGetMaxDuration(BLUERENDERER_HANDLE renderer);

@@ -343,10 +343,31 @@ extern "C"
 		static_cast<BlueFishRendererDX11*>(renderer)->Stop();
 	}
 
+	
+	BLUEPLAYBACK_API void BlueRendererSetSharedHandle(BLUERENDERER_HANDLE renderer, HANDLE tex_handle)
+	{
+		if(!renderer)
+			return;
+
+		static_cast<BlueFishRendererDX11*>(renderer)->SetSharedHandle(tex_handle);
+	}
+
 	BLUEPLAYBACK_API BLUEPLAYBACK_HANDLE BlueRendererGetPlaybackDevice(BLUERENDERER_HANDLE renderer)
 	{
 		try{
 			return static_cast<BlueFishRendererDX11*>(renderer)->GetDevice();
+		}catch (std::exception & e){
+			WCHAR    str[1024];
+			MultiByteToWideChar( 0,0, e.what(), (int)strlen(e.what()), str, (int)strlen(e.what())+1);
+			OutputDebugString( str );
+			return 0;
+		}
+	}
+
+	BLUEPLAYBACK_API DX11_HANDLE BlueRendererGetDX11Device(BLUERENDERER_HANDLE renderer)
+	{
+		try{
+			return static_cast<BlueFishRendererDX11*>(renderer)->GetDX11Device();
 		}catch (std::exception & e){
 			WCHAR    str[1024];
 			MultiByteToWideChar( 0,0, e.what(), (int)strlen(e.what()), str, (int)strlen(e.what())+1);

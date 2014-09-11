@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "ReadTextureDX11.h"
 #include "BlueVelvet4.h"
-#include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <iostream>
 #include <sstream>
@@ -30,8 +29,6 @@ static bool IsRGBA32(DXGI_FORMAT format);
 static bool IsBGRA(DXGI_FORMAT format);
 static bool IsBGRX(DXGI_FORMAT format);
 static bool IsR10G10B10A2(DXGI_FORMAT format);
-
-#pragma comment(lib,"d3dcompiler.lib")
 
 ReadTextureDX11::ReadTextureDX11(HANDLE tex_handle, int outFormat, int num_render_target_buffers, int num_read_back_buffers)
 	:m_Device(nullptr)
@@ -499,6 +496,31 @@ ReadTextureDX11::ReadTextureDX11(HANDLE tex_handle, int outFormat, int num_rende
     }
 }
 
+
+void ReadTextureDX11::SetSharedHandle(HANDLE tex_handle){	
+	ID3D11Texture2D * tex;
+	auto hr = m_Device->OpenSharedResource(tex_handle,__uuidof(ID3D11Resource),(void**)&tex);
+	if(FAILED(hr)){
+		throw std::exception("Coudln't open shared texture");
+	}
+	OutputDebugString( L"Opened aux shared texture" );
+	hr = tex->QueryInterface(__uuidof(ID3D11Texture2D),(void**)&m_SharedTexture);
+	if(FAILED(hr)){
+		throw std::exception("Coudln't QueryInterface on shared texture");
+	}
+	OutputDebugString( L"QueryInterface aux shared texture" );
+	tex->Release();
+
+	ID3D11ShaderResourceView * shaderResourceView;
+	hr = m_Device->CreateShaderResourceView(m_SharedTexture,nullptr,&shaderResourceView);
+	if(FAILED(hr)){
+		throw std::exception("Coudln't create shader resource view");
+	}
+
+	m_Context->PSSetShaderResources(0,1,&shaderResourceView);
+	shaderResourceView->Release();
+}
+
 ReadTextureDX11::~ReadTextureDX11()
 {
 	for(auto targetView: m_RenderTargetView)
@@ -554,6 +576,8 @@ void * ReadTextureDX11::ReadBack()
         auto renderTargetView = m_RenderTargetView[m_RendererOutput];
         m_Context->OMSetRenderTargets(1,&renderTargetView,nullptr);
         m_Context->Draw(6, 0);
+		m_Context->Flush();
+
         auto frontBuffer = m_BackBuffer[(m_RendererOutput + m_BackBuffer.size() / 2) % m_BackBuffer.size()];
         m_Context->CopyResource(m_TextureBack[m_CurrentBack], frontBuffer);
         m_RendererOutput++;
@@ -564,10 +588,14 @@ void * ReadTextureDX11::ReadBack()
 	if(FAILED(hr) || m_ReadBackData[m_CurrentFront].pData == nullptr){
 		throw std::exception("Coudln't map texture");
 	}
-    m_Context->Flush();
 	return m_ReadBackData[m_CurrentFront].pData;
 }
 
+
+ID3D11Device * ReadTextureDX11::GetDevice()
+{
+	return m_Device;
+}
 
 
 static bool IsRGBA(DXGI_FORMAT format)

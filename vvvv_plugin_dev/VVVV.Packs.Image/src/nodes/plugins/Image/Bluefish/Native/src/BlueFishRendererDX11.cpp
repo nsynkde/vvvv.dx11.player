@@ -15,6 +15,18 @@ CPlaybackDevice * BlueFishRendererDX11::GetDevice()
 	return m_PlaybackDevice.get();
 }
 
+
+ID3D11Device * BlueFishRendererDX11::GetDX11Device()
+{
+	return m_ReadTexture->GetDevice();
+}
+
+
+void BlueFishRendererDX11::SetSharedHandle(HANDLE tex_handle)
+{
+	m_ReadTexture->SetSharedHandle(tex_handle);
+}
+
 void BlueFishRendererDX11::OnPresent()
 {
 	if(m_Stopping) return;

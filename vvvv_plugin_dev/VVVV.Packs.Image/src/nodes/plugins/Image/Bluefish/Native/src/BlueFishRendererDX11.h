@@ -16,7 +16,9 @@ public:
 	BlueFishRendererDX11(HANDLE tex_handle, EMemoryFormat outFormat, int num_render_target_buffers, int num_read_back_buffers, int num_bluefish_buffers);
 
 	CPlaybackDevice * GetDevice();
+	ID3D11Device * GetDX11Device();
 
+	void SetSharedHandle(HANDLE tex_handle);
 	void OnPresent();
 
 	double GetAvgDurationMS();

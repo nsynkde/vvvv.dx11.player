@@ -11,6 +11,9 @@ using VVVV.PluginInterfaces.V1;
 using VVVV.PluginInterfaces.V2;
 using System.IO;
 using System.Reflection;
+using VVVV.PluginInterfaces.V2.EX9;
+using System.Windows.Interop;
+using System.Windows;
 
 #endregion usings
 
@@ -18,19 +21,19 @@ namespace VVVV.Nodes.Bluefish
 {
     
     #region PluginInfo
-    [PluginInfo(Name = "VideoOut",
+    [PluginInfo(Name = "VideoOutDX9",
                 Category = "Bluefish",
                 Help = "Given a texture handle, will push graphic to Bluefish device",
                 Tags = "",
                 Author = "nsynk",
                 AutoEvaluate = true)]
     #endregion PluginInfo
-	public class VideoOut : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
+    public class VideoOutDX9 : IPluginEvaluate, IPartImportsSatisfiedNotification, IDisposable
     {
 
         #region fields & pins
 #pragma warning disable 0649
-		[Input("Device")]
+        [Input("Device")]
         IDiffSpread<uint> FInDevice;
 
         [Input("Out Channel")]
@@ -63,19 +66,19 @@ namespace VVVV.Nodes.Bluefish
         [Input("Num. Bluefish Buffers", DefaultValue = 4, MinValue = 1)]
         IDiffSpread<int> FNumBluefishBuffers;
 
-		[Input("Sync", DefaultValue = 1)]
-		IDiffSpread<bool> FInSyncLoop;
+        [Input("Flush devices", DefaultValue = 0)]
+        IDiffSpread<bool> FInFlush;
 
-		[Input("Enabled")]
+        [Input("Sync", DefaultValue = 1)]
+        IDiffSpread<bool> FInSyncLoop;
+
+        [Input("Enabled")]
         IDiffSpread<bool> FInEnabled;
-
-        [Input("TextureHandleDX11")]
-        IDiffSpread<ulong> FInHandleDX11;
 
         [Input("TextureHandleDX9")]
         IDiffSpread<uint> FInHandleDX9;
 
-		[Output("Status")]
+        [Output("Status")]
         ISpread<string> FOutStatus;
 
         [Output("Serial Number")]
@@ -96,8 +99,8 @@ namespace VVVV.Nodes.Bluefish
         [Import]
         ILogger FLogger;
 
-		[Import]
-		IHDEHost FHDEHost;
+        [Import]
+        IHDEHost FHDEHost;
 
 #pragma warning restore
 
@@ -105,7 +108,7 @@ namespace VVVV.Nodes.Bluefish
         Spread<BluefishSource> FInstances = new Spread<BluefishSource>();
         bool FFirstRun = true;
         #endregion fields & pins
-        bool DX11ChangedLast;
+        bool DX9ChangedLast;
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
@@ -120,8 +123,8 @@ namespace VVVV.Nodes.Bluefish
         const UInt32 LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400;
         const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
         const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800;
-        
-        static VideoOut()
+
+        static VideoOutDX9()
         {
             try
             {
@@ -141,52 +144,50 @@ namespace VVVV.Nodes.Bluefish
                     pluginfolder = pluginfolder + "\\" + "x86\\";
                 }
                 AddDllDirectory(pluginfolder);
-            }catch(Exception){
+            }
+            catch (Exception)
+            {
             }
 
         }
 
         [ImportingConstructor]
-		public VideoOut(IPluginHost host)
+        public VideoOutDX9(IPluginHost host)
         {
         }
 
         public void Evaluate(int SpreadMax)
         {
-            if(FInHandleDX11.IsChanged)
+            if (FInHandleDX9.IsChanged)
             {
-                DX11ChangedLast = true;
-            }
-            else if (FInHandleDX9.IsChanged)
-            {
-                DX11ChangedLast = false;
+                DX9ChangedLast = true;
             }
 
-            if (FFirstRun || FInDevice.IsChanged || FInMode.IsChanged || 
-                FInFormat.IsChanged || FInHandleDX11.IsChanged || FInHandleDX9.IsChanged || 
-                FInEnabled.IsChanged || FInOutChannel.IsChanged || 
+            if (FFirstRun || FInDevice.IsChanged || FInMode.IsChanged ||
+                FInFormat.IsChanged || FInHandleDX9.IsChanged ||
+                FInEnabled.IsChanged || FInOutChannel.IsChanged ||
                 FNumRenderTargetsBuffers.IsChanged || FNumReadBackBuffers.IsChanged || FNumBluefishBuffers.IsChanged)
-			{
-				foreach(var slice in FInstances)
-					if (slice != null)
-						slice.Dispose();
+            {
+                foreach (var slice in FInstances)
+                    if (slice != null)
+                        slice.Dispose();
 
 
-				FInstances.SliceCount = 0;
-				FOutStatus.SliceCount = SpreadMax;
+                FInstances.SliceCount = 0;
+                FOutStatus.SliceCount = SpreadMax;
                 FOutAvgFrameTime.SliceCount = SpreadMax;
                 FOutDroppedFrames.SliceCount = SpreadMax;
                 FOutMaxFrameTime.SliceCount = SpreadMax;
                 FOutOutChannel.SliceCount = SpreadMax;
 
-				for (int i=0; i<SpreadMax; i++)
-				{
-					try
-					{
-						if (FInEnabled[i] == false)
-							throw (new Exception("Disabled"));
+                for (int i = 0; i < SpreadMax; i++)
+                {
+                    try
+                    {
+                        if (FInEnabled[i] == false)
+                            throw (new Exception("Disabled"));
 
-                        var handle = (DX11ChangedLast && FInHandleDX11[i] != 0) ? FInHandleDX11[i] : FInHandleDX9[i];
+                        var handle = FInHandleDX9[i];
 
                         BluefishSource inst = new BluefishSource(FInDevice[i], FInOutChannel[i], FInMode[i], FInFormat[i], handle, FNumRenderTargetsBuffers[i], FNumReadBackBuffers[i], FNumBluefishBuffers[i], FLogger);
 
@@ -194,16 +195,16 @@ namespace VVVV.Nodes.Bluefish
                         FOutStatus[i] = "OK";
                         FOutSerialNumber[i] = inst.SerialNumber;
                         FOutOutChannel[i] = FInOutChannel[i];
-					}
-					catch(Exception e)
-					{
-						FInstances.Add(null);
-						FOutStatus[i] = e.ToString();
-					}
-				}
+                    }
+                    catch (Exception e)
+                    {
+                        FInstances.Add(null);
+                        FOutStatus[i] = e.ToString();
+                    }
+                }
 
                 FFirstRun = true;
-			}
+            }
 
             if (FFirstRun || FInOutputColorSpace.IsChanged)
             {
@@ -248,7 +249,8 @@ namespace VVVV.Nodes.Bluefish
             FFirstRun = false;
             for (int i = 0; i < FInstances.SliceCount; i++)
             {
-                if (FInEnabled[i] != false && FInstances[i] != null){
+                if (FInEnabled[i] != false && FInstances[i] != null)
+                {
                     //FOutDroppedFrames[i] = FInstances[i].DroppedFrames;
                     FOutAvgFrameTime[i] = FInstances[i].AvgDuration;
                     FOutMaxFrameTime[i] = FInstances[i].MaxDuration;
@@ -256,14 +258,27 @@ namespace VVVV.Nodes.Bluefish
             }
         }
 
-		public void OnImportsSatisfied()
+        public void OnImportsSatisfied()
         {
-            //FHDEHost.MainLoop.OnRender += MainLoop_Present;
-			FHDEHost.MainLoop.OnPresent += MainLoop_Present;
-		}
+            FHDEHost.MainLoop.OnPresent += MainLoop_Present;
+        }
 
-		void MainLoop_Present(object o, EventArgs e)
-		{
+        void MainLoop_Present(object o, EventArgs e)
+        {
+            foreach (var device in FHDEHost.DeviceService.Devices)
+            {
+
+                if (FInFlush[0])
+                {
+                    var query = new SlimDX.Direct3D9.Query(device, SlimDX.Direct3D9.QueryType.Event);
+                    //query.Issue(SlimDX.Direct3D9.Issue.Begin);
+                    query.Issue(SlimDX.Direct3D9.Issue.End);
+                    query.CheckStatus(true);
+                    query.Dispose();
+                }
+
+                //device.Present();
+            }
             for (int i = 0; i < FInstances.SliceCount; i++)
             {
                 var instance = FInstances[i];
@@ -276,18 +291,16 @@ namespace VVVV.Nodes.Bluefish
                     instance.WaitSync();
                 }
             }
-		}
+        }
 
-		public void Dispose()
-		{
-			foreach (var slice in FInstances)
-				if (slice != null)
-					slice.Dispose();
-			GC.SuppressFinalize(this);
+        public void Dispose()
+        {
+            foreach (var slice in FInstances)
+                if (slice != null)
+                    slice.Dispose();
+            GC.SuppressFinalize(this);
 
-            //FHDEHost.MainLoop.OnRender -= MainLoop_Present;
-			FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
-		}
-
-	}
+            FHDEHost.MainLoop.OnPresent -= MainLoop_Present;
+        }
+    }
 }

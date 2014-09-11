@@ -9,8 +9,9 @@ public:
 	ReadTextureDX11(HANDLE tex_handle, int outFormat, int num_render_target_buffers, int num_read_back_buffers);
 	~ReadTextureDX11();
 	
+	void SetSharedHandle(HANDLE tex_handle);
 	void * ReadBack();
-
+	ID3D11Device * GetDevice();
 private:
 	ID3D11Device * m_Device;
 	std::vector<ID3D11RenderTargetView*>  m_RenderTargetView;

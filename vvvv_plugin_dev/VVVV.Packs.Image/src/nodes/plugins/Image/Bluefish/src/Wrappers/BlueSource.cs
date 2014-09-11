@@ -151,6 +151,22 @@ namespace VVVV.Nodes.Bluefish
             }
         }
 
+        public IntPtr DX11Device
+        {
+            get
+            {
+                return BluePlaybackNativeInterface.BlueRendererGetDX11Device(pBluePlayback);
+            }
+        }
+
+        public IntPtr SharedHandle
+        {
+            set
+            {
+                BluePlaybackNativeInterface.BlueRendererSetSharedHandle(pBlueRenderer,value);
+            }
+        }
+
 
         public BluefishSource(uint device, uint channel, BlueFish_h.EVideoMode mode, BlueFish_h.EMemoryFormat format, ulong tex_handle, int num_render_target_buffers, int num_read_back_buffers, int num_bluefish_buffers, ILogger FLogger)
 		{
@@ -355,7 +371,13 @@ namespace VVVV.Nodes.Bluefish
         internal static extern void BlueRendererStop(IntPtr renderer);
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
-	    internal static extern IntPtr BlueRendererGetPlaybackDevice(IntPtr renderer);
+        internal static extern IntPtr BlueRendererGetPlaybackDevice(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern IntPtr BlueRendererGetDX11Device(IntPtr renderer);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern void BlueRendererSetSharedHandle(IntPtr renderer, IntPtr tex_handle);
         
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern IntPtr BlueRendererOnPresent(IntPtr renderer);
