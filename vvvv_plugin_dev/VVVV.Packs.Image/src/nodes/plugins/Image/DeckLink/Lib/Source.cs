@@ -44,6 +44,7 @@ namespace VVVV.Nodes.DeckLink
 
 		IDeckLinkMemoryAllocator FMemoryAllocator = new MemoryAllocator();
 		IDeckLinkMutableVideoFrame FVideoFrame;
+        private WorkerThread thread = new WorkerThread();
 
 		int FWidth = 0;
 		public int Width
@@ -114,86 +115,84 @@ namespace VVVV.Nodes.DeckLink
 
 			try
 			{
-				WorkerThread.Singleton.PerformBlocking(() => {
 
-					//--
-					//attach to device
-					//
-					if (device == null)
-						throw (new Exception("No device"));
-					if (mode == null)
-						throw (new Exception("No mode selected"));
+				//--
+				//attach to device
+				//
+				if (device == null)
+					throw (new Exception("No device"));
+				if (mode == null)
+					throw (new Exception("No mode selected"));
 
-					FDevice = device;
+				FDevice = device;
 
-					var outputDevice = FDevice as IDeckLinkOutput;
-					if (outputDevice == null)
-						throw (new Exception("Device does not support output"));
-					FOutputDevice = outputDevice;
-					//
-					//--
-
-
-					//--
-					//set memory allocator
-					//
-					FOutputDevice.SetVideoOutputFrameMemoryAllocator(FMemoryAllocator);
-					//
-					//--
+				var outputDevice = FDevice as IDeckLinkOutput;
+				if (outputDevice == null)
+					throw (new Exception("Device does not support output"));
+				FOutputDevice = outputDevice;
+				//
+				//--
 
 
-					//--
-					//select mode
-					//
-					_BMDDisplayModeSupport support;
-					IDeckLinkDisplayMode displayMode;
-					FOutputDevice.DoesSupportVideoMode(mode.DisplayModeHandle.GetDisplayMode(), mode.PixelFormat, mode.Flags, out support, out displayMode);
-					if (support == _BMDDisplayModeSupport.bmdDisplayModeNotSupported)
-						throw (new Exception("Mode not supported"));
-
-					this.Mode = mode;
-					this.FWidth = Mode.Width;
-					this.FHeight = Mode.Height;
-
-					Mode.DisplayModeHandle.GetFrameRate(out this.FFrameDuration, out this.FFrameTimescale);
-					//
-					//--
+				//--
+				//set memory allocator
+				//
+				FOutputDevice.SetVideoOutputFrameMemoryAllocator(FMemoryAllocator);
+				//
+				//--
 
 
-					//--
-					//enable the output
-					//
-					FOutputDevice.EnableVideoOutput(Mode.DisplayModeHandle.GetDisplayMode(), Mode.Flags);
-					//
-					//--
+				//--
+				//select mode
+				//
+				_BMDDisplayModeSupport support;
+				IDeckLinkDisplayMode displayMode;
+				FOutputDevice.DoesSupportVideoMode(mode.DisplayModeHandle.GetDisplayMode(), mode.PixelFormat, mode.Flags, out support, out displayMode);
+				if (support == _BMDDisplayModeSupport.bmdDisplayModeNotSupported)
+					throw (new Exception("Mode not supported"));
+
+				this.Mode = mode;
+				this.FWidth = Mode.Width;
+				this.FHeight = Mode.Height;
+
+				Mode.DisplayModeHandle.GetFrameRate(out this.FFrameDuration, out this.FFrameTimescale);
+				//
+				//--
 
 
-					//--
-					//generate frames
-					IntPtr data;
-					FOutputDevice.CreateVideoFrame(FWidth, FHeight, Mode.CompressedWidth * 4, Mode.PixelFormat, _BMDFrameFlags.bmdFrameFlagDefault, out FVideoFrame);
-					FVideoFrame.GetBytes(out data);
-					FillBlack(data);
-					//
-					//--
+				//--
+				//enable the output
+				//
+				FOutputDevice.EnableVideoOutput(Mode.DisplayModeHandle.GetDisplayMode(), Mode.Flags);
+				//
+				//--
 
-					//--
-					//scheduled playback
-					if (useDeviceCallbacks == true)
+
+				//--
+				//generate frames
+				IntPtr data;
+				FOutputDevice.CreateVideoFrame(FWidth, FHeight, Mode.CompressedWidth * 4, Mode.PixelFormat, _BMDFrameFlags.bmdFrameFlagDefault, out FVideoFrame);
+				FVideoFrame.GetBytes(out data);
+				FillBlack(data);
+				//
+				//--
+
+				//--
+				//scheduled playback
+				if (useDeviceCallbacks == true)
+				{
+					FOutputDevice.SetScheduledFrameCompletionCallback(this);
+					this.FFrameIndex = 0;
+					for (int i = 0; i < (int)this.Framerate; i++)
 					{
-						FOutputDevice.SetScheduledFrameCompletionCallback(this);
-						this.FFrameIndex = 0;
-						for (int i = 0; i < (int)this.Framerate; i++)
-						{
-							ScheduleFrame(true);
-						}
-						FOutputDevice.StartScheduledPlayback(0, 100, 1.0);
+						ScheduleFrame(true);
 					}
-					//
-					//--
+					FOutputDevice.StartScheduledPlayback(0, 100, 1.0);
+				}
+				//
+				//--
 
-					FRunning = true;
-				});
+				FRunning = true;
 			}
 			catch (Exception e)
 			{
@@ -212,17 +211,14 @@ namespace VVVV.Nodes.DeckLink
 			//stop new frames from being scheduled
 			FRunning = false;
 
-			WorkerThread.Singleton.PerformBlocking(() =>
+			int scheduledPlayback;
+			FOutputDevice.IsScheduledPlaybackRunning(out scheduledPlayback);
+			if (scheduledPlayback != 0)
 			{
-				int scheduledPlayback;
-				FOutputDevice.IsScheduledPlaybackRunning(out scheduledPlayback);
-				if (scheduledPlayback != 0)
-				{
-					long unused;
-					FOutputDevice.StopScheduledPlayback(0, out unused, 1000);
-				}
-				FOutputDevice.DisableVideoOutput();
-			});
+				long unused;
+				FOutputDevice.StopScheduledPlayback(0, out unused, 1000);
+			}
+			FOutputDevice.DisableVideoOutput();
 
 			Marshal.ReleaseComObject(FVideoFrame);
 		}
@@ -239,13 +235,10 @@ namespace VVVV.Nodes.DeckLink
 			lock (LockBuffer)
 			{
 				IntPtr outBuffer = IntPtr.Zero;
-				WorkerThread.Singleton.PerformBlocking(() =>
-				{
-					FVideoFrame.GetBytes(out outBuffer);
-				});
+				FVideoFrame.GetBytes(out outBuffer);
 				Marshal.Copy(buffer, 0, outBuffer, buffer.Length);
 			}
-			WorkerThread.Singleton.Perform(() =>
+			thread.Perform(() =>
 			{
 				FOutputDevice.DisplayVideoFrameSync(FVideoFrame);
 			});

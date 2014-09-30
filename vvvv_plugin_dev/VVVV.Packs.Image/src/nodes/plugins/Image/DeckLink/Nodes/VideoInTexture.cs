@@ -11,12 +11,9 @@ using VVVV.PluginInterfaces.V2;
 using VVVV.PluginInterfaces.V2.EX9;
 using VVVV.Utils.VColor;
 using VVVV.Utils.VMath;
-using VVVV.Utils.SlimDX;
 
 #endregion usings
 
-//here you can change the vertex type
-using VertexType = VVVV.Utils.SlimDX.TexturedVertex;
 using DeckLinkAPI;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -135,7 +132,7 @@ namespace VVVV.Nodes.DeckLink
 		}
 
 		DateTime FLastUpdate = DateTime.Now;
-		protected unsafe override void UpdateTexture(int Slice, Texture texture)
+		protected override void UpdateTexture(int Slice, Texture texture)
 		{
 			FPinOutFrameReceived[Slice] = false;
 

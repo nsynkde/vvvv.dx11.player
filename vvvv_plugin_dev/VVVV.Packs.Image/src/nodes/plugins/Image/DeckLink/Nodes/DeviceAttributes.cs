@@ -65,8 +65,6 @@ namespace VVVV.Nodes.DeckLink
 					IDeckLink device = FInput[i];
 					IDeckLinkAttributes attributes;
 
-					attributes.GetFloat(_BMDDeckLinkAttributeID.
-
 					FPinOutStatus[i] = "Not implemented (no reference material available)";
 				}
 				catch (Exception e)

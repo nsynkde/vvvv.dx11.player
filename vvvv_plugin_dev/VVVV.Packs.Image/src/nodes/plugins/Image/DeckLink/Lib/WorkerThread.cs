@@ -10,20 +10,22 @@ namespace VVVV.Nodes.DeckLink
 	public class WorkerThread : IDisposable
 	{
 		public delegate void WorkItemDelegate();
-		public static WorkerThread Singleton = new WorkerThread();
 
 		Thread FThread;
 		bool FRunning;
 		Object FLock = new Object();
 		Queue<WorkItemDelegate> FWorkQueue = new Queue<WorkItemDelegate>();
 		Exception FException;
+        ManualResetEventSlim FNewWorkEvent = new ManualResetEventSlim(false);
+        //ManualResetEvent FEmptyQueueEvent = new ManualResetEvent(true);
 
-		WorkerThread()
+		public WorkerThread()
 		{
 			FRunning = true;
 			FThread = new Thread(Loop);
 			FThread.SetApartmentState(ApartmentState.MTA);
-			FThread.Name = "DeckLink Worker";
+			FThread.Name = "Bluefish Worker";
+            //FThread.Priority = ThreadPriority.AboveNormal;
 			FThread.Start();
 		}
 
@@ -31,28 +33,38 @@ namespace VVVV.Nodes.DeckLink
 		{
 			while (FRunning)
 			{
-				bool empty = true;
-				lock (FLock)
-				{
-					if (FWorkQueue.Count > 0)
-					{
-						empty = false;
-						var workItem = FWorkQueue.Dequeue();
-						try
-						{
-							workItem();
-							this.FException = null;
-						}
-						catch (Exception e)
-						{
-							this.FException = e;
-						}
-					}
-				}
-				if (empty)
-				{
-					Thread.Sleep(1);
-				}
+                FNewWorkEvent.Wait();
+                WorkItemDelegate nextWork;
+                do
+                {
+                    lock (FLock)
+                    {
+                        if (FWorkQueue.Count > 0)
+                        {
+                            nextWork = FWorkQueue.Dequeue();
+                            this.Working = true;
+                        }
+                        else
+                        {
+                            nextWork = null;
+                            //FEmptyQueueEvent.Set();
+                            FNewWorkEvent.Reset();
+                            this.Working = false;
+                        }
+                    }
+                    if (nextWork!=null)
+                    {
+                        try
+                        {
+                            nextWork();
+                            this.FException = null;
+                        }
+                        catch (Exception e)
+                        {
+                            this.FException = e;
+                        }
+                    }
+                } while (nextWork != null);
 			}
 		}
 
@@ -62,7 +74,7 @@ namespace VVVV.Nodes.DeckLink
 			FThread.Join();
 		}
 
-		public void PerformBlocking(WorkItemDelegate item)
+		/*public void PerformBlocking(WorkItemDelegate item)
 		{
 			if (Thread.CurrentThread == this.FThread)
 			{
@@ -80,13 +92,15 @@ namespace VVVV.Nodes.DeckLink
 					throw (e);
 				}
 			}
-		}
+		}*/
 
 		public void Perform(WorkItemDelegate item)
 		{
 			lock (FLock)
 			{
 				FWorkQueue.Enqueue(item);
+                FNewWorkEvent.Set();
+                //FEmptyQueueEvent.Reset();
 			}
 		}
 
@@ -94,22 +108,41 @@ namespace VVVV.Nodes.DeckLink
 		{
 			lock (FLock)
 			{
-				if (!FWorkQueue.Contains(item))
-					FWorkQueue.Enqueue(item);
+                if (!FWorkQueue.Contains(item))
+                {
+                    FWorkQueue.Enqueue(item);
+                    FNewWorkEvent.Set();
+                    //FEmptyQueueEvent.Reset();
+                }
 			}
 		}
 
-		public void BlockUntilEmpty()
+		/*public void BlockUntilEmpty()
 		{
-			while (true)
-			{
-				lock (FLock)
-				{
-					if (FWorkQueue.Count == 0)
-						return;
-				}
-				Thread.Sleep(1);
-			}
-		}
+            FEmptyQueueEvent.WaitOne();
+		}*/
+
+        public int QueueSize{
+            get{
+                lock (FLock)
+			    {
+                    return FWorkQueue.Count;
+                }
+            }
+        }
+
+        private bool FWorking;
+        public bool Working
+        {
+            get
+            {
+                return FWorking && FWorkQueue.Count==0;
+            }
+
+            private set
+            {
+                this.FWorking = value;
+            }
+        }
 	}
 }

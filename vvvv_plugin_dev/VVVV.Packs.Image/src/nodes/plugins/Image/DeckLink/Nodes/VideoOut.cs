@@ -11,12 +11,9 @@ using VVVV.PluginInterfaces.V2;
 using VVVV.PluginInterfaces.V2.EX9;
 using VVVV.Utils.VColor;
 using VVVV.Utils.VMath;
-using VVVV.Utils.SlimDX;
 
 #endregion usings
 
-//here you can change the vertex type
-using VertexType = VVVV.Utils.SlimDX.TexturedVertex;
 using DeckLinkAPI;
 using System.Threading;
 using System.Diagnostics;
@@ -47,17 +44,12 @@ namespace VVVV.Nodes.DeckLink
 			public Instance(int deviceID, string modeString, uint textureHandle, EnumEntry format, EnumEntry usage, SyncLoop syncLoop)
 			{
 				IDeckLink device = null;
-				WorkerThread.Singleton.PerformBlocking(() => {
-					device = DeviceRegister.Singleton.GetDeviceHandle(deviceID);
-				});
+				device = DeviceRegister.Singleton.GetDeviceHandle(deviceID);
 
 				try
 				{
 					ModeRegister.Mode mode = null;
-					WorkerThread.Singleton.PerformBlocking(() =>
-					{
-						mode = ModeRegister.Singleton.Modes[modeString];
-					});
+					mode = ModeRegister.Singleton.Modes[modeString];
 
 					bool useCallback = syncLoop != SyncLoop.DeckLink;
 					this.Source = new Source(device, mode, useCallback);

@@ -42,10 +42,7 @@ namespace VVVV.Nodes.DeckLink
 			get
 			{
 				int result = 0;
-				WorkerThread.Singleton.PerformBlocking(() =>
-					{
-						result = FDevices.Count;
-					});
+				result = FDevices.Count;
 				return result;
 			}
 		}
@@ -53,20 +50,14 @@ namespace VVVV.Nodes.DeckLink
 		public string GetModelName(int index)
 		{
 			string result = "";
-			WorkerThread.Singleton.PerformBlocking(() =>
-			{
-				result = FDevices[index].ModelName;
-			});
+			result = FDevices[index].ModelName;
 			return result;
 		}
 
 		public string GetDisplayName(int index)
 		{
 			string result = "";
-			WorkerThread.Singleton.PerformBlocking(() =>
-			{
-				result = FDevices[index].DisplayName;
-			});
+			result = FDevices[index].DisplayName;
 			return result;
 		}
 
@@ -84,33 +75,31 @@ namespace VVVV.Nodes.DeckLink
 
 		public void Refresh()
 		{
-			WorkerThread.Singleton.PerformBlocking(() => {
-				foreach (var oldDevice in FDevices)
+			foreach (var oldDevice in FDevices)
+			{
+				Marshal.ReleaseComObject(oldDevice.DeviceHandle);
+			}
+			FDevices.Clear();
+
+			var iterator = new CDeckLinkIterator();
+			IDeckLink device;
+			string modelName, displayName;
+			while (true)
+			{
+				iterator.Next(out device);
+				if (device == null)
+					break;
+
+				device.GetModelName(out modelName);
+				device.GetDisplayName(out displayName);
+
+				FDevices.Add(new Device()
 				{
-					Marshal.ReleaseComObject(oldDevice.DeviceHandle);
-				}
-				FDevices.Clear();
-
-				var iterator = new CDeckLinkIterator();
-				IDeckLink device;
-				string modelName, displayName;
-				while (true)
-				{
-					iterator.Next(out device);
-					if (device == null)
-						break;
-
-					device.GetModelName(out modelName);
-					device.GetDisplayName(out displayName);
-
-					FDevices.Add(new Device()
-					{
-						DeviceHandle = device,
-						ModelName = modelName,
-						DisplayName = displayName
-					});
-				}
-			});
+					DeviceHandle = device,
+					ModelName = modelName,
+					DisplayName = displayName
+				});
+			}
 		}
 	}
 }

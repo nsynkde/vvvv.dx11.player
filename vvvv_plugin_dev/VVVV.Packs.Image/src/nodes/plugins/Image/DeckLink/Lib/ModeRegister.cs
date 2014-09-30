@@ -98,80 +98,77 @@ namespace VVVV.Nodes.DeckLink
 
 		public void Refresh(_BMDVideoOutputFlags flags)
 		{
-			WorkerThread.Singleton.PerformBlocking(() =>
+			foreach (var mode in FModes.Values)
+				Marshal.ReleaseComObject(mode.DisplayModeHandle);
+			FModes.Clear();
+
+			DeviceRegister.Singleton.Refresh();
+			foreach (var device in DeviceRegister.Singleton.Devices)
 			{
-				foreach (var mode in FModes.Values)
-					Marshal.ReleaseComObject(mode.DisplayModeHandle);
-				FModes.Clear();
+				var output = (IDeckLinkOutput)device.DeviceHandle;
+				if (output == null)
+					throw (new Exception("Device has no outputs"));
 
-				DeviceRegister.Singleton.Refresh();
-				foreach (var device in DeviceRegister.Singleton.Devices)
+				IDeckLinkDisplayModeIterator modeIterator;
+				output.GetDisplayModeIterator(out modeIterator);
+
+				while (true)
 				{
-					var output = (IDeckLinkOutput)device.DeviceHandle;
-					if (output == null)
-						throw (new Exception("Device has no outputs"));
+					IDeckLinkDisplayMode mode;
 
-					IDeckLinkDisplayModeIterator modeIterator;
-					output.GetDisplayModeIterator(out modeIterator);
+					modeIterator.Next(out mode);
+					if (mode == null)
+						break;
 
-					while (true)
+					foreach (_BMDPixelFormat pixelFormat in Enum.GetValues(typeof(_BMDPixelFormat)))
 					{
-						IDeckLinkDisplayMode mode;
-
-						modeIterator.Next(out mode);
-						if (mode == null)
-							break;
-
-						foreach (_BMDPixelFormat pixelFormat in Enum.GetValues(typeof(_BMDPixelFormat)))
+						if (true || SupportedFormats.Contains(pixelFormat))
 						{
-							if (true || SupportedFormats.Contains(pixelFormat))
+							try
 							{
-								try
+								_BMDDisplayModeSupport support;
+								IDeckLinkDisplayMode displayMode;
+								output.DoesSupportVideoMode(mode.GetDisplayMode(), pixelFormat, flags, out support, out displayMode);
+
+								string modeString;
+								mode.GetName(out modeString);
+								int stripLength = "bmdFormat".Length;
+								string pixelFormatString = pixelFormat.ToString();
+								pixelFormatString = pixelFormatString.Substring(stripLength, pixelFormatString.Length - stripLength);
+
+								modeString += " [" + pixelFormatString + "]";
+
+								long duration, timescale;
+								mode.GetFrameRate(out duration, out timescale);
+
+								Mode inserter = new Mode()
 								{
-									_BMDDisplayModeSupport support;
-									IDeckLinkDisplayMode displayMode;
-									output.DoesSupportVideoMode(mode.GetDisplayMode(), pixelFormat, flags, out support, out displayMode);
+									DisplayModeHandle = mode,
+									Flags = flags,
+									PixelFormat = pixelFormat,
+									Width = mode.GetWidth(),
+									Height = mode.GetHeight(),
+									FrameRate = (double)timescale / (double)duration
+								};
+								inserter.CalcPixelBoundaries();
 
-									string modeString;
-									mode.GetName(out modeString);
-									int stripLength = "bmdFormat".Length;
-									string pixelFormatString = pixelFormat.ToString();
-									pixelFormatString = pixelFormatString.Substring(stripLength, pixelFormatString.Length - stripLength);
-
-									modeString += " [" + pixelFormatString + "]";
-
-									long duration, timescale;
-									mode.GetFrameRate(out duration, out timescale);
-
-									Mode inserter = new Mode()
-									{
-										DisplayModeHandle = mode,
-										Flags = flags,
-										PixelFormat = pixelFormat,
-										Width = mode.GetWidth(),
-										Height = mode.GetHeight(),
-										FrameRate = (double)timescale / (double)duration
-									};
-									inserter.CalcPixelBoundaries();
-
-									if (support == _BMDDisplayModeSupport.bmdDisplayModeSupported)
-									{
-										FModes.Add(modeString, inserter);
-									}
-									else if (support == _BMDDisplayModeSupport.bmdDisplayModeSupportedWithConversion)
-									{
-										modeString += " converted";
-										FModes.Add(modeString, inserter);
-									}
-								}
-								catch
+								if (support == _BMDDisplayModeSupport.bmdDisplayModeSupported)
 								{
+									FModes.Add(modeString, inserter);
 								}
+								else if (support == _BMDDisplayModeSupport.bmdDisplayModeSupportedWithConversion)
+								{
+									modeString += " converted";
+									FModes.Add(modeString, inserter);
+								}
+							}
+							catch
+							{
 							}
 						}
 					}
 				}
-			});
+			}
 		}
 
 		public string[] EnumStrings

@@ -25,6 +25,17 @@ namespace VVVV.Nodes.DeckLink
 		public ReaderWriterLock Lock = new ReaderWriterLock();
 		public bool Ready { get; private set; }
 
+        public delegate void FrameCallbackDelegate(IntPtr data, int deviceIdx);
+        public FrameCallbackDelegate FFrameCallback;
+        private int FDeviceIdx;
+        public int DeviceIdx
+        {
+            set
+            {
+                FDeviceIdx = value;
+            }
+        }
+
 		public Capture()
 		{
 			Reinitialise = false;
@@ -39,70 +50,64 @@ namespace VVVV.Nodes.DeckLink
 			if (Ready)
 				Close();
 
-			WorkerThread.Singleton.PerformBlocking(() =>
+			this.Lock.AcquireWriterLock(10000);
+			try
 			{
-				this.Lock.AcquireWriterLock(10000);
-				try
-				{
-					if (device == null)
-						throw (new Exception("No device selected"));
+				if (device == null)
+					throw (new Exception("No device selected"));
 
-					IDeckLink rawDevice = DeviceRegister.Singleton.GetDeviceHandle(device.Index);
-					FDevice = rawDevice as IDeckLinkInput;
-					FMode = mode;
-					FFlags = flags;
+				IDeckLink rawDevice = DeviceRegister.Singleton.GetDeviceHandle(device.Index);
+				FDevice = rawDevice as IDeckLinkInput;
+				FMode = mode;
+				FFlags = flags;
 
-					if (FDevice == null)
-						throw (new Exception("No input device connected"));
+				if (FDevice == null)
+					throw (new Exception("No input device connected"));
 
-					_BMDDisplayModeSupport displayModeSupported;
+				_BMDDisplayModeSupport displayModeSupported;
 
-					FDevice.DoesSupportVideoMode(FMode, FPixelFormat, flags, out displayModeSupported, out FDisplayMode);
+				FDevice.DoesSupportVideoMode(FMode, FPixelFormat, flags, out displayModeSupported, out FDisplayMode);
 
-					Width = FDisplayMode.GetWidth();
-					Height = FDisplayMode.GetHeight();
+				Width = FDisplayMode.GetWidth();
+				Height = FDisplayMode.GetHeight();
 
-					FDevice.EnableVideoInput(FMode, FPixelFormat, FFlags);
-					FDevice.SetCallback(this);
-					FDevice.StartStreams();
+				FDevice.EnableVideoInput(FMode, FPixelFormat, FFlags);
+				FDevice.SetCallback(this);
+				FDevice.StartStreams();
 
-					Reinitialise = true;
-					Ready = true;
-					FreshData = false;
-				}
-				catch (Exception e)
-				{
-					Ready = false;
-					Reinitialise = false;
-					FreshData = false;
-					throw;
-				}
-				finally
-				{
-					this.Lock.ReleaseWriterLock();
-				}
-			});
+				Reinitialise = true;
+				Ready = true;
+				FreshData = false;
+			}
+			catch (Exception e)
+			{
+				Ready = false;
+				Reinitialise = false;
+				FreshData = false;
+				throw;
+			}
+			finally
+			{
+				this.Lock.ReleaseWriterLock();
+			}
 		}
 
 		public void Close()
 		{
-			WorkerThread.Singleton.PerformBlocking(() =>
+			this.Lock.AcquireWriterLock(10000);
+			try
 			{
-				this.Lock.AcquireWriterLock(10000);
-				try
-				{
-					if (!Ready)
-						return;
+				if (!Ready)
+					return;
 
-					Ready = false;
-					FDevice.StopStreams();
-					FDevice.DisableVideoInput();
-				}
-				finally
-				{
-					this.Lock.ReleaseWriterLock();
-				}
-			});
+				Ready = false;
+				FDevice.StopStreams();
+				FDevice.DisableVideoInput();
+			}
+			finally
+			{
+				this.Lock.ReleaseWriterLock();
+			}
 
 		}
 
@@ -119,6 +124,10 @@ namespace VVVV.Nodes.DeckLink
 				videoFrame.GetBytes(out FData);
 				System.Runtime.InteropServices.Marshal.ReleaseComObject(videoFrame);
 				FreshData = true;
+                if (FFrameCallback != null)
+                {
+                    FFrameCallback(FData, FDeviceIdx);
+                }
 			}
 			catch
 			{
@@ -164,10 +173,7 @@ namespace VVVV.Nodes.DeckLink
 					return 0;
 
 				uint count = 0;
-				WorkerThread.Singleton.PerformBlocking(() =>
-				{
-					FDevice.GetAvailableVideoFrameCount(out count);
-				});
+				FDevice.GetAvailableVideoFrameCount(out count);
 				return (int)count;
 			}
 		}
@@ -176,10 +182,7 @@ namespace VVVV.Nodes.DeckLink
 		{
 			if (!Ready)
 				return;
-			WorkerThread.Singleton.PerformBlocking(() =>
-			{
-				FDevice.FlushStreams();
-			});
+			FDevice.FlushStreams();
 		}
 
 		public void Dispose()
