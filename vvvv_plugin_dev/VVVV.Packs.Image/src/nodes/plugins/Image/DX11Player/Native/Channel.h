@@ -26,7 +26,7 @@ public:
         return m_queue.empty();
     }
 
-    int size() const
+    size_t size() const
     {
 		std::lock_guard<std::mutex> lock(m_mutex);
         return m_queue.size();

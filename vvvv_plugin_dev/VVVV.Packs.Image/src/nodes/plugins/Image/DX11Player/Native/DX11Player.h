@@ -25,20 +25,15 @@ public:
 	HANDLE GetSharedHandle();
 	ID3D11Texture2D * GetTexturePointer();
 	ID3D11Texture2D * GetRenderTexturePointer();
-	void DoneRender();
 	int GetUploadBufferSize();
 	int GetWaitBufferSize();
 	int GetRenderBufferSize();
-
+	int GetDroppedFrames();
+	void SetFPS(int fps);
 private:
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
-	std::vector<ID3D11Texture2D *> m_CopyTextureOut;
-	std::vector<ID3D11ShaderResourceView *> m_ShaderResourceView;
-	std::vector<ID3D11UnorderedAccessView *> m_UAVs;
-	std::vector<ID3D11Texture2D *> m_OutputTextures;
-	//std::vector<ID3D11Buffer*> m_UploadBuffers;
 	std::vector<ID3D11Texture2D*> m_UploadBuffers;
 	std::vector<OVERLAPPED> m_Overlaps;
 	std::vector<HANDLE> m_WaitEvents;
@@ -50,23 +45,27 @@ private:
 	bool m_UploaderThreadRunning;
 	bool m_WaiterThreadRunning;
 	size_t m_CurrentFrame;
+	size_t m_Width;
+	size_t m_Height;
+	D3D11_BOX m_CopyBox;
 
-	Channel<int> m_ReadyToUpload;
-	Channel<int> m_ReadyToWait;
-	Channel<int> m_ReadyToRender;
-	bool m_NewFrame;
+	struct Frame{
+		int idx;
+		HighResClock::time_point presentationTime;
+	};
+
+	Channel<Frame> m_ReadyToUpload;
+	Channel<Frame> m_ReadyToWait;
+	Channel<Frame> m_ReadyToRate;
+	Channel<Frame> m_ReadyToRender;
 	std::map<ID3D11Texture2D*,HANDLE> m_SharedHandles;
-	int m_NextRenderBuffer;
-	HighResClock::time_point m_LastFrame;
-	double m_FramesRemainder;
 	int m_CurrentOutFront;
 	int m_CurrentOutBack;
-	std::vector<int> m_ConsumedBuffers;
+	Frame m_NextRenderFrame;
+	int m_DroppedFrames;
+	int m_Fps;
 
 	HRESULT CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture);
-	HRESULT CreateStagingBuffer(int Width, int Height, DXGI_FORMAT Format, ID3D11Buffer ** buffer);
-	HRESULT CreateCopyBufferIn(int Width, int Height, DXGI_FORMAT Format, ID3D11Buffer ** buffer);
-	HRESULT CreateCopyBufferOut(int Width, int Height, DXGI_FORMAT Format, ID3D11Buffer ** buffer);
 };
 
 extern "C"{
@@ -77,10 +76,10 @@ extern "C"{
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player);
 	NATIVE_API DX11HANDLE DX11Player_GetTexturePointer(DX11HANDLE player);
 	NATIVE_API DX11HANDLE DX11Player_GetRenderTexturePointer(DX11HANDLE player);
-	NATIVE_API void DX11Player_DoneRender(DX11HANDLE player);
 
 	NATIVE_API int DX11Player_GetUploadBufferSize(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetWaitBufferSize(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetRenderBufferSize(DX11HANDLE player);
-
+	NATIVE_API int DX11Player_GetDroppedFrames(DX11HANDLE player);
+	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps);
 }

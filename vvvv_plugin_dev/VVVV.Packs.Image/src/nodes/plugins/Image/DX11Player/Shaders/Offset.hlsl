@@ -1,5 +1,5 @@
 Texture2D<float4> BufferIn;
-RWTexture2D<float4> BufferOut : register(u0);
+RWTexture2D<float4> BufferOut;
 
 cbuffer controls:register(b0){
 	int InputWidth <string uiname="Input Width";> = 3840;
@@ -8,7 +8,7 @@ cbuffer controls:register(b0){
 
 void writeToPixel(uint x, uint y, float4 colour)
 {    
-    BufferOut[uint2(x,y)] = colour.bgra;
+    BufferOut[uint2(x,y)] = colour.rgba;
 }
 
 

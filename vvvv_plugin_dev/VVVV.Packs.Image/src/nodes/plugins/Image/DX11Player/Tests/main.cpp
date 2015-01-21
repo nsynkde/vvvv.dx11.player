@@ -34,7 +34,7 @@ ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex 
 DX11Player *player;
 HighResClock::time_point start;
 
-const bool shareDevice = false;
+const bool shareDevice = true;
 	
 	// a struct to define a single vertex
 struct Vertex
@@ -356,7 +356,7 @@ void InitPipeline()
     // load and compile the two shaders
 	HRESULT hr = dev->CreateVertexShader(VShader,sizeof(VShader),nullptr,&pVS);
 	if(FAILED(hr)){
-		//throw std::exception("Coudln't create vertex shader");
+		throw std::exception("Coudln't create vertex shader");
 	}
 	OutputDebugString( "Created vertex shader" );
 
@@ -414,10 +414,11 @@ void InitPipeline()
 	samplerState->Release();
 
 	if(shareDevice){
-		player = new DX11Player(dev,"E:\\TestMaterial\\4K_RGBA.stck");
+		player = new DX11Player(dev,"D:\\TestMaterial\\dds3840x2160BC3");
 	}else{
-		player = new DX11Player(nullptr,"E:\\TestMaterial\\4K_RGBA.stck");
+		player = new DX11Player(nullptr,"D:\\TestMaterial\\dds3840x2160BC3");
 	}
+	player->SetFPS(24);
 	ID3D11ShaderResourceView * shaderResourceView;
 	hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
 	if(FAILED(hr)){

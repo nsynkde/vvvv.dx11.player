@@ -70,6 +70,10 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Input("Filemask", DefaultString = "*")]
         public IDiffSpread<string> FFilemaskIn;
 
+        [Input("fps", DefaultValue = 60)]
+        public IDiffSpread<int> FFPSIn;
+
+
         [Output("texture handle")]
         public ISpread<UInt64> FTexHandleOut;
 
@@ -88,6 +92,8 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Output("render buffer size")]
         public ISpread<int> FRenderSizeOut;
 
+        [Output("dropped frames")]
+        public ISpread<int> FDroppedFramesOut;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
 
@@ -119,13 +125,24 @@ namespace VVVV.Nodes.DX11PlayerNode
             
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                FUploadSizeOut[i] = NativeInterface.DX11Player_GetUploadBufferSize(FDX11NativePlayer[i]);
-                FWaitSizeOut[i] = NativeInterface.DX11Player_GetWaitBufferSize(FDX11NativePlayer[i]);
-                FRenderSizeOut[i] = NativeInterface.DX11Player_GetRenderBufferSize(FDX11NativePlayer[i]);
+                if (FDX11NativePlayer[i] != IntPtr.Zero)
+                {
+                    FUploadSizeOut[i] = NativeInterface.DX11Player_GetUploadBufferSize(FDX11NativePlayer[i]);
+                    FWaitSizeOut[i] = NativeInterface.DX11Player_GetWaitBufferSize(FDX11NativePlayer[i]);
+                    FRenderSizeOut[i] = NativeInterface.DX11Player_GetRenderBufferSize(FDX11NativePlayer[i]);
+                    FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
+                    if (FFPSIn.IsChanged)
+                    {
+                        NativeInterface.DX11Player_SetFPS(FDX11NativePlayer[i], FFPSIn[i]);
+                    }
+                }
+            }
+
+            if (FDirectoryIn.IsChanged)
+            {
+                FRefreshTextures = true;
             }
         }
-
-        private Texture2D staging;
 
         public void Update(IPluginIO pin, DX11RenderContext context)
         {
@@ -137,7 +154,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
-                        var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero,FDirectoryIn[i]);
+                        var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero, FDirectoryIn[i]);
+                        NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
                         if (nativePlayer != IntPtr.Zero)
                         {
                             FDX11NativePlayer[i] = nativePlayer;
@@ -217,6 +235,10 @@ namespace VVVV.Nodes.DX11PlayerNode
         internal static extern int DX11Player_GetWaitBufferSize(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern int DX11Player_GetRenderBufferSize(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern int DX11Player_GetDroppedFrames(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern void DX11Player_SetFPS(IntPtr player,int fps);
     }
 
 }
