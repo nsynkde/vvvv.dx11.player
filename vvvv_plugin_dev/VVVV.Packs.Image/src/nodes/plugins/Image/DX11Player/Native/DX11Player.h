@@ -25,12 +25,16 @@ public:
 	HANDLE GetSharedHandle();
 	ID3D11Texture2D * GetTexturePointer();
 	ID3D11Texture2D * GetRenderTexturePointer();
-	int GetUploadBufferSize();
-	int GetWaitBufferSize();
-	int GetRenderBufferSize();
-	int GetDroppedFrames();
+	int GetUploadBufferSize() const;
+	int GetWaitBufferSize() const;
+	int GetRenderBufferSize() const;
+	int GetDroppedFrames() const;
+	size_t GetCurrentLoadFrame() const;
+	size_t GetCurrentRenderFrame() const;
 	void SetFPS(int fps);
+	std::string GetDirectory() const;
 private:
+	std::string m_Directory;
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
@@ -42,8 +46,10 @@ private:
 	std::vector<std::string> m_ImageFiles;
 	std::thread m_UploaderThread;
 	std::thread m_WaiterThread;
+	std::thread m_RateThread;
 	bool m_UploaderThreadRunning;
 	bool m_WaiterThreadRunning;
+	bool m_RateThreadRunning;
 	size_t m_CurrentFrame;
 	size_t m_Width;
 	size_t m_Height;
@@ -52,6 +58,7 @@ private:
 	struct Frame{
 		int idx;
 		HighResClock::time_point presentationTime;
+		size_t nextToLoad;
 	};
 
 	Channel<Frame> m_ReadyToUpload;
@@ -76,10 +83,14 @@ extern "C"{
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player);
 	NATIVE_API DX11HANDLE DX11Player_GetTexturePointer(DX11HANDLE player);
 	NATIVE_API DX11HANDLE DX11Player_GetRenderTexturePointer(DX11HANDLE player);
-
+	
+	NATIVE_API const char * DX11Player_GetDirectory(DX11HANDLE player);
+	NATIVE_API int DX11Player_DirectoryHasChanged(DX11HANDLE player, const char * dir);
 	NATIVE_API int DX11Player_GetUploadBufferSize(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetWaitBufferSize(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetRenderBufferSize(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetDroppedFrames(DX11HANDLE player);
+	NATIVE_API int DX11Player_GetCurrentLoadFrame(DX11HANDLE player);
+	NATIVE_API int DX11Player_GetCurrentRenderFrame(DX11HANDLE player);
 	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps);
 }

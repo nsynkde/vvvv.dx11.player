@@ -414,9 +414,9 @@ void InitPipeline()
 	samplerState->Release();
 
 	if(shareDevice){
-		player = new DX11Player(dev,"D:\\TestMaterial\\dds3840x2160BC3");
+		player = new DX11Player(dev,"D:\\TestMaterial\\dds3840x2160RGBA");
 	}else{
-		player = new DX11Player(nullptr,"D:\\TestMaterial\\dds3840x2160BC3");
+		player = new DX11Player(nullptr,"D:\\TestMaterial\\dds3840x2160RGBA");
 	}
 	player->SetFPS(24);
 	ID3D11ShaderResourceView * shaderResourceView;

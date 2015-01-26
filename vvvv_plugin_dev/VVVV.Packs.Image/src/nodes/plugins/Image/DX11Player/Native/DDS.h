@@ -261,4 +261,84 @@ enum CONVERSION_FLAGS
     CONV_FLAGS_A8L8     = 0x100000, // Source is a 8:8 luminance format 
 };
 
+
+enum DDS_FLAGS
+{
+	DDS_FLAGS_NONE                  = 0x0,
+
+	DDS_FLAGS_LEGACY_DWORD          = 0x1,
+		// Assume pitch is DWORD aligned instead of BYTE aligned (used by some legacy DDS files)
+
+	DDS_FLAGS_NO_LEGACY_EXPANSION   = 0x2,
+		// Do not implicitly convert legacy formats that result in larger pixel sizes (24 bpp, 3:3:2, A8L8, A4L4, P8, A8P8) 
+
+	DDS_FLAGS_NO_R10B10G10A2_FIXUP  = 0x4,
+		// Do not use work-around for long-standing D3DX DDS file format issue which reversed the 10:10:10:2 color order masks
+
+	DDS_FLAGS_FORCE_RGB             = 0x8,
+		// Convert DXGI 1.1 BGR formats to DXGI_FORMAT_R8G8B8A8_UNORM to avoid use of optional WDDM 1.1 formats
+
+	DDS_FLAGS_NO_16BPP              = 0x10,
+		// Conversions avoid use of 565, 5551, and 4444 formats and instead expand to 8888 to avoid use of optional WDDM 1.2 formats
+
+	DDS_FLAGS_EXPAND_LUMINANCE      = 0x20,
+		// When loading legacy luminance formats expand replicating the color channels rather than leaving them packed (L8, L16, A8L8)
+
+	DDS_FLAGS_FORCE_DX10_EXT        = 0x10000,
+		// Always use the 'DX10' header extension for DDS writer (i.e. don't try to write DX9 compatible DDS files)
+
+	DDS_FLAGS_FORCE_DX10_EXT_MISC2  = 0x20000,
+		// DDS_FLAGS_FORCE_DX10_EXT including miscFlags2 information (result may not be compatible with D3DX10 or D3DX11)
+};
+
+enum TEX_DIMENSION
+	// Subset here matches D3D10_RESOURCE_DIMENSION and D3D11_RESOURCE_DIMENSION
+{
+	TEX_DIMENSION_TEXTURE1D    = 2,
+	TEX_DIMENSION_TEXTURE2D    = 3,
+	TEX_DIMENSION_TEXTURE3D    = 4,
+};
+
+
+enum TEX_ALPHA_MODE
+	// Matches DDS_ALPHA_MODE, encoded in MISC_FLAGS2
+{
+	TEX_ALPHA_MODE_UNKNOWN       = 0,
+	TEX_ALPHA_MODE_STRAIGHT      = 1,
+	TEX_ALPHA_MODE_PREMULTIPLIED = 2,
+	TEX_ALPHA_MODE_OPAQUE        = 3,
+	TEX_ALPHA_MODE_CUSTOM        = 4,
+};
+
+struct TexMetadata
+{
+    size_t          width;
+    size_t          height;     // Should be 1 for 1D textures
+    size_t          depth;      // Should be 1 for 1D or 2D textures
+    size_t          arraySize;  // For cubemap, this is a multiple of 6
+    size_t          mipLevels;
+    uint32_t        miscFlags;
+    uint32_t        miscFlags2;
+    DXGI_FORMAT     format;
+    TEX_DIMENSION   dimension;
+	size_t			bytesData;
+	size_t			bytesHeader;
+	size_t			rowPitch;
+
+    size_t __cdecl ComputeIndex( _In_ size_t mip, _In_ size_t item, _In_ size_t slice ) const;
+        // Returns size_t(-1) to indicate an out-of-range error
+
+    bool __cdecl IsCubemap() const;
+        // Helper for miscFlags
+
+    bool __cdecl IsPMAlpha() const;
+    void __cdecl SetAlphaMode( TEX_ALPHA_MODE mode );
+        // Helpers for miscFlags2
+
+    bool __cdecl IsVolumemap() const;
+        // Helper for dimension
+};
+
+HRESULT GetMetadataFromDDSFile( const char * szFile, DWORD flags, TexMetadata& metadata );
+
 }; // namespace

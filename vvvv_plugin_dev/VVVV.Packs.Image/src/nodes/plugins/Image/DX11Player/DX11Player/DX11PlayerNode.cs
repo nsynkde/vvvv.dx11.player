@@ -95,6 +95,12 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Output("dropped frames")]
         public ISpread<int> FDroppedFramesOut;
 
+        [Output("load frame")]
+        public ISpread<int> FLoadFrameOut;
+
+        [Output("render frame")]
+        public ISpread<int> FRenderFrameOut;
+
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
 
         [Import]
@@ -115,6 +121,18 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FRefreshTextures = true;
                     FTexHandleOut.SliceCount = spreadMax;
                     FDX11NativePlayer.SliceCount = spreadMax;
+                    FStatusOut.SliceCount = spreadMax;
+                    FTextureOut.SliceCount = spreadMax;;
+                    FUploadSizeOut.SliceCount = spreadMax;
+                    FWaitSizeOut.SliceCount = spreadMax;
+                    FRenderSizeOut.SliceCount = spreadMax;
+                    FDroppedFramesOut.SliceCount = spreadMax;
+                    FLoadFrameOut.SliceCount = spreadMax;
+                    FRenderFrameOut.SliceCount = spreadMax;
+                    for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                    {
+                        FDX11NativePlayer[i] = IntPtr.Zero;
+                    }
                 }
             }
             catch (Exception e)
@@ -131,6 +149,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FWaitSizeOut[i] = NativeInterface.DX11Player_GetWaitBufferSize(FDX11NativePlayer[i]);
                     FRenderSizeOut[i] = NativeInterface.DX11Player_GetRenderBufferSize(FDX11NativePlayer[i]);
                     FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
+                    FLoadFrameOut[i] = NativeInterface.DX11Player_GetCurrentLoadFrame(FDX11NativePlayer[i]);
+                    FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
                     if (FFPSIn.IsChanged)
                     {
                         NativeInterface.DX11Player_SetFPS(FDX11NativePlayer[i], FFPSIn[i]);
@@ -140,8 +160,24 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             if (FDirectoryIn.IsChanged)
             {
-                FRefreshTextures = true;
+                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                {
+                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    {
+                        if (NativeInterface.DX11Player_DirectoryHasChanged(FDX11NativePlayer[i], FDirectoryIn[i]) == 1)
+                        {
+                            FDX11NativePlayer[i] = IntPtr.Zero;
+                            foreach (var tex in this.FTextureOut[i].Data.Values)
+                            {
+                                tex.Dispose();
+                            }
+                            this.FTextureOut[i].Data.Clear();
+                            FRefreshTextures = true;
+                        }
+                    }
+                }
             }
+
         }
 
         public void Update(IPluginIO pin, DX11RenderContext context)
@@ -153,28 +189,30 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
-                        FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
-                        var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero, FDirectoryIn[i]);
-                        NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
-                        if (nativePlayer != IntPtr.Zero)
+                        if (FDX11NativePlayer[i] == IntPtr.Zero)
                         {
-                            FDX11NativePlayer[i] = nativePlayer;
-                            //FTexHandleOut[i] = (UInt64)NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]);
-                            FTextureOut[i] = new DX11Resource<DX11Texture2D>();
-                            
-                            //Texture2D tex = Texture2D.FromPointer(NativeInterface.DX11Player_GetTexturePointer(FDX11NativePlayer[i]));
-                            Texture2D tex = context.Device.OpenSharedResource<Texture2D>(NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]));
-
-                            ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
-
-                            DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
-
-                            this.FTextureOut[i][context] = resource;
+                            FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
+                            var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero, FDirectoryIn[i]);
+                            NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
+                            if (nativePlayer != IntPtr.Zero)
+                            {
+                                FDX11NativePlayer[i] = nativePlayer;
+                                //FTexHandleOut[i] = (UInt64)NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]);
+                                FTextureOut[i] = new DX11Resource<DX11Texture2D>();
+                            }
+                            else
+                            {
+                                throw new Exception("Creating native player returned nullptr");
+                            }
                         }
-                        else
-                        {
-                            throw new Exception("Creating native player returned nullptr");
-                        }
+                        //Texture2D tex = Texture2D.FromPointer(NativeInterface.DX11Player_GetTexturePointer(FDX11NativePlayer[i]));
+                        Texture2D tex = context.Device.OpenSharedResource<Texture2D>(NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]));
+
+                        ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
+
+                        DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
+
+                        this.FTextureOut[i][context] = resource;
                     }
                 }
                 catch (Exception ex)
@@ -185,7 +223,14 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                NativeInterface.DX11Player_OnRender(FDX11NativePlayer[i]);
+                if (!this.FTextureOut[i].Data.ContainsKey(context))
+                {
+                    FRefreshTextures = true;
+                }
+                if (FDX11NativePlayer[i] != IntPtr.Zero)
+                {
+                    NativeInterface.DX11Player_OnRender(FDX11NativePlayer[i]);
+                }
                 /*Texture2D tex = context.Device.OpenSharedResource<Texture2D>(NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]));
 
                 ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
@@ -228,7 +273,11 @@ namespace VVVV.Nodes.DX11PlayerNode
         
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_DoneRender(IntPtr player);
-        
+
+        [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        internal static extern string DX11Player_GetDirectory(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        internal static extern int DX11Player_DirectoryHasChanged(IntPtr player, string dir);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern int DX11Player_GetUploadBufferSize(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
@@ -237,6 +286,10 @@ namespace VVVV.Nodes.DX11PlayerNode
         internal static extern int DX11Player_GetRenderBufferSize(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern int DX11Player_GetDroppedFrames(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern int DX11Player_GetCurrentLoadFrame(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern int DX11Player_GetCurrentRenderFrame(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_SetFPS(IntPtr player,int fps);
     }

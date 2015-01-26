@@ -138,6 +138,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>D3D11.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -170,6 +173,7 @@
     </ClCompile>
     <ClCompile Include="DX11Player.cpp" />
     <ClCompile Include="HighResClock.cpp" />
+    <ClCompile Include="DDSUtils.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
