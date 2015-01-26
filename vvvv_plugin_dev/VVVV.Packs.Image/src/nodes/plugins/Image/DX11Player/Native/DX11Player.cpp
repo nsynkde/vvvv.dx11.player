@@ -305,7 +305,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		auto prevFps = *fps;
 		while(*running){
 			auto now = HighResClock::now();
-			std::vector<Frame> consumedBuffers;
+			std::vector<Frame> receivedFrames;
 			bool ready = false;
 			bool late = true;
 			if(nextFrame.idx != -1){
@@ -314,7 +314,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 				if(!ready && !late){
 					continue;
 				}else{
-					consumedBuffers.push_back(nextFrame);
+					receivedFrames.push_back(nextFrame);
 					nextFrame.idx = -1;
 				}
 			}
@@ -322,25 +322,25 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			while (late && readyToRate->try_recv(nextFrame)){
 				ready = IsFrameReady(nextFrame.presentationTime,*fps,60,now,max_lateness);
 				if(ready){
-					consumedBuffers.push_back(nextFrame);
+					receivedFrames.push_back(nextFrame);
 					nextFrame.idx = -1;
 					break;
 				}else{
 					late = IsFrameLate(nextFrame.presentationTime,*fps,now,max_lateness);
 					if(late){
-						consumedBuffers.push_back(nextFrame);
+						receivedFrames.push_back(nextFrame);
 						nextFrame.idx = -1;
 					}
 				}
 			}
 
-			if(!consumedBuffers.empty() && ready){
-				readyToRender->send(consumedBuffers.back());
-				*droppedFrames+=int(consumedBuffers.size())-1;
-				consumedBuffers.pop_back();
+			if(!receivedFrames.empty() && ready){
+				readyToRender->send(receivedFrames.back());
+				*droppedFrames+=int(receivedFrames.size())-1;
+				receivedFrames.pop_back();
 			}
 
-			for(auto buffer: consumedBuffers){
+			for(auto buffer: receivedFrames){
 				readyToUpload->send(buffer);
 			}
 
@@ -377,23 +377,23 @@ void DX11Player::OnRender(){
 	auto now = HighResClock::now();
 	auto max_lateness = std::chrono::milliseconds(2);
 	bool late = true;
-	std::vector<Frame> consumedBuffers;
+	std::vector<Frame> receivedFrames;
 	while(late && m_ReadyToRender.try_recv(frame)){
-		consumedBuffers.push_back(frame);
+		receivedFrames.push_back(frame);
 		late = IsFrameLate(frame.presentationTime,m_Fps,now,max_lateness);
 	}
 
-	if(!consumedBuffers.empty()){
-		m_NextRenderFrame = consumedBuffers.back();
+	if(!receivedFrames.empty()){
+		m_NextRenderFrame = receivedFrames.back();
 		m_Context->Unmap(m_UploadBuffers[m_NextRenderFrame.idx], 0);
 
 		m_Context->CopySubresourceRegion(m_CopyTextureIn[m_CurrentOutFront],0,0,0,0,m_UploadBuffers[m_NextRenderFrame.idx],0,&m_CopyBox);
 		
 		m_Context->Map(m_UploadBuffers[m_NextRenderFrame.idx],0,D3D11_MAP_WRITE,0,&m_MappedBuffers[m_NextRenderFrame.idx]);
-		m_DroppedFrames+=int(consumedBuffers.size())-1;
+		m_DroppedFrames+=int(receivedFrames.size())-1;
 	}
 
-	for(auto buffer: consumedBuffers){
+	for(auto buffer: receivedFrames){
 		buffer.nextToLoad = -1;
 		m_ReadyToUpload.send(buffer);
 	}
