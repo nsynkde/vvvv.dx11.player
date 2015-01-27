@@ -261,9 +261,14 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 				
 				auto now = HighResClock::now();
 				do{
-					nextFrameTime += std::chrono::nanoseconds((uint64_t)floor(1000000000/double(*fps)+0.5));
-					(*currentFrame)+=1;
-					(*currentFrame)%=imageFiles->size();
+					nextFrameTime += std::chrono::nanoseconds((uint64_t)floor(1000000000/double(abs(*fps))+0.5));
+					if(*fps>0){
+						(*currentFrame)+=1;
+						(*currentFrame)%=imageFiles->size();
+					}else if(*fps<0){
+						(*currentFrame)-=1;
+						(*currentFrame)%=imageFiles->size();
+					}
 				}while(nextFrameTime<now);
 			}
 		} 
@@ -301,16 +306,17 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		const auto max_lateness = std::chrono::milliseconds(2);
 		Frame nextFrame;
 		nextFrame.idx = -1;
-		Timer timer(std::chrono::nanoseconds(1000000000 / *fps));
 		auto prevFps = *fps;
+		auto absFps = abs(prevFps);
+		Timer timer(std::chrono::nanoseconds(1000000000 / absFps));
 		while(*running){
 			auto now = HighResClock::now();
 			std::vector<Frame> receivedFrames;
 			bool ready = false;
 			bool late = true;
 			if(nextFrame.idx != -1){
-				ready = IsFrameReady(nextFrame.presentationTime,*fps,*fps,now,max_lateness);
-				late = IsFrameLate(nextFrame.presentationTime,*fps,now,max_lateness);
+				ready = IsFrameReady(nextFrame.presentationTime,absFps,absFps,now,max_lateness);
+				late = IsFrameLate(nextFrame.presentationTime,absFps,now,max_lateness);
 				if(!ready && !late){
 					continue;
 				}else{
@@ -320,13 +326,13 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			}
 
 			while (late && readyToRate->try_recv(nextFrame)){
-				ready = IsFrameReady(nextFrame.presentationTime,*fps,60,now,max_lateness);
+				ready = IsFrameReady(nextFrame.presentationTime,absFps,absFps,now,max_lateness);
 				if(ready){
 					receivedFrames.push_back(nextFrame);
 					nextFrame.idx = -1;
 					break;
 				}else{
-					late = IsFrameLate(nextFrame.presentationTime,*fps,now,max_lateness);
+					late = IsFrameLate(nextFrame.presentationTime,absFps,now,max_lateness);
 					if(late){
 						receivedFrames.push_back(nextFrame);
 						nextFrame.idx = -1;
@@ -341,12 +347,14 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			}
 
 			for(auto buffer: receivedFrames){
+				buffer.nextToLoad = -1;
 				readyToUpload->send(buffer);
 			}
 
 			if(prevFps!=*fps){
-				timer.set_period(std::chrono::nanoseconds(1000000000 / *fps));
 				prevFps = *fps;
+				absFps = abs(prevFps);
+				timer.set_period(std::chrono::nanoseconds(1000000000 / absFps));
 			}
 			timer.wait_next();
 		}
@@ -380,7 +388,7 @@ void DX11Player::OnRender(){
 	std::vector<Frame> receivedFrames;
 	while(late && m_ReadyToRender.try_recv(frame)){
 		receivedFrames.push_back(frame);
-		late = IsFrameLate(frame.presentationTime,m_Fps,now,max_lateness);
+		late = IsFrameLate(frame.presentationTime,abs(m_Fps),now,max_lateness);
 	}
 
 	if(!receivedFrames.empty()){
