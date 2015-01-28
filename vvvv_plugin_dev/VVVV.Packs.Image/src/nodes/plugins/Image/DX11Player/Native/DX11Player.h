@@ -87,6 +87,7 @@ private:
 	int m_DroppedFrames;
 	int m_Fps;
 	HighResClock::duration m_AvgDecodeDuration;
+	HighResClock::duration m_AvgPipelineLatency;
 
 	HRESULT CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture);
 };

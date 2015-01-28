@@ -46,6 +46,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
 	,m_AvgDecodeDuration(0)
+	,m_AvgPipelineLatency(0)
 {
 	HRESULT hr;
 
@@ -244,6 +245,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 					//}
 					nextFrame.fps = nextFps;
 					nextFrame.loadTime = now;
+					nextFrame.presentationTime = nextFrameTime;
 					readyToWait->send(nextFrame);
 				}
 				
@@ -281,7 +283,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			std::vector<HANDLE> events;
 			readyToWait->recv(nextFrame);
 			WaitForSingleObject(nextFrame.waitEvent,INFINITE);
-			*avgDecodeDuration = HighResClock::now() - nextFrame.loadTime;
+			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - nextFrame.loadTime).count()/(readyToWait->size()+1));
 			CloseHandle(nextFrame.file);
 			readyToRate->send(nextFrame);
 		}
@@ -295,7 +297,6 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	running = &m_RateThreadRunning;
 	auto droppedFrames = &m_DroppedFrames;
 	m_RateThread = std::thread([running,readyToRate,readyToUpload,readyToRender,fps,droppedFrames] {
-		const auto max_lateness = std::chrono::milliseconds(2);
 		Frame nextFrame;
 		auto prevFps = *fps;
 		auto absFps = abs(prevFps);
@@ -308,8 +309,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		std::chrono::nanoseconds p(periodns);
 		Timer timer(p);
 		while(*running){
-			timer.wait_next();
 			readyToRate->recv(nextFrame);
+			timer.wait_next();
 			auto nextFps = *fps;
 			if(prevFps != nextFps){
 				if(nextFrame.fps!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
@@ -331,7 +332,6 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 				}
 				timer.set_period(std::chrono::nanoseconds(periodns));
 			}
-			nextFrame.presentationTime = HighResClock::now();
 			readyToRender->send(nextFrame);
 		}
 	});
@@ -357,12 +357,17 @@ HRESULT DX11Player::CreateStagingTexture(int Width, int Height, DXGI_FORMAT Form
 void DX11Player::OnRender(){
 	Frame frame;
 	auto now = HighResClock::now();
-	auto max_lateness = std::chrono::milliseconds(2);
+	auto max_lateness = m_AvgPipelineLatency + std::chrono::milliseconds(2);
+	HighResClock::duration currentLatency;
 	bool late = true;
 	std::vector<Frame> receivedFrames;
 	while(late && m_ReadyToRender.try_recv(frame)){
+		currentLatency += now - frame.loadTime;
 		receivedFrames.push_back(frame);
 		late = IsFrameLate(frame.presentationTime,abs(m_Fps),now,max_lateness);
+	}
+	if(!receivedFrames.empty()){
+		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
 	}
 
 	if(!receivedFrames.empty()){
