@@ -73,6 +73,12 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Input("fps", DefaultValue = 60)]
         public IDiffSpread<int> FFPSIn;
 
+        [Input("internal rate enabled", DefaultValue = 1)]
+        public IDiffSpread<bool> FInternalRate;
+
+        [Input("next frame")]
+        public IDiffSpread<int> FNextFrameIn;
+
 
         [Output("texture handle")]
         public ISpread<UInt64> FTexHandleOut;
@@ -180,6 +186,22 @@ namespace VVVV.Nodes.DX11PlayerNode
                             FRefreshTextures = true;
                         }
                     }
+                }
+            }
+
+            if (FNextFrameIn.IsChanged)
+            {
+                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                {
+                    NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], FNextFrameIn[i]);
+                }
+            }
+
+            if (FInternalRate.IsChanged)
+            {
+                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                {
+                    NativeInterface.DX11Player_SetInternalRate(FDX11NativePlayer[i], FInternalRate[i]?1:0);
                 }
             }
 
@@ -299,6 +321,10 @@ namespace VVVV.Nodes.DX11PlayerNode
         internal static extern int DX11Player_GetAvgLoadDurationMs(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_SetFPS(IntPtr player,int fps);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern void DX11Player_SendNextFrameToLoad(IntPtr player, int nextFrame);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern void DX11Player_SetInternalRate(IntPtr player, int enabled);
     }
 
 }

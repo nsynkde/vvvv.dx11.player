@@ -10,6 +10,7 @@ public:
 	Timer(std::chrono::nanoseconds period);
 
 	void wait_next();
+	void reset();
 	void set_period(std::chrono::nanoseconds period);
 private:
 	HighResClock::time_point start_time;

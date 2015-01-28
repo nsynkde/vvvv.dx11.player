@@ -34,6 +34,8 @@ public:
 	void SetFPS(int fps);
 	std::string GetDirectory() const;
 	int GetAvgLoadDurationMs() const;
+	void SendNextFrameToLoad(int nextFrame);
+	void SetInternalRate(int enabled);
 private:
 	std::string m_Directory;
 	ID3D11Device * m_Device;
@@ -81,6 +83,9 @@ private:
 	Channel<Frame> m_ReadyToWait;
 	Channel<Frame> m_ReadyToRate;
 	Channel<Frame> m_ReadyToRender;
+	Channel<size_t> m_NextFrameChannel;
+	bool m_ExternalRate;
+	bool m_InternalRate;
 	std::map<ID3D11Texture2D*,HANDLE> m_SharedHandles;
 	int m_CurrentOutFront;
 	Frame m_NextRenderFrame;
@@ -111,4 +116,6 @@ extern "C"{
 	NATIVE_API int DX11Player_GetCurrentRenderFrame(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetAvgLoadDurationMs(DX11HANDLE player);
 	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps);
+	NATIVE_API void DX11Player_SendNextFrameToLoad(DX11HANDLE player, int nextFrame);
+	NATIVE_API void DX11Player_SetInternalRate(DX11HANDLE player, int enabled);
 }

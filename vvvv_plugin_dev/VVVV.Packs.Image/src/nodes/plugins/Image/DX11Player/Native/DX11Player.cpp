@@ -13,12 +13,30 @@
 #include <memory>
 #include "DDS.h"
 #include <assert.h>
-#undef max
+#include <shlwapi.h>
+#include <fstream>
 
 using namespace DirectX;
 
 static const int RING_BUFFER_SIZE = 8;
 static const int OUTPUT_BUFFER_SIZE = 4;
+
+#pragma pack(push, r1, 1)
+struct TGA_HEADER{
+   char  idlength;
+   char  colourmaptype;
+   char  datatypecode;
+   short int colourmaporigin;
+   short int colourmaplength;
+   char  colourmapdepth;
+   short int x_origin;
+   short int y_origin;
+   short width;
+   short height;
+   char  bitsperpixel;
+   char  imagedescriptor;
+};
+#pragma pack(pop, r1)
 
 static bool IsFrameLate(const HighResClock::time_point & presentationTime, int fps_video, HighResClock::time_point now, HighResClock::duration max_lateness){
 	if(fps_video==0) return false;
@@ -42,11 +60,13 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
 	,m_CurrentFrame(0)
+	,m_ExternalRate(false)
+	,m_InternalRate(true)
 	,m_CurrentOutFront(OUTPUT_BUFFER_SIZE/2)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
 	,m_AvgDecodeDuration(0)
-	,m_AvgPipelineLatency(0)
+	,m_AvgPipelineLatency(std::chrono::milliseconds(1000/m_Fps * 2))
 {
 	HRESULT hr;
 
@@ -75,20 +95,46 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		throw std::exception(("no images found in " + directory).c_str());
 	}
 
-	// parse first image header and assume all have the same format
-	auto data = std::unique_ptr<uint8_t[]>();
-	DDS_HEADER * header;
-	uint8_t * dataptr;
-	size_t size;
-    TexMetadata mdata;
-	GetMetadataFromDDSFile(m_ImageFiles[0].c_str(),DDS_FLAGS_NONE, mdata);
-	m_Width = mdata.width;
-	m_Height = mdata.height;
-	auto format = mdata.format;
-	auto offset = mdata.bytesHeader;
-	size_t numbytesdata = mdata.bytesData;
-	size_t rowpitch = mdata.rowPitch;
+	auto cextension = PathFindExtensionA(m_ImageFiles[0].c_str());
+	std::string extension = cextension?cextension:"";
+	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+	size_t offset = 0;
+	size_t numbytesdata = 0;
+	size_t rowpitch = 0;
+	DXGI_FORMAT format;
+	if(extension==".dds"){
+		// parse first image header and assume all have the same format
+		TexMetadata mdata;
+		GetMetadataFromDDSFile(m_ImageFiles[0].c_str(),DDS_FLAGS_NONE, mdata);
+		m_Width = mdata.width;
+		m_Height = mdata.height;
+		format = mdata.format;
+		offset = mdata.bytesHeader;
+		numbytesdata = mdata.bytesData;
+		rowpitch = mdata.rowPitch;
+	}else if(extension==".tga"){
+		TGA_HEADER header;
+		std::fstream tgafile(m_ImageFiles[0], std::fstream::in | std::fstream::binary);
+		tgafile.read((char*)&header, sizeof(TGA_HEADER));
+		tgafile.close();
+		if(header.datatypecode!=2){
+			std::stringstream str;
+			str << "tga format " << (int)header.datatypecode << " not suported, only RGB truecolor supported\n";
+			throw std::exception(str.str().c_str());
+		}
+		m_Width = header.width;
+		m_Height = header.height;
+		//TODO: shader to go RGB -> RGBA
+		format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		offset = sizeof(TGA_HEADER) + header.idlength;
+		rowpitch = header.width * 3;
+		numbytesdata = rowpitch * header.height;
+	}else{
+		throw std::exception(("format " + extension + " not suported").c_str());
+	}
 
+	// box to copy upload buffer to texture skipping 4 first rows
+	// to skip header
 	m_CopyBox.back = 1;
 	m_CopyBox.bottom = m_Height + 4;
 	m_CopyBox.front = 0;
@@ -207,7 +253,10 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	auto readyToRender = &m_ReadyToRender;
 	auto readyToRate = &m_ReadyToRate;
 	auto fps = &m_Fps;
-	m_UploaderThread = std::thread([numbytesdata,rowpitch,offset,running,currentFrame,imageFiles,readyToUpload,readyToWait,fps]{
+	auto externalRate = &m_ExternalRate;
+	auto nextFrameChannel = &m_NextFrameChannel;
+	auto internalRate = &m_InternalRate;
+	m_UploaderThread = std::thread([numbytesdata,rowpitch,offset,running,currentFrame,imageFiles,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
 		auto nextFrameTime = HighResClock::now();
 		bool paused = false;
 		int nextFps = *fps;
@@ -216,6 +265,32 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			nextFrame.nextToLoad = -1;
 			readyToUpload->recv(nextFrame);
 			auto now = HighResClock::now();
+			auto absFps = abs(nextFps);
+			if(*externalRate){
+				nextFrameChannel->recv(*currentFrame);
+				now = HighResClock::now();
+				nextFrameTime = now;
+			}else{
+				if(absFps!=0){
+					do{
+						if(*internalRate){
+							nextFrameTime += std::chrono::nanoseconds((uint64_t)floor(1000000000/double(absFps)+0.5));
+						}else{
+							nextFrameTime = now;
+						}
+						if(nextFps>0){
+							(*currentFrame)+=1;
+							(*currentFrame)%=imageFiles->size();
+						}else if(nextFps<0){
+							(*currentFrame)-=1;
+							(*currentFrame)%=imageFiles->size();
+						}
+					}while(nextFrameTime<now);
+				}else{
+					paused = true;
+				}
+			}
+			*currentFrame%=imageFiles->size();
 			nextFps = *fps;
 			if(nextFrame.nextToLoad==-1){
 				nextFrame.nextToLoad = *currentFrame;
@@ -228,8 +303,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 				paused = false;
 			}
 			auto ptr = (char*)nextFrame.mappedBuffer.pData;
-			ptr += rowpitch*4-offset;
 			if(ptr){
+				ptr += rowpitch*4-offset;
 				auto file = CreateFileA(imageFiles->at(nextFrame.nextToLoad).c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
 				if (file != INVALID_HANDLE_VALUE) {
 					ZeroMemory(&nextFrame.overlap,sizeof(OVERLAPPED));
@@ -247,23 +322,6 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 					nextFrame.loadTime = now;
 					nextFrame.presentationTime = nextFrameTime;
 					readyToWait->send(nextFrame);
-				}
-				
-				auto now = HighResClock::now();
-				auto absFps = abs(nextFps);
-				if(absFps!=0){
-					do{
-						nextFrameTime += std::chrono::nanoseconds((uint64_t)floor(1000000000/double(absFps)+0.5));
-						if(nextFps>0){
-							(*currentFrame)+=1;
-							(*currentFrame)%=imageFiles->size();
-						}else if(nextFps<0){
-							(*currentFrame)-=1;
-							(*currentFrame)%=imageFiles->size();
-						}
-					}while(nextFrameTime<now);
-				}else{
-					paused = true;
 				}
 			}
 		}
@@ -296,7 +354,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	m_RateThreadRunning = true;
 	running = &m_RateThreadRunning;
 	auto droppedFrames = &m_DroppedFrames;
-	m_RateThread = std::thread([running,readyToRate,readyToUpload,readyToRender,fps,droppedFrames] {
+	m_RateThread = std::thread([running,readyToRate,readyToUpload,readyToRender,fps,droppedFrames,internalRate] {
 		Frame nextFrame;
 		auto prevFps = *fps;
 		auto absFps = abs(prevFps);
@@ -308,31 +366,42 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		}
 		std::chrono::nanoseconds p(periodns);
 		Timer timer(p);
+		bool wasInternalRate = *internalRate;
 		while(*running){
-			readyToRate->recv(nextFrame);
-			timer.wait_next();
-			auto nextFps = *fps;
-			if(prevFps != nextFps){
-				if(nextFrame.fps!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
-					auto nextToLoad = nextFrame.nextToLoad;
-					auto waitingFor = nextToLoad;
-					do{
-						nextFrame.nextToLoad = nextToLoad;
-						readyToUpload->send(nextFrame);
-						nextToLoad = -1;
-						readyToRate->recv(nextFrame);
-					}while(nextFrame.nextToLoad!=waitingFor);
+			auto useInternalRate = *internalRate;
+			if(useInternalRate){
+				if(!wasInternalRate){
+					timer.reset();
 				}
-				prevFps = nextFps;
-				absFps = abs(prevFps);
-				if(absFps!=0){
-					periodns = 1000000000 / absFps;
-				}else{
-					periodns = 1000000000 / 60;
+				readyToRate->recv(nextFrame);
+				timer.wait_next();
+				auto nextFps = *fps;
+				if(prevFps != nextFps){
+					if(nextFrame.fps!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
+						auto nextToLoad = nextFrame.nextToLoad;
+						auto waitingFor = nextToLoad;
+						do{
+							nextFrame.nextToLoad = nextToLoad;
+							readyToUpload->send(nextFrame);
+							nextToLoad = -1;
+							readyToRate->recv(nextFrame);
+						}while(nextFrame.nextToLoad!=waitingFor);
+					}
+					prevFps = nextFps;
+					absFps = abs(prevFps);
+					if(absFps!=0){
+						periodns = 1000000000 / absFps;
+					}else{
+						periodns = 1000000000 / 60;
+					}
+					timer.set_period(std::chrono::nanoseconds(periodns));
 				}
-				timer.set_period(std::chrono::nanoseconds(periodns));
+				readyToRender->send(nextFrame);
+			}else{
+				readyToRate->recv(nextFrame);
+				readyToRender->send(nextFrame);
 			}
-			readyToRender->send(nextFrame);
+			wasInternalRate = useInternalRate;
 		}
 	});
 }
@@ -364,7 +433,7 @@ void DX11Player::OnRender(){
 	while(late && m_ReadyToRender.try_recv(frame)){
 		currentLatency += now - frame.loadTime;
 		receivedFrames.push_back(frame);
-		late = IsFrameLate(frame.presentationTime,abs(m_Fps),now,max_lateness);
+		late = !m_InternalRate || IsFrameLate(frame.presentationTime,abs(m_Fps),now,max_lateness);
 	}
 	if(!receivedFrames.empty()){
 		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
@@ -431,12 +500,14 @@ int DX11Player::GetDroppedFrames() const
 }
 
 
-size_t DX11Player::GetCurrentLoadFrame() const{
+size_t DX11Player::GetCurrentLoadFrame() const
+{
 	return m_CurrentFrame;
 }
 
 
-size_t DX11Player::GetCurrentRenderFrame() const{
+size_t DX11Player::GetCurrentRenderFrame() const
+{
 	return m_NextRenderFrame.nextToLoad;
 }
 
@@ -445,8 +516,26 @@ void DX11Player::SetFPS(int fps){
 	m_Fps = fps;
 }
 
-int DX11Player::GetAvgLoadDurationMs() const{
+int DX11Player::GetAvgLoadDurationMs() const
+{
 	return std::chrono::duration_cast<std::chrono::milliseconds>(m_AvgDecodeDuration).count();
+}
+
+void DX11Player::SendNextFrameToLoad(int nextFrame)
+{
+	m_ExternalRate = true;
+	m_NextFrameChannel.send(nextFrame);
+}
+
+
+void DX11Player::SetInternalRate(int enabled)
+{
+	m_InternalRate = enabled;
+	if(enabled && m_ExternalRate)
+	{
+		m_ExternalRate = false;
+		m_NextFrameChannel.send(m_CurrentFrame);
+	}
 }
 
 extern "C"{
@@ -533,6 +622,16 @@ extern "C"{
 	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps)
 	{
 		static_cast<DX11Player*>(player)->SetFPS(fps);
+	}
+	
+	NATIVE_API void DX11Player_SendNextFrameToLoad(DX11HANDLE player, int nextFrame)
+	{
+		static_cast<DX11Player*>(player)->SendNextFrameToLoad(nextFrame);
+	}
+
+	NATIVE_API void DX11Player_SetInternalRate(DX11HANDLE player, int enabled)
+	{
+		static_cast<DX11Player*>(player)->SetInternalRate(enabled);
 	}
 
 }

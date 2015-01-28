@@ -17,6 +17,12 @@ void Timer::wait_next(){
 }
 
 
+void Timer::reset(){
+	start_time = HighResClock::now();
+	next_event = start_time+std::chrono::nanoseconds(period);
+}
+
+
 void Timer::set_period(std::chrono::nanoseconds period){
 	next_event -= this->period;
 	this->period = period;
