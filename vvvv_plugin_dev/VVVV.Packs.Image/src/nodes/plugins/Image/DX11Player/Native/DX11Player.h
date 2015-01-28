@@ -33,16 +33,12 @@ public:
 	size_t GetCurrentRenderFrame() const;
 	void SetFPS(int fps);
 	std::string GetDirectory() const;
+	int GetAvgLoadDurationMs() const;
 private:
 	std::string m_Directory;
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
-	std::vector<ID3D11Texture2D*> m_UploadBuffers;
-	std::vector<OVERLAPPED> m_Overlaps;
-	std::vector<HANDLE> m_WaitEvents;
-	std::vector<HANDLE> m_FileHandles;
-	std::vector<D3D11_MAPPED_SUBRESOURCE> m_MappedBuffers;
 	std::vector<std::string> m_ImageFiles;
 	std::thread m_UploaderThread;
 	std::thread m_WaiterThread;
@@ -58,7 +54,27 @@ private:
 	struct Frame{
 		int idx;
 		HighResClock::time_point presentationTime;
+		HighResClock::time_point loadTime;
+		HighResClock::duration decodeDuration;
 		size_t nextToLoad;
+		int fps;
+		OVERLAPPED overlap;
+		HANDLE waitEvent;
+		HANDLE file;
+		D3D11_MAPPED_SUBRESOURCE mappedBuffer;
+		ID3D11Texture2D* uploadBuffer;
+
+		Frame()
+			:idx(-1)
+			,decodeDuration(0)
+			,nextToLoad(-1)
+			,fps(0)
+			,waitEvent(nullptr)
+			,file(nullptr)
+			,uploadBuffer(nullptr){
+				ZeroMemory(&overlap,sizeof(OVERLAPPED));
+				ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
+		}
 	};
 
 	Channel<Frame> m_ReadyToUpload;
@@ -67,10 +83,10 @@ private:
 	Channel<Frame> m_ReadyToRender;
 	std::map<ID3D11Texture2D*,HANDLE> m_SharedHandles;
 	int m_CurrentOutFront;
-	int m_CurrentOutBack;
 	Frame m_NextRenderFrame;
 	int m_DroppedFrames;
 	int m_Fps;
+	HighResClock::duration m_AvgDecodeDuration;
 
 	HRESULT CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture);
 };
@@ -92,5 +108,6 @@ extern "C"{
 	NATIVE_API int DX11Player_GetDroppedFrames(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetCurrentLoadFrame(DX11HANDLE player);
 	NATIVE_API int DX11Player_GetCurrentRenderFrame(DX11HANDLE player);
+	NATIVE_API int DX11Player_GetAvgLoadDurationMs(DX11HANDLE player);
 	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps);
 }

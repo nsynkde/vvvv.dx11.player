@@ -101,6 +101,9 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Output("render frame")]
         public ISpread<int> FRenderFrameOut;
 
+        [Output("avg load duration ms")]
+        public ISpread<int> FAvgLoadDurationMsOut;
+
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
 
         [Import]
@@ -129,6 +132,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FDroppedFramesOut.SliceCount = spreadMax;
                     FLoadFrameOut.SliceCount = spreadMax;
                     FRenderFrameOut.SliceCount = spreadMax;
+                    FAvgLoadDurationMsOut.SliceCount = spreadMax;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         FDX11NativePlayer[i] = IntPtr.Zero;
@@ -151,6 +155,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
                     FLoadFrameOut[i] = NativeInterface.DX11Player_GetCurrentLoadFrame(FDX11NativePlayer[i]);
                     FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
+                    FAvgLoadDurationMsOut[i] = (int)(((double)FAvgLoadDurationMsOut[i]) * 0.9 + ((double)NativeInterface.DX11Player_GetAvgLoadDurationMs(FDX11NativePlayer[i])) * 0.1);
                     if (FFPSIn.IsChanged)
                     {
                         NativeInterface.DX11Player_SetFPS(FDX11NativePlayer[i], FFPSIn[i]);
@@ -290,6 +295,8 @@ namespace VVVV.Nodes.DX11PlayerNode
         internal static extern int DX11Player_GetCurrentLoadFrame(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern int DX11Player_GetCurrentRenderFrame(IntPtr player);
+        [DllImport("Native.dll", SetLastError = false)]
+        internal static extern int DX11Player_GetAvgLoadDurationMs(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_SetFPS(IntPtr player,int fps);
     }

@@ -34,7 +34,7 @@ ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex 
 DX11Player *player;
 HighResClock::time_point start;
 
-const bool shareDevice = true;
+const bool shareDevice = false;
 	
 	// a struct to define a single vertex
 struct Vertex
@@ -247,6 +247,10 @@ ID3D11Texture2D * GetTexture(){
 // this is the function used to render a single frame
 void RenderFrame(void)
 {
+	static int i = 0;
+	/*if(i==300){
+		player->SetFPS(0);
+	}*/
     // clear the back buffer to a deep blue
 	//float color[] = {0.0f, 0.2f, 0.4f, 1.0f};
     //devcon->ClearRenderTargetView(backbuffer, color);
@@ -273,6 +277,7 @@ void RenderFrame(void)
 
     // switch the back buffer and the front buffer
     swapchain->Present(1, 0);
+	i++;
 }
 
 
@@ -418,7 +423,7 @@ void InitPipeline()
 	}else{
 		player = new DX11Player(nullptr,"D:\\TestMaterial\\dds3840x2160RGBA");
 	}
-	player->SetFPS(24);
+	//player->SetFPS(24);
 	ID3D11ShaderResourceView * shaderResourceView;
 	hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
 	if(FAILED(hr)){
