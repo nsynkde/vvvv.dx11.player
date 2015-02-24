@@ -8,13 +8,29 @@
 #include <sstream>
 #include <iostream>
 #include <math.h>
-#include "Offset.h"
 #include "Timer.h"
 #include <memory>
 #include "DDS.h"
+#include <DirectXMath.h>
 #include <assert.h>
 #include <shlwapi.h>
 #include <fstream>
+#include "VShader.h"
+#include "RGB_to_RGBA.h";
+#include "BGR_to_RGBA.h";
+#include "A2R10G10B10_to_R10G10B10A2.h"
+#include "PSCbYCr888_to_RGBA8888.h"
+#include "PSCbYCr101010_to_R10G10B10A2.h"
+#include "PSCbYCr161616_to_RGBA16161616.h"
+#include "libdpx\DPXHeader.h"
+#include "libdpx\DPXStream.h"
+#include "libdpx\DPX.h"
+#include "libdpx\ElementReadStream.h"
+#include <bitset>
+#include <WinIoCtl.h>
+#include <Windows.h>
+
+#pragma comment(lib, "Kernel32.lib")
 
 using namespace DirectX;
 
@@ -51,11 +67,73 @@ static bool IsFrameReady(const HighResClock::time_point & presentationTime, int 
 	return presentationTime<=now+duration_thread && now<=presentationTime+duration_video+max_lateness;
 }
 
+static uint32_t SectorSize(char cDisk)
+{
+	HANDLE hDevice;
+
+    // Build the logical drive path and get the drive device handle
+    std::wstring logicalDrive = L"\\\\.\\";
+    wchar_t drive[3];
+    drive[0] = cDisk;
+    drive[1] = L':';
+    drive[2] = L'\0';
+    logicalDrive.append(drive);
+
+    hDevice = CreateFile(
+        logicalDrive.c_str(),
+        0, 
+        0,
+        NULL,
+        OPEN_EXISTING,
+        0,
+        NULL);
+
+    if (hDevice == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "Error\n";
+        return -1;
+    }   
+
+    // Now that we have the device handle for the disk, let us get disk's metadata
+    DWORD outsize;
+    STORAGE_PROPERTY_QUERY storageQuery;
+    memset(&storageQuery, 0, sizeof(STORAGE_PROPERTY_QUERY));
+    storageQuery.PropertyId = StorageAccessAlignmentProperty;
+    storageQuery.QueryType  = PropertyStandardQuery;
+
+    STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR diskAlignment = {0};
+    memset(&diskAlignment, 0, sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR));
+
+    if (!DeviceIoControl(hDevice, 
+        IOCTL_STORAGE_QUERY_PROPERTY, 
+        &storageQuery, 
+        sizeof(STORAGE_PROPERTY_QUERY), 
+        &diskAlignment,
+        sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR), 
+        &outsize,
+        NULL)
+        )
+    {
+        std::cerr << "Error\n";
+        return -1;
+    }
+
+	return diskAlignment.BytesPerLogicalSector;
+}
+
+size_t NextMultiple(size_t in, size_t multiple){
+	return in + (multiple - in % multiple);
+}
+
 DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	:m_Directory(directory)
 	,m_Device(device)
 	,m_Context(nullptr)
-	,m_CopyTextureIn(OUTPUT_BUFFER_SIZE)
+	,m_CopyTextureIn(OUTPUT_BUFFER_SIZE,nullptr)
+	,m_ShaderResourceViews(OUTPUT_BUFFER_SIZE,nullptr)
+	,m_BackBuffer(nullptr)
+	,m_RenderTargetView(nullptr)
+	,m_TextureBack(nullptr)
 	,m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
@@ -67,6 +145,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	,m_Fps(60)
 	,m_AvgDecodeDuration(0)
 	,m_AvgPipelineLatency(std::chrono::milliseconds(1000/m_Fps * 2))
+	,m_DirectCopy(true)
 {
 	HRESULT hr;
 
@@ -77,7 +156,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	std::stringstream str;
 	str << "reading folder " <<  directory <<  " with " << dir.n_files << " files" << std::endl;
 	OutputDebugStringA( str.str().c_str());
-	for (int i = 0; i < dir.n_files; i++)
+	for (size_t i = 0; i < dir.n_files; i++)
 	{
 
 		tinydir_file file;
@@ -102,17 +181,25 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	size_t numbytesdata = 0;
 	size_t rowpitch = 0;
 	DXGI_FORMAT format;
-	if(extension==".dds"){
+	const BYTE * pixelShaderSrc;
+	size_t sizePixelShaderSrc;
+	DXGI_FORMAT outformat;
+	bool useSampler = true;
+	bool requiresSwap;
+	if(extension == ".dds"){
 		// parse first image header and assume all have the same format
 		TexMetadata mdata;
 		GetMetadataFromDDSFile(m_ImageFiles[0].c_str(),DDS_FLAGS_NONE, mdata);
+		m_InputWidth = mdata.width;
 		m_Width = mdata.width;
 		m_Height = mdata.height;
 		format = mdata.format;
+		outformat = format;
 		offset = mdata.bytesHeader;
 		numbytesdata = mdata.bytesData;
 		rowpitch = mdata.rowPitch;
-	}else if(extension==".tga"){
+		m_DirectCopy = true;
+	}else if(extension == ".tga"){
 		TGA_HEADER header;
 		std::fstream tgafile(m_ImageFiles[0], std::fstream::in | std::fstream::binary);
 		tgafile.read((char*)&header, sizeof(TGA_HEADER));
@@ -122,16 +209,240 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			str << "tga format " << (int)header.datatypecode << " not suported, only RGB truecolor supported\n";
 			throw std::exception(str.str().c_str());
 		}
+		m_InputWidth = header.width*3/4;
 		m_Width = header.width;
 		m_Height = header.height;
-		//TODO: shader to go RGB -> RGBA
 		format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		outformat = format;
 		offset = sizeof(TGA_HEADER) + header.idlength;
 		rowpitch = header.width * 3;
 		numbytesdata = rowpitch * header.height;
+		m_DirectCopy = false;
+		pixelShaderSrc = BGR_to_RGBA;
+		sizePixelShaderSrc = sizeof(BGR_to_RGBA);
+	}else if(extension == ".dpx"){
+		dpx::Header header;
+		InStream stream;
+		stream.Open(m_ImageFiles[0].c_str());
+		header.Read(&stream);
+		m_Width = header.pixelsPerLine;
+		m_Height = header.linesPerElement * header.numberOfElements;
+		auto dpx_descriptor = header.ImageDescriptor(0);
+		std::stringstream str;
+		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
+		str << " signed: " << header.DataSign(0)  << std::endl;
+		str << " colorimetric: " << header.Colorimetric(0)  << std::endl;
+		str << " low data: " << header.LowData(0)  << std::endl;
+		str << " low quantity: " << header.LowQuantity(0)  << std::endl;
+		str << " high data: " << header.HighData(0)  << std::endl;
+		str << " high quantity: " << header.HighQuantity(0)  << std::endl;
+		str << " endian swap? " << header.RequiresByteSwap() << std::endl;
+		str << " white " << header.WhiteLevel() << std::endl;
+		str << " black " << header.BlackLevel() << std::endl;
+		str << " black gain " << header.BlackGain() << std::endl;
+		str << " gamma " << header.Gamma() << std::endl;
+		requiresSwap = header.RequiresByteSwap();
+		str << " first 8 bytes: "  << std::endl;
+		uint64_t buffer;
+		dpx::ElementReadStream element(&stream);
+		element.Read(header,0,0,&buffer,8);
+		const char * data = (const char*) &buffer;
+		for(int i=0;i<8;i++){
+			str << std::bitset<8>(data[i]) << std::endl;
+		}
+
+		OutputDebugStringA(str.str().c_str());
+		switch(dpx_descriptor){
+		case dpx::Descriptor::kABGR:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				rowpitch = m_Width * 4;
+				break;
+			case 10:
+				format = DXGI_FORMAT_R10G10B10A2_UNORM;
+				rowpitch = m_Width * 4;
+				break;
+			case 16:
+				format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				rowpitch = m_Width * 4 * 2;
+				break;
+			case 32:
+				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				rowpitch = m_Width * 4 * 4;
+				break;
+			}
+			m_InputWidth = header.pixelsPerLine;
+			m_DirectCopy = false;
+			outformat = format;
+			// TODO: ARGB -> RGBA
+			pixelShaderSrc = RGB_to_RGBA;
+			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+			break;
+		case dpx::Descriptor::kAlpha:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_A8_UNORM;
+				break;
+			case 10:
+			default:
+				throw std::exception("Alpha only 10bits not supported");
+				break;
+			}
+			m_DirectCopy = true;
+			rowpitch = m_Width;
+			outformat = format;
+			m_InputWidth = header.pixelsPerLine;
+			break;
+		case dpx::Descriptor::kBlue:
+		case dpx::Descriptor::kRed:
+		case dpx::Descriptor::kGreen:
+		case dpx::Descriptor::kLuma:
+		case dpx::Descriptor::kDepth:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_R8_UNORM;
+				break;
+			case 10:
+				throw std::exception("One channel only 10bits not supported");
+				break;
+			case 16:
+				format = DXGI_FORMAT_R16_UNORM;
+				break;
+			case 32:
+				format = DXGI_FORMAT_R32_FLOAT;
+				break;
+			}
+			m_InputWidth = header.pixelsPerLine;
+			m_DirectCopy = true;
+			outformat = format;
+			rowpitch = m_Width;
+			break;
+		case dpx::Descriptor::kRGB:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				outformat = format;
+				rowpitch = m_Width * 3;
+				m_DirectCopy = false;
+				pixelShaderSrc = RGB_to_RGBA;
+				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+				m_InputWidth = header.pixelsPerLine*3/4;
+				break;
+			case 10:
+				if(header.ImagePacking(0)==1){
+					format = DXGI_FORMAT_R32_UINT;
+					outformat = DXGI_FORMAT_R10G10B10A2_UNORM;
+					rowpitch = m_Width * 4;
+					m_DirectCopy = false;
+					useSampler = false;
+					m_InputWidth = header.pixelsPerLine;
+					pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
+					sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
+				}else{
+					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
+				}
+				break;
+			case 16:
+				format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				outformat = format;
+				rowpitch = m_Width * 3 * 2;
+				m_DirectCopy = false;
+				pixelShaderSrc = RGB_to_RGBA;
+				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+				m_InputWidth = header.pixelsPerLine*3/4;
+				break;
+			case 32:
+				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				outformat = format;
+				rowpitch = m_Width * 3 * 4;
+				m_DirectCopy = false;
+				pixelShaderSrc = RGB_to_RGBA;
+				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+				m_InputWidth = header.pixelsPerLine*3/4;
+				break;
+			}
+			break;
+		case dpx::Descriptor::kRGBA:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				rowpitch = m_Width * 4;
+				break;
+			case 10:
+				format = DXGI_FORMAT_R10G10B10A2_UNORM;
+				rowpitch = m_Width * 4;
+				break;
+			case 16:
+				format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				rowpitch = m_Width * 4 * 2;
+				break;
+			case 32:
+				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				rowpitch = m_Width * 4 * 4;
+				break;
+			}
+			m_InputWidth = header.pixelsPerLine;
+			outformat = format;
+			m_DirectCopy = true;
+			break;
+		case dpx::Descriptor::kCbYCr:
+			switch(header.BitDepth(0)){
+			case 8:
+				format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				outformat = format;
+				rowpitch = m_Width * 3;
+				m_DirectCopy = false;
+				pixelShaderSrc = PSCbYCr888_to_RGBA8888;
+				sizePixelShaderSrc = sizeof(PSCbYCr888_to_RGBA8888);
+				m_InputWidth = header.pixelsPerLine*3/4;
+				break;
+			case 10:
+				format = DXGI_FORMAT_R32_UINT;
+				outformat = DXGI_FORMAT_R10G10B10A2_UNORM;
+				rowpitch = m_Width * 4;
+				m_DirectCopy = false;
+				useSampler = false;
+				pixelShaderSrc = PSCbYCr101010_to_R10G10B10A2;
+				sizePixelShaderSrc = sizeof(PSCbYCr101010_to_R10G10B10A2);
+				m_InputWidth = header.pixelsPerLine;
+				break;
+			case 16:
+				format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				outformat = DXGI_FORMAT_R16G16B16A16_UNORM;
+				rowpitch = m_Width * 3 * 2;
+				m_DirectCopy = false;
+				useSampler = true;
+				pixelShaderSrc = PSCbYCr161616_to_RGBA16161616;
+				sizePixelShaderSrc = sizeof(PSCbYCr161616_to_RGBA16161616);
+				m_InputWidth = header.pixelsPerLine*3/4;
+				break;
+			default:
+				str << " bitdepth not supported" << std::endl;
+				throw std::exception(str.str().c_str());
+				break;
+			}
+			break;
+		case dpx::Descriptor::kCbYACrYA:
+		case dpx::Descriptor::kCbYCrA:
+		case dpx::Descriptor::kCbYCrY:
+		default:
+			str << " not supported" << std::endl;
+			throw std::exception(str.str().c_str());
+			break;
+
+		}
+		offset = header.imageOffset;
+		numbytesdata = rowpitch * m_Height;
 	}else{
 		throw std::exception(("format " + extension + " not suported").c_str());
 	}
+	
+	// Add enough bytes to read the header + data but we need to read
+	// a multiple of the physical sector size since we are reading 
+	// directly from disk with no buffering
+	auto sectorSize = SectorSize('d');
+	numbytesdata = NextMultiple(numbytesdata+offset,sectorSize);
 
 	// box to copy upload buffer to texture skipping 4 first rows
 	// to skip header
@@ -139,7 +450,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	m_CopyBox.bottom = m_Height + 4;
 	m_CopyBox.front = 0;
 	m_CopyBox.left = 0;
-	m_CopyBox.right = m_Width;
+	m_CopyBox.right = m_InputWidth;
 	m_CopyBox.top = 4;
 		
 	//size_t numbytesfile = numbytesdata + offset;
@@ -186,7 +497,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	textureDescriptionCopy.Usage = D3D11_USAGE_DEFAULT;
 	textureDescriptionCopy.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	textureDescriptionCopy.CPUAccessFlags = 0;
-	textureDescriptionCopy.Width = m_Width;
+	textureDescriptionCopy.Width = m_InputWidth;
 	textureDescriptionCopy.Height = m_Height;
 	textureDescriptionCopy.Format = format;
 	if(device==nullptr){
@@ -204,11 +515,11 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			HANDLE sharedHandle;
 			hr = m_CopyTextureIn[i]->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
 			if(FAILED(hr)){
-				throw std::exception("Coudln't query interface");
+				throw std::exception("Coudln't query interface\n");
 			}
 			hr = pTempResource->GetSharedHandle(&sharedHandle);
 			if(FAILED(hr)){
-				throw std::exception("Coudln't get shared handle");
+				throw std::exception("Coudln't get shared handle\n");
 			}
 			m_SharedHandles[m_CopyTextureIn[i]] = sharedHandle;
 			pTempResource->Release();
@@ -226,7 +537,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		Frame nextFrame;
 		nextFrame.idx = i;
 		nextFrame.waitEvent = CreateEventW(0,false,false,0);
-		hr = CreateStagingTexture(m_Width,m_Height+4,format,&nextFrame.uploadBuffer);
+		hr = CreateStagingTexture(m_InputWidth,m_Height+4,format,&nextFrame.uploadBuffer);
 		if(FAILED(hr)){
 			_com_error error(hr);
 			auto msg = error.ErrorMessage();
@@ -240,6 +551,233 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		m_Context->Map(nextFrame.uploadBuffer,0,D3D11_MAP_WRITE,0,&nextFrame.mappedBuffer);
 		m_ReadyToUpload.send(nextFrame);
 	}
+
+	// Some formats (TGA and DPX by now) need more processing
+	// create a shader to process them and output the data
+	// as RGBA
+    if (!m_DirectCopy)
+    {
+		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(m_Width), float(m_Height), 0.0f, 1.0f};
+		m_Context->RSSetViewports(1,&viewport); 
+		OutputDebugString( L"Set viewport" );
+		ID3D11VertexShader * vertexShader;
+
+        ID3D11PixelShader * pixelShader;
+		hr = m_Device->CreateVertexShader(VShader,sizeof(VShader),nullptr,&vertexShader);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create vertex shader\n");
+		}
+		OutputDebugString( L"Created vertex shader\n" );
+
+		hr = m_Device->CreatePixelShader(pixelShaderSrc,sizePixelShaderSrc,nullptr,&pixelShader);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create pixel shader\n");
+		}
+		OutputDebugString( L"Created pixel shader\n" );
+
+		struct Vertex
+		{
+			DirectX::XMFLOAT3 position;
+			DirectX::XMFLOAT2 texcoord;
+			Vertex(const DirectX::XMFLOAT3 &position, const DirectX::XMFLOAT2 &texcoord)
+				:position(position)
+				,texcoord(texcoord){}
+		};
+
+		D3D11_BUFFER_DESC vertexBufferDescription;
+		vertexBufferDescription.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDescription.ByteWidth = 6 * sizeof(Vertex);
+		vertexBufferDescription.CPUAccessFlags = 0;
+		vertexBufferDescription.MiscFlags = 0;
+		vertexBufferDescription.StructureByteStride = 0;
+		vertexBufferDescription.Usage = D3D11_USAGE_DEFAULT;
+		
+		Vertex quad[] = {
+			Vertex(DirectX::XMFLOAT3(-1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 0.0f)),
+			Vertex(DirectX::XMFLOAT3(1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 0.0f)),
+			Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 1.0f)),
+
+			Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 1.0f)),
+			Vertex(DirectX::XMFLOAT3(1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 0.0f)),
+			Vertex(DirectX::XMFLOAT3(1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 1.0f)),
+		};
+
+		D3D11_SUBRESOURCE_DATA bufferData;
+		bufferData.pSysMem = quad;
+		bufferData.SysMemPitch = 0;
+		bufferData.SysMemSlicePitch = 0;
+		
+		ID3D11Buffer * vertexBuffer;
+		hr = m_Device->CreateBuffer(&vertexBufferDescription,&bufferData,&vertexBuffer);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create vertex buffer\n");
+		}
+		OutputDebugString( L"Created vertex buffer\n" );
+
+		D3D11_INPUT_ELEMENT_DESC layout[] = {
+			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT, 0, sizeof(DirectX::XMFLOAT3), D3D11_INPUT_PER_VERTEX_DATA, 0},
+		};
+
+		ID3D11InputLayout * vertexLayout;
+		hr = m_Device->CreateInputLayout(layout, 2, VShader, sizeof(VShader), &vertexLayout);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create input layout\n");
+		}
+		OutputDebugString( L"Created vertex layout\n" );
+
+		m_Context->IASetInputLayout(vertexLayout);
+		OutputDebugString( L"Set vertex layout\n" );
+		vertexLayout->Release();
+
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+		m_Context->IASetVertexBuffers(0,1,&vertexBuffer,&stride,&offset);
+		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		OutputDebugString( L"Created vertex buffer and topology\n" );
+		vertexBuffer->Release();
+
+		m_Context->VSSetShader(vertexShader,nullptr,0);
+		m_Context->PSSetShader(pixelShader,nullptr,0);
+		OutputDebugString( L"Created vertex and pixel shaders\n" );
+
+		vertexShader->Release();
+		pixelShader->Release();
+
+		if(useSampler){
+			D3D11_SAMPLER_DESC samplerDesc;
+			ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
+			samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+			samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc.MaxLOD = 0;//FLT_MAX;
+			samplerDesc.MaxAnisotropy = 0;//16;
+			samplerDesc.ComparisonFunc = (D3D11_COMPARISON_FUNC)0;//D3D11_COMPARISON_NEVER;
+			ID3D11SamplerState * samplerState;
+			hr = m_Device->CreateSamplerState(&samplerDesc,&samplerState);
+			if(FAILED(hr)){
+				throw std::exception("Coudln't create sampler\n");
+			}
+			OutputDebugString( L"Created sampler state\n" );
+
+			m_Context->PSSetSamplers(0,1,&samplerState);
+			OutputDebugString( L"Set sampler state\n" );
+			samplerState->Release();
+		}
+
+
+		_declspec(align(16))
+		struct PS_CONSTANT_BUFFER
+		{
+			float InputWidth;
+			float InputHeight;
+			float OutputWidth;
+			float OutputHeight;
+			float OnePixel;
+			bool RequiresSwap;
+			bool VFlip;
+		};
+
+		PS_CONSTANT_BUFFER constantData;
+		constantData.InputWidth = (float)m_InputWidth;
+		constantData.InputHeight = (float)m_Height;
+		constantData.OutputWidth = (float)m_Width;
+		constantData.OutputHeight = (float)m_Height;
+		constantData.OnePixel = 1.0 / (float)m_Width;
+		constantData.RequiresSwap = requiresSwap;
+		constantData.VFlip = false;
+
+		D3D11_BUFFER_DESC shaderVarsDescription;
+		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		shaderVarsDescription.ByteWidth = sizeof(PS_CONSTANT_BUFFER);
+		shaderVarsDescription.CPUAccessFlags = 0;
+		shaderVarsDescription.MiscFlags = 0;
+		shaderVarsDescription.StructureByteStride = 0;
+		shaderVarsDescription.Usage = D3D11_USAGE_DEFAULT;
+		
+		bufferData.pSysMem = &constantData;
+		bufferData.SysMemPitch = 0;
+		bufferData.SysMemSlicePitch = 0;
+
+		ID3D11Buffer * varsBuffer;
+		hr = m_Device->CreateBuffer(&shaderVarsDescription,&bufferData,&varsBuffer);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create constant buffer\n");
+		}
+		OutputDebugString( L"Created constants buffer\n" );
+        
+		m_Context->PSSetConstantBuffers(0,1,&varsBuffer);
+		OutputDebugString( L"Set constants buffer\n" );
+		varsBuffer->Release();
+
+		int i=0;
+		for(auto & shaderResourceView: m_ShaderResourceViews){
+			hr = m_Device->CreateShaderResourceView(m_CopyTextureIn[i],nullptr,&shaderResourceView);
+			if(FAILED(hr)){
+				throw std::exception("Coudln't create shader resource view\n");
+			}
+			i++;
+		}
+		OutputDebugString( L"Created shader resource views\n" );
+
+		
+
+		auto backBufferTexDescription = textureDescriptionCopy;
+		backBufferTexDescription.MipLevels = 1;
+		backBufferTexDescription.ArraySize = 1;
+		backBufferTexDescription.SampleDesc.Count = 1;
+		backBufferTexDescription.SampleDesc.Quality = 0;
+		backBufferTexDescription.Usage = D3D11_USAGE_DEFAULT;
+		backBufferTexDescription.BindFlags = D3D11_BIND_RENDER_TARGET;
+		backBufferTexDescription.CPUAccessFlags = 0;
+		backBufferTexDescription.MiscFlags = 0;
+		backBufferTexDescription.Width = m_Width;
+		backBufferTexDescription.Height = m_Height;
+		backBufferTexDescription.Format = outformat;
+
+		D3D11_RENDER_TARGET_VIEW_DESC viewDesc;
+		ZeroMemory(&viewDesc,sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+		viewDesc.Format = backBufferTexDescription.Format;
+		viewDesc.Texture2D.MipSlice = 0;
+		viewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+		hr = m_Device->CreateTexture2D(&backBufferTexDescription,nullptr,&m_BackBuffer);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create back buffer texture\n");
+		}
+		hr = m_Device->CreateRenderTargetView(m_BackBuffer,&viewDesc,&m_RenderTargetView);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create render target view\n");
+		}
+		m_Context->OMSetRenderTargets(1,&m_RenderTargetView,nullptr);
+
+
+		textureDescriptionCopy.Width = m_Width;
+		textureDescriptionCopy.Format = outformat;
+		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_TextureBack);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create staging texture\n");
+		}
+		if(!device){
+			// if using our own device, create a shared handle for each texture
+			OutputDebugString( L"getting shared texture handle\n" );
+			IDXGIResource* pTempResource(NULL);
+			HANDLE sharedHandle;
+			hr = m_TextureBack->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
+			if(FAILED(hr)){
+				throw std::exception("Coudln't query interface\n");
+			}
+			hr = pTempResource->GetSharedHandle(&sharedHandle);
+			if(FAILED(hr)){
+				throw std::exception("Coudln't get shared handle\n");
+			}
+			m_SharedHandles[m_TextureBack] = sharedHandle;
+			pTempResource->Release();
+		} 
+
+		
+    }
 
 	// uploader thread: reads async from disk to mapped GPU memory
 	// and sends an event to wait on to the waiter thread
@@ -449,6 +987,23 @@ void DX11Player::OnRender(){
 		m_DroppedFrames+=int(receivedFrames.size())-1;
 		//m_CurrentOutFront += 1;
 		//m_CurrentOutFront %= OUTPUT_BUFFER_SIZE;
+
+		if(!m_DirectCopy){
+			/*D3D11_BOX box;
+			box.back = 1;
+			box.bottom = m_Height;
+			box.front = 0;
+			box.left = 0;
+			box.right = m_InputWidth;
+			box.top = 0;
+			m_Context->CopySubresourceRegion(m_BackBuffer,0,0,0,0,m_CopyTextureIn[m_CurrentOutFront],0,&m_CopyBox);*/
+			m_Context->PSSetShaderResources(0,1,&m_ShaderResourceViews[m_CurrentOutFront]);
+			m_Context->Draw(6, 0);
+			m_Context->Flush();
+
+			m_Context->CopyResource(m_TextureBack, m_BackBuffer);
+		} 
+
 	}
 
 	for(auto buffer: receivedFrames){
@@ -459,11 +1014,19 @@ void DX11Player::OnRender(){
 
 
 HANDLE DX11Player::GetSharedHandle(){
-	return m_SharedHandles[m_CopyTextureIn[m_CurrentOutFront]];
+	if(m_DirectCopy){
+		return m_SharedHandles[m_CopyTextureIn[m_CurrentOutFront]];
+	}else{
+		return m_SharedHandles[m_TextureBack];
+	}
 }
 	
 ID3D11Texture2D * DX11Player::GetTexturePointer(){
-	return m_CopyTextureIn[m_CurrentOutFront];
+	if(m_DirectCopy){
+		return m_CopyTextureIn[m_CurrentOutFront];
+	}else{
+		return m_TextureBack;
+	}
 }
 	
 ID3D11Texture2D * DX11Player::GetRenderTexturePointer(){

@@ -41,6 +41,10 @@ private:
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
+	std::vector<ID3D11ShaderResourceView *> m_ShaderResourceViews;
+    ID3D11Texture2D* m_BackBuffer;
+	ID3D11RenderTargetView*  m_RenderTargetView;
+    ID3D11Texture2D* m_TextureBack;
 	std::vector<std::string> m_ImageFiles;
 	std::thread m_UploaderThread;
 	std::thread m_WaiterThread;
@@ -51,7 +55,9 @@ private:
 	size_t m_CurrentFrame;
 	size_t m_Width;
 	size_t m_Height;
+	size_t m_InputWidth;
 	D3D11_BOX m_CopyBox;
+	bool m_DirectCopy;
 
 	struct Frame{
 		int idx;

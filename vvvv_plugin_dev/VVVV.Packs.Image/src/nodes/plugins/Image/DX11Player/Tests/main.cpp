@@ -418,10 +418,17 @@ void InitPipeline()
 	OutputDebugString( "Set sampler state" );
 	samplerState->Release();
 
+	ID3D11Device * playerDevice;
 	if(shareDevice){
-		player = new DX11Player(dev,"D:\\TestMaterial\\dds3840x2160RGBA");
+		playerDevice = dev;
 	}else{
-		player = new DX11Player(nullptr,"D:\\TestMaterial\\dds3840x2160RGBA");
+		playerDevice = nullptr;
+	}
+	try{
+		player = new DX11Player(playerDevice,"D:\\TestMaterial\\bbb_4kaftereffectsrgb16");
+	}catch(std::exception & e){
+		OutputDebugStringA(e.what());
+		exit(1);
 	}
 	//player->SetFPS(24);
 	ID3D11ShaderResourceView * shaderResourceView;
