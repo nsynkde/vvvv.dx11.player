@@ -3,7 +3,7 @@ Texture2D tex0;
 float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
 {
 	float x = In.uv.x * OutputWidth;
-	float y = 1.0-In.uv.y;
+	float y = YOrigin+YCoordinateSign*In.uv.y;
 	uint begin = ((uint)x) % (uint)4;
 	uint offset = ((uint)x) / (uint)4;
 	x = (x -(float)offset) / InputWidth;

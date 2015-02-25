@@ -425,7 +425,7 @@ void InitPipeline()
 		playerDevice = nullptr;
 	}
 	try{
-		player = new DX11Player(playerDevice,"D:\\TestMaterial\\bbb_4kaftereffectsrgb16");
+		player = new DX11Player(playerDevice,"D:\\TestMaterial\\bbb4k_tga");
 	}catch(std::exception & e){
 		OutputDebugStringA(e.what());
 		exit(1);

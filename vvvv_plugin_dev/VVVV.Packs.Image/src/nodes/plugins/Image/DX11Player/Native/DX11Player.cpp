@@ -151,9 +151,11 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 
 	// list all files in folder
 	// TODO: filter by extension
+	std::stringstream str;
+	str << "trying to open folder " <<  directory << std::endl;
+	OutputDebugStringA( str.str().c_str());
 	tinydir_dir dir;
 	tinydir_open_sorted(&dir, directory.c_str());
-	std::stringstream str;
 	str << "reading folder " <<  directory <<  " with " << dir.n_files << " files" << std::endl;
 	OutputDebugStringA( str.str().c_str());
 	for (size_t i = 0; i < dir.n_files; i++)
@@ -185,7 +187,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	size_t sizePixelShaderSrc;
 	DXGI_FORMAT outformat;
 	bool useSampler = true;
-	bool requiresSwap;
+	bool requiresSwap = false;
+	bool requiresVFlip = false;
 	if(extension == ".dds"){
 		// parse first image header and assume all have the same format
 		TexMetadata mdata;
@@ -206,20 +209,42 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		tgafile.close();
 		if(header.datatypecode!=2){
 			std::stringstream str;
-			str << "tga format " << (int)header.datatypecode << " not suported, only RGB truecolor supported\n";
+			str << "tga format " << (int)header.datatypecode << " not suported, only RGB(A) truecolor supported\n";
 			throw std::exception(str.str().c_str());
 		}
-		m_InputWidth = header.width*3/4;
+
+		std::stringstream str;
+		str << "TGA with x,y origin: " << header.x_origin << ", " << header.y_origin << " descriptor " << (int)header.imagedescriptor << std::endl;
+		OutputDebugStringA(str.str().c_str());
+		requiresVFlip = !(header.imagedescriptor & 32);
+		auto alphaDepth = header.imagedescriptor & 15;
 		m_Width = header.width;
 		m_Height = header.height;
-		format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		outformat = format;
 		offset = sizeof(TGA_HEADER) + header.idlength;
-		rowpitch = header.width * 3;
+		switch(alphaDepth){
+			case 0:
+				format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				outformat = format;
+				m_InputWidth = header.width*3/4;
+				rowpitch = header.width * 3;
+				m_DirectCopy = false;
+				pixelShaderSrc = BGR_to_RGBA;
+				sizePixelShaderSrc = sizeof(BGR_to_RGBA);
+			break;
+			case 8:
+				format = DXGI_FORMAT_B8G8R8A8_UNORM;
+				outformat = format;
+				m_InputWidth = header.width;
+				rowpitch = header.width;
+				m_DirectCopy = true;
+			break;
+			default:{	
+				std::stringstream str;
+				str << "tga format with alpha depth " << alphaDepth << " not suported, only RGB(A) truecolor supported\n";
+				throw std::exception(str.str().c_str());
+			}
+		}
 		numbytesdata = rowpitch * header.height;
-		m_DirectCopy = false;
-		pixelShaderSrc = BGR_to_RGBA;
-		sizePixelShaderSrc = sizeof(BGR_to_RGBA);
 	}else if(extension == ".dpx"){
 		dpx::Header header;
 		InStream stream;
@@ -437,6 +462,11 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	}else{
 		throw std::exception(("format " + extension + " not suported").c_str());
 	}
+		
+	//size_t numbytesfile = numbytesdata + offset;
+	std::stringstream ss;
+	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << m_Width << "x" << m_Height << " " << format << " with " << numbytesdata << " bytes per file and " << offset << " offset, rowpitch: " << rowpitch << std::endl;
+	OutputDebugStringA( ss.str().c_str() ); 
 	
 	// Add enough bytes to read the header + data but we need to read
 	// a multiple of the physical sector size since we are reading 
@@ -452,11 +482,6 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	m_CopyBox.left = 0;
 	m_CopyBox.right = m_InputWidth;
 	m_CopyBox.top = 4;
-		
-	//size_t numbytesfile = numbytesdata + offset;
-	std::stringstream ss;
-	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << m_Width << "x" << m_Height << " " << format << " with " << numbytesdata << " bytes per file and " << offset << " offset, rowpitch: " << rowpitch << std::endl;
-	OutputDebugStringA( ss.str().c_str() ); 
 
 
 	// create dx device in non passed or get the 
@@ -675,8 +700,9 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			float OutputWidth;
 			float OutputHeight;
 			float OnePixel;
+			float YOrigin;
+			float YCoordinateSign;
 			bool RequiresSwap;
-			bool VFlip;
 		};
 
 		PS_CONSTANT_BUFFER constantData;
@@ -685,8 +711,9 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		constantData.OutputWidth = (float)m_Width;
 		constantData.OutputHeight = (float)m_Height;
 		constantData.OnePixel = 1.0 / (float)m_Width;
+		constantData.YOrigin = requiresVFlip?1.0:0.0;
+		constantData.YCoordinateSign = requiresVFlip?-1.0:1.0;
 		constantData.RequiresSwap = requiresSwap;
-		constantData.VFlip = false;
 
 		D3D11_BUFFER_DESC shaderVarsDescription;
 		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;

@@ -148,7 +148,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             catch (Exception e)
             {
                 FLogger.Log(LogType.Error, e.StackTrace);
-                //throw e;
+                throw e;
             }
             
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
@@ -193,7 +193,10 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                 {
-                    NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], FNextFrameIn[i]);
+                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    {
+                        NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], FNextFrameIn[i]);
+                    }
                 }
             }
 
@@ -201,7 +204,10 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                 {
-                    NativeInterface.DX11Player_SetInternalRate(FDX11NativePlayer[i], FInternalRate[i]?1:0);
+                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    {
+                        NativeInterface.DX11Player_SetInternalRate(FDX11NativePlayer[i], FInternalRate[i] ? 1 : 0);
+                    }
                 }
             }
 
@@ -220,9 +226,9 @@ namespace VVVV.Nodes.DX11PlayerNode
                         {
                             FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
                             var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero, FDirectoryIn[i]);
-                            NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
                             if (nativePlayer != IntPtr.Zero)
                             {
+                                NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
                                 FDX11NativePlayer[i] = nativePlayer;
                                 //FTexHandleOut[i] = (UInt64)NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]);
                                 FTextureOut[i] = new DX11Resource<DX11Texture2D>();
@@ -272,7 +278,10 @@ namespace VVVV.Nodes.DX11PlayerNode
         {
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                this.FTextureOut[i].Dispose(context);
+                if (FDX11NativePlayer[i] != IntPtr.Zero)
+                {
+                    this.FTextureOut[i].Dispose(context);
+                }
             }
         }
     }
