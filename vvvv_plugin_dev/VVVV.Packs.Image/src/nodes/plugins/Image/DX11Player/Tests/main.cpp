@@ -33,8 +33,6 @@ ID3D11Buffer *pVBuffer;                // the pointer to the vertex buffer
 ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex buffer
 DX11Player *player;
 HighResClock::time_point start;
-
-const bool shareDevice = false;
 	
 	// a struct to define a single vertex
 struct Vertex
@@ -236,11 +234,7 @@ ID3D11Texture2D * GetSharedTexture(HANDLE tex_handle){
 }
 
 ID3D11Texture2D * GetTexture(){
-	if(shareDevice){
-		return player->GetTexturePointer();
-	}else{
-		return GetSharedTexture(player->GetSharedHandle());
-	}
+	return GetSharedTexture(player->GetSharedHandle());
 }
 
 
@@ -418,14 +412,8 @@ void InitPipeline()
 	OutputDebugString( "Set sampler state" );
 	samplerState->Release();
 
-	ID3D11Device * playerDevice;
-	if(shareDevice){
-		playerDevice = dev;
-	}else{
-		playerDevice = nullptr;
-	}
 	try{
-		player = new DX11Player(playerDevice,"D:\\TestMaterial\\bbb4k_tga");
+		player = new DX11Player("D:\\TestMaterial\\bbb_4kcbycr10");
 	}catch(std::exception & e){
 		OutputDebugStringA(e.what());
 		exit(1);

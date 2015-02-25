@@ -3,18 +3,14 @@
 
 #include "stdafx.h"
 #include "DX11Player.h"
-#include "tinydir.h"
 #include <comdef.h>
 #include <sstream>
-#include <iostream>
 #include <math.h>
 #include "Timer.h"
 #include <memory>
-#include "DDS.h"
 #include <DirectXMath.h>
 #include <assert.h>
 #include <shlwapi.h>
-#include <fstream>
 #include "VShader.h"
 #include "RGB_to_RGBA.h";
 #include "BGR_to_RGBA.h";
@@ -22,37 +18,15 @@
 #include "PSCbYCr888_to_RGBA8888.h"
 #include "PSCbYCr101010_to_R10G10B10A2.h"
 #include "PSCbYCr161616_to_RGBA16161616.h"
-#include "libdpx\DPXHeader.h"
-#include "libdpx\DPXStream.h"
-#include "libdpx\DPX.h"
-#include "libdpx\ElementReadStream.h"
-#include <bitset>
 #include <WinIoCtl.h>
 #include <Windows.h>
 
 #pragma comment(lib, "Kernel32.lib")
 
-using namespace DirectX;
 
 static const int RING_BUFFER_SIZE = 8;
 static const int OUTPUT_BUFFER_SIZE = 4;
 
-#pragma pack(push, r1, 1)
-struct TGA_HEADER{
-   char  idlength;
-   char  colourmaptype;
-   char  datatypecode;
-   short int colourmaporigin;
-   short int colourmaplength;
-   char  colourmapdepth;
-   short int x_origin;
-   short int y_origin;
-   short width;
-   short height;
-   char  bitsperpixel;
-   char  imagedescriptor;
-};
-#pragma pack(pop, r1)
 
 static bool IsFrameLate(const HighResClock::time_point & presentationTime, int fps_video, HighResClock::time_point now, HighResClock::duration max_lateness){
 	if(fps_video==0) return false;
@@ -90,7 +64,7 @@ static uint32_t SectorSize(char cDisk)
 
     if (hDevice == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Error\n";
+		throw std::exception("Error finding out disk sector size");
         return -1;
     }   
 
@@ -114,7 +88,7 @@ static uint32_t SectorSize(char cDisk)
         NULL)
         )
     {
-        std::cerr << "Error\n";
+		throw std::exception("Error finding out disk sector size");
         return -1;
     }
 
@@ -125,9 +99,9 @@ size_t NextMultiple(size_t in, size_t multiple){
 	return in + (multiple - in % multiple);
 }
 
-DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
-	:m_Directory(directory)
-	,m_Device(device)
+DX11Player::DX11Player(const std::string & directory)
+	:m_Sequence(directory)
+	,m_Device(nullptr)
 	,m_Context(nullptr)
 	,m_CopyTextureIn(OUTPUT_BUFFER_SIZE,nullptr)
 	,m_ShaderResourceViews(OUTPUT_BUFFER_SIZE,nullptr)
@@ -137,382 +111,83 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	,m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
-	,m_CurrentFrame(0)
 	,m_ExternalRate(false)
 	,m_InternalRate(true)
 	,m_CurrentOutFront(OUTPUT_BUFFER_SIZE/2)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
+	,m_CurrentFrame(0)
 	,m_AvgDecodeDuration(0)
 	,m_AvgPipelineLatency(std::chrono::milliseconds(1000/m_Fps * 2))
-	,m_DirectCopy(true)
 {
 	HRESULT hr;
 
-	// list all files in folder
-	// TODO: filter by extension
-	std::stringstream str;
-	str << "trying to open folder " <<  directory << std::endl;
-	OutputDebugStringA( str.str().c_str());
-	tinydir_dir dir;
-	tinydir_open_sorted(&dir, directory.c_str());
-	str << "reading folder " <<  directory <<  " with " << dir.n_files << " files" << std::endl;
-	OutputDebugStringA( str.str().c_str());
-	for (size_t i = 0; i < dir.n_files; i++)
-	{
-
-		tinydir_file file;
-		tinydir_readfile_n(&dir, &file, i);
-
-		if (!file.is_dir)
-		{
-			m_ImageFiles.push_back(directory+"\\"+std::string(file.name));
-		}
-	}
-	tinydir_close(&dir); 
-
-	// if no files finish
-	if(m_ImageFiles.empty()){
-		throw std::exception(("no images found in " + directory).c_str());
-	}
-
-	auto cextension = PathFindExtensionA(m_ImageFiles[0].c_str());
-	std::string extension = cextension?cextension:"";
-	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-	size_t offset = 0;
-	size_t numbytesdata = 0;
-	size_t rowpitch = 0;
-	DXGI_FORMAT format;
-	const BYTE * pixelShaderSrc;
-	size_t sizePixelShaderSrc;
-	DXGI_FORMAT outformat;
-	bool useSampler = true;
-	bool requiresSwap = false;
-	bool requiresVFlip = false;
-	if(extension == ".dds"){
-		// parse first image header and assume all have the same format
-		TexMetadata mdata;
-		GetMetadataFromDDSFile(m_ImageFiles[0].c_str(),DDS_FLAGS_NONE, mdata);
-		m_InputWidth = mdata.width;
-		m_Width = mdata.width;
-		m_Height = mdata.height;
-		format = mdata.format;
-		outformat = format;
-		offset = mdata.bytesHeader;
-		numbytesdata = mdata.bytesData;
-		rowpitch = mdata.rowPitch;
-		m_DirectCopy = true;
-	}else if(extension == ".tga"){
-		TGA_HEADER header;
-		std::fstream tgafile(m_ImageFiles[0], std::fstream::in | std::fstream::binary);
-		tgafile.read((char*)&header, sizeof(TGA_HEADER));
-		tgafile.close();
-		if(header.datatypecode!=2){
-			std::stringstream str;
-			str << "tga format " << (int)header.datatypecode << " not suported, only RGB(A) truecolor supported\n";
-			throw std::exception(str.str().c_str());
-		}
-
-		std::stringstream str;
-		str << "TGA with x,y origin: " << header.x_origin << ", " << header.y_origin << " descriptor " << (int)header.imagedescriptor << std::endl;
-		OutputDebugStringA(str.str().c_str());
-		requiresVFlip = !(header.imagedescriptor & 32);
-		auto alphaDepth = header.imagedescriptor & 15;
-		m_Width = header.width;
-		m_Height = header.height;
-		offset = sizeof(TGA_HEADER) + header.idlength;
-		switch(alphaDepth){
-			case 0:
-				format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				outformat = format;
-				m_InputWidth = header.width*3/4;
-				rowpitch = header.width * 3;
-				m_DirectCopy = false;
-				pixelShaderSrc = BGR_to_RGBA;
-				sizePixelShaderSrc = sizeof(BGR_to_RGBA);
-			break;
-			case 8:
-				format = DXGI_FORMAT_B8G8R8A8_UNORM;
-				outformat = format;
-				m_InputWidth = header.width;
-				rowpitch = header.width;
-				m_DirectCopy = true;
-			break;
-			default:{	
-				std::stringstream str;
-				str << "tga format with alpha depth " << alphaDepth << " not suported, only RGB(A) truecolor supported\n";
-				throw std::exception(str.str().c_str());
-			}
-		}
-		numbytesdata = rowpitch * header.height;
-	}else if(extension == ".dpx"){
-		dpx::Header header;
-		InStream stream;
-		stream.Open(m_ImageFiles[0].c_str());
-		header.Read(&stream);
-		m_Width = header.pixelsPerLine;
-		m_Height = header.linesPerElement * header.numberOfElements;
-		auto dpx_descriptor = header.ImageDescriptor(0);
-		std::stringstream str;
-		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
-		str << " signed: " << header.DataSign(0)  << std::endl;
-		str << " colorimetric: " << header.Colorimetric(0)  << std::endl;
-		str << " low data: " << header.LowData(0)  << std::endl;
-		str << " low quantity: " << header.LowQuantity(0)  << std::endl;
-		str << " high data: " << header.HighData(0)  << std::endl;
-		str << " high quantity: " << header.HighQuantity(0)  << std::endl;
-		str << " endian swap? " << header.RequiresByteSwap() << std::endl;
-		str << " white " << header.WhiteLevel() << std::endl;
-		str << " black " << header.BlackLevel() << std::endl;
-		str << " black gain " << header.BlackGain() << std::endl;
-		str << " gamma " << header.Gamma() << std::endl;
-		requiresSwap = header.RequiresByteSwap();
-		str << " first 8 bytes: "  << std::endl;
-		uint64_t buffer;
-		dpx::ElementReadStream element(&stream);
-		element.Read(header,0,0,&buffer,8);
-		const char * data = (const char*) &buffer;
-		for(int i=0;i<8;i++){
-			str << std::bitset<8>(data[i]) << std::endl;
-		}
-
-		OutputDebugStringA(str.str().c_str());
-		switch(dpx_descriptor){
-		case dpx::Descriptor::kABGR:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				rowpitch = m_Width * 4;
-				break;
-			case 10:
-				format = DXGI_FORMAT_R10G10B10A2_UNORM;
-				rowpitch = m_Width * 4;
-				break;
-			case 16:
-				format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				rowpitch = m_Width * 4 * 2;
-				break;
-			case 32:
-				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				rowpitch = m_Width * 4 * 4;
-				break;
-			}
-			m_InputWidth = header.pixelsPerLine;
-			m_DirectCopy = false;
-			outformat = format;
-			// TODO: ARGB -> RGBA
-			pixelShaderSrc = RGB_to_RGBA;
-			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
-			break;
-		case dpx::Descriptor::kAlpha:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_A8_UNORM;
-				break;
-			case 10:
-			default:
-				throw std::exception("Alpha only 10bits not supported");
-				break;
-			}
-			m_DirectCopy = true;
-			rowpitch = m_Width;
-			outformat = format;
-			m_InputWidth = header.pixelsPerLine;
-			break;
-		case dpx::Descriptor::kBlue:
-		case dpx::Descriptor::kRed:
-		case dpx::Descriptor::kGreen:
-		case dpx::Descriptor::kLuma:
-		case dpx::Descriptor::kDepth:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_R8_UNORM;
-				break;
-			case 10:
-				throw std::exception("One channel only 10bits not supported");
-				break;
-			case 16:
-				format = DXGI_FORMAT_R16_UNORM;
-				break;
-			case 32:
-				format = DXGI_FORMAT_R32_FLOAT;
-				break;
-			}
-			m_InputWidth = header.pixelsPerLine;
-			m_DirectCopy = true;
-			outformat = format;
-			rowpitch = m_Width;
-			break;
-		case dpx::Descriptor::kRGB:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				outformat = format;
-				rowpitch = m_Width * 3;
-				m_DirectCopy = false;
-				pixelShaderSrc = RGB_to_RGBA;
-				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
-				m_InputWidth = header.pixelsPerLine*3/4;
-				break;
-			case 10:
-				if(header.ImagePacking(0)==1){
-					format = DXGI_FORMAT_R32_UINT;
-					outformat = DXGI_FORMAT_R10G10B10A2_UNORM;
-					rowpitch = m_Width * 4;
-					m_DirectCopy = false;
-					useSampler = false;
-					m_InputWidth = header.pixelsPerLine;
-					pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
-					sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
-				}else{
-					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
-				}
-				break;
-			case 16:
-				format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				outformat = format;
-				rowpitch = m_Width * 3 * 2;
-				m_DirectCopy = false;
-				pixelShaderSrc = RGB_to_RGBA;
-				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
-				m_InputWidth = header.pixelsPerLine*3/4;
-				break;
-			case 32:
-				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				outformat = format;
-				rowpitch = m_Width * 3 * 4;
-				m_DirectCopy = false;
-				pixelShaderSrc = RGB_to_RGBA;
-				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
-				m_InputWidth = header.pixelsPerLine*3/4;
-				break;
-			}
-			break;
-		case dpx::Descriptor::kRGBA:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				rowpitch = m_Width * 4;
-				break;
-			case 10:
-				format = DXGI_FORMAT_R10G10B10A2_UNORM;
-				rowpitch = m_Width * 4;
-				break;
-			case 16:
-				format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				rowpitch = m_Width * 4 * 2;
-				break;
-			case 32:
-				format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				rowpitch = m_Width * 4 * 4;
-				break;
-			}
-			m_InputWidth = header.pixelsPerLine;
-			outformat = format;
-			m_DirectCopy = true;
-			break;
-		case dpx::Descriptor::kCbYCr:
-			switch(header.BitDepth(0)){
-			case 8:
-				format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				outformat = format;
-				rowpitch = m_Width * 3;
-				m_DirectCopy = false;
-				pixelShaderSrc = PSCbYCr888_to_RGBA8888;
-				sizePixelShaderSrc = sizeof(PSCbYCr888_to_RGBA8888);
-				m_InputWidth = header.pixelsPerLine*3/4;
-				break;
-			case 10:
-				format = DXGI_FORMAT_R32_UINT;
-				outformat = DXGI_FORMAT_R10G10B10A2_UNORM;
-				rowpitch = m_Width * 4;
-				m_DirectCopy = false;
-				useSampler = false;
-				pixelShaderSrc = PSCbYCr101010_to_R10G10B10A2;
-				sizePixelShaderSrc = sizeof(PSCbYCr101010_to_R10G10B10A2);
-				m_InputWidth = header.pixelsPerLine;
-				break;
-			case 16:
-				format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				outformat = DXGI_FORMAT_R16G16B16A16_UNORM;
-				rowpitch = m_Width * 3 * 2;
-				m_DirectCopy = false;
-				useSampler = true;
-				pixelShaderSrc = PSCbYCr161616_to_RGBA16161616;
-				sizePixelShaderSrc = sizeof(PSCbYCr161616_to_RGBA16161616);
-				m_InputWidth = header.pixelsPerLine*3/4;
-				break;
-			default:
-				str << " bitdepth not supported" << std::endl;
-				throw std::exception(str.str().c_str());
-				break;
-			}
-			break;
-		case dpx::Descriptor::kCbYACrYA:
-		case dpx::Descriptor::kCbYCrA:
-		case dpx::Descriptor::kCbYCrY:
-		default:
-			str << " not supported" << std::endl;
-			throw std::exception(str.str().c_str());
-			break;
-
-		}
-		offset = header.imageOffset;
-		numbytesdata = rowpitch * m_Height;
-	}else{
-		throw std::exception(("format " + extension + " not suported").c_str());
-	}
-		
-	//size_t numbytesfile = numbytesdata + offset;
-	std::stringstream ss;
-	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << m_Width << "x" << m_Height << " " << format << " with " << numbytesdata << " bytes per file and " << offset << " offset, rowpitch: " << rowpitch << std::endl;
-	OutputDebugStringA( ss.str().c_str() ); 
-	
 	// Add enough bytes to read the header + data but we need to read
 	// a multiple of the physical sector size since we are reading 
 	// directly from disk with no buffering
 	auto sectorSize = SectorSize('d');
-	numbytesdata = NextMultiple(numbytesdata+offset,sectorSize);
+	auto numbytesdata = NextMultiple(m_Sequence.BytesData()+m_Sequence.DataOffset(),sectorSize);
 
 	// box to copy upload buffer to texture skipping 4 first rows
 	// to skip header
 	m_CopyBox.back = 1;
-	m_CopyBox.bottom = m_Height + 4;
+	m_CopyBox.bottom = m_Sequence.Height() + 4;
 	m_CopyBox.front = 0;
 	m_CopyBox.left = 0;
-	m_CopyBox.right = m_InputWidth;
+	m_CopyBox.right = m_Sequence.InputWidth();
 	m_CopyBox.top = 4;
 
+	// create a dx11 device
+	OutputDebugString( L"creating device\n" );
+	D3D_FEATURE_LEVEL level;
+	hr = D3D11CreateDevice(nullptr,
+		D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
+		nullptr,
+		D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_SINGLETHREADED,
+		nullptr,
+		0,
+		D3D11_SDK_VERSION,
+		&m_Device,&level,
+		&m_Context);
 
-	// create dx device in non passed or get the 
-	// immediate context of the one passed by parameter
-	if(device==nullptr){
-		OutputDebugString( L"creating device\n" );
-		D3D_FEATURE_LEVEL level;
-		hr = D3D11CreateDevice(nullptr,
-			D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
-			nullptr,
-			D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_SINGLETHREADED,
-			nullptr,
-			0,
-			D3D11_SDK_VERSION,
-			&m_Device,&level,
-			&m_Context);
-
+	if(FAILED(hr)){
+		auto lpBuf = new char[1024];
+		ZeroMemory(lpBuf,sizeof(lpBuf));
+		FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, hr, 0, lpBuf, 0, NULL);
+		throw std::exception((std::string("Coudln't create device: ") + lpBuf).c_str());
+	}
+	
+	
+	// init the ring buffer:
+	// - map all the upload buffers and send them to the uploader thread.
+	// - create the upload buffers, we upload directly to these from the disk
+	// using 4 more rows than the original image to avoid the header. BC formats
+	// use a 4x4 tile so we write the header at the end of the first 4 rows and 
+	// then skip it when copying to the copy textures
+	for(int i=0;i<RING_BUFFER_SIZE;i++){
+		Frame nextFrame;
+		nextFrame.idx = i;
+		nextFrame.waitEvent = CreateEventW(0,false,false,0);
+		hr = CreateStagingTexture(m_Sequence.InputWidth(),m_Sequence.Height()+4,m_Sequence.TextureFormat(),&nextFrame.uploadBuffer);
 		if(FAILED(hr)){
+			_com_error error(hr);
+			auto msg = error.ErrorMessage();
+
 			auto lpBuf = new char[1024];
 			ZeroMemory(lpBuf,sizeof(lpBuf));
 			FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL, hr, 0, lpBuf, 0, NULL);
-			throw std::exception((std::string("Coudln't create device: ") + lpBuf).c_str());
+				NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), lpBuf, 0, NULL);
+			throw std::exception((std::string("Coudln't create staging texture") + lpBuf).c_str());
 		}
-	}else{
-		device->GetImmediateContext(&m_Context);
+		m_Context->Map(nextFrame.uploadBuffer,0,D3D11_MAP_WRITE,0,&nextFrame.mappedBuffer);
+		m_ReadyToUpload.send(nextFrame);
 	}
-	
 
 	// create the copy textures, used to copy from the upload
 	// buffers and shared with the application or plugin
+	// if the input format is directly supported or
+	// to pass to the colorspace conversion shader
 	OutputDebugString( L"creating output textures\n" );
 	D3D11_TEXTURE2D_DESC textureDescriptionCopy;
 	textureDescriptionCopy.MipLevels = 1;
@@ -522,19 +197,18 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	textureDescriptionCopy.Usage = D3D11_USAGE_DEFAULT;
 	textureDescriptionCopy.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	textureDescriptionCopy.CPUAccessFlags = 0;
-	textureDescriptionCopy.Width = m_InputWidth;
-	textureDescriptionCopy.Height = m_Height;
-	textureDescriptionCopy.Format = format;
-	if(device==nullptr){
+	textureDescriptionCopy.Width = m_Sequence.InputWidth();
+	textureDescriptionCopy.Height = m_Sequence.Height();
+	textureDescriptionCopy.Format = m_Sequence.TextureFormat();
+	if(m_Sequence.InputFormat() != ImageSequence::DX11_NATIVE){
 		textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 	}else{
 		textureDescriptionCopy.MiscFlags = 0;
 	}
 	for(size_t i=0;i<m_CopyTextureIn.size();i++){
 		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn[i]);
-
-		if(!device){
-			// if using our own device, create a shared handle for each texture
+		// create a shared handle for each texture
+		if(m_Sequence.InputFormat() == ImageSequence::DX11_NATIVE){
 			OutputDebugString( L"getting shared texture handle\n" );
 			IDXGIResource* pTempResource(NULL);
 			HANDLE sharedHandle;
@@ -551,42 +225,68 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		}
 	}
 
-	
-	// init the ring buffer:
-	// - map all the upload buffers and send them to the uploader thread.
-	// - create the upload buffers, we upload directly to these from the disk
-	// using 4 more rows than the original image to avoid the header. BC formats
-	// use a 4x4 tile so we write the header at the end of the first 4 rows and 
-	// then skip it when copying to the copy textures
-	for(int i=0;i<RING_BUFFER_SIZE;i++){
-		Frame nextFrame;
-		nextFrame.idx = i;
-		nextFrame.waitEvent = CreateEventW(0,false,false,0);
-		hr = CreateStagingTexture(m_InputWidth,m_Height+4,format,&nextFrame.uploadBuffer);
-		if(FAILED(hr)){
-			_com_error error(hr);
-			auto msg = error.ErrorMessage();
 
-			auto lpBuf = new char[1024];
-			ZeroMemory(lpBuf,sizeof(lpBuf));
-			FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), lpBuf, 0, NULL);
-			throw std::exception((std::string("Coudln't create staging texture") + lpBuf).c_str());
-		}
-		m_Context->Map(nextFrame.uploadBuffer,0,D3D11_MAP_WRITE,0,&nextFrame.mappedBuffer);
-		m_ReadyToUpload.send(nextFrame);
-	}
-
-	// Some formats (TGA and DPX by now) need more processing
+	// If the input format is not directly supported by DX11
 	// create a shader to process them and output the data
 	// as RGBA
-    if (!m_DirectCopy)
+	if (m_Sequence.InputFormat() != ImageSequence::DX11_NATIVE)
     {
-		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(m_Width), float(m_Height), 0.0f, 1.0f};
+		OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
+
+		// figure out the conversion shaders from the 
+		// image sequence input format and depth
+		const BYTE * pixelShaderSrc;
+		size_t sizePixelShaderSrc;
+		bool useSampler = true;
+
+		switch(m_Sequence.InputFormat()){
+		case ImageSequence::ARGB:
+			if(m_Sequence.InputDepth() == 10){
+				pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
+				sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
+				useSampler = false;
+			}else{
+				throw std::exception("ARGB conversion only supported for 10bits");
+			}
+			break;
+			
+		case ImageSequence::BGR:
+			pixelShaderSrc = BGR_to_RGBA;
+			sizePixelShaderSrc = sizeof(BGR_to_RGBA);
+			break;
+
+		case ImageSequence::CbYCr:
+			switch(m_Sequence.InputDepth()){
+			case 8:
+				pixelShaderSrc = PSCbYCr888_to_RGBA8888;
+				sizePixelShaderSrc = sizeof(PSCbYCr888_to_RGBA8888);
+				break;
+			case 10:
+				pixelShaderSrc = PSCbYCr101010_to_R10G10B10A2;
+				sizePixelShaderSrc = sizeof(PSCbYCr101010_to_R10G10B10A2);
+				useSampler = false;
+				break;
+			case 16:
+				pixelShaderSrc = PSCbYCr161616_to_RGBA16161616;
+				sizePixelShaderSrc = sizeof(PSCbYCr161616_to_RGBA16161616);
+				break;
+			}
+			break;
+			
+
+		case ImageSequence::RGB:
+			pixelShaderSrc = RGB_to_RGBA;
+			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+			break;
+		}
+
+		// Set the viewport to the size of the image
+		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(m_Sequence.Width()), float(m_Sequence.Height()), 0.0f, 1.0f};
 		m_Context->RSSetViewports(1,&viewport); 
 		OutputDebugString( L"Set viewport" );
-		ID3D11VertexShader * vertexShader;
 
+		// Create Pixel and Vertex shaders
+		ID3D11VertexShader * vertexShader;
         ID3D11PixelShader * pixelShader;
 		hr = m_Device->CreateVertexShader(VShader,sizeof(VShader),nullptr,&vertexShader);
 		if(FAILED(hr)){
@@ -600,6 +300,15 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		}
 		OutputDebugString( L"Created pixel shader\n" );
 
+		m_Context->VSSetShader(vertexShader,nullptr,0);
+		m_Context->PSSetShader(pixelShader,nullptr,0);
+		OutputDebugString( L"Created vertex and pixel shaders\n" );
+
+		vertexShader->Release();
+		pixelShader->Release();
+
+		// Create a quad with the size of the image to
+		// render the color converted texture
 		struct Vertex
 		{
 			DirectX::XMFLOAT3 position;
@@ -662,13 +371,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		OutputDebugString( L"Created vertex buffer and topology\n" );
 		vertexBuffer->Release();
 
-		m_Context->VSSetShader(vertexShader,nullptr,0);
-		m_Context->PSSetShader(pixelShader,nullptr,0);
-		OutputDebugString( L"Created vertex and pixel shaders\n" );
 
-		vertexShader->Release();
-		pixelShader->Release();
-
+		// if required create a sampler to access the texture
 		if(useSampler){
 			D3D11_SAMPLER_DESC samplerDesc;
 			ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
@@ -691,7 +395,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			samplerState->Release();
 		}
 
-
+		// Create shader constants buffer
 		_declspec(align(16))
 		struct PS_CONSTANT_BUFFER
 		{
@@ -706,14 +410,14 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		};
 
 		PS_CONSTANT_BUFFER constantData;
-		constantData.InputWidth = (float)m_InputWidth;
-		constantData.InputHeight = (float)m_Height;
-		constantData.OutputWidth = (float)m_Width;
-		constantData.OutputHeight = (float)m_Height;
-		constantData.OnePixel = 1.0 / (float)m_Width;
-		constantData.YOrigin = requiresVFlip?1.0:0.0;
-		constantData.YCoordinateSign = requiresVFlip?-1.0:1.0;
-		constantData.RequiresSwap = requiresSwap;
+		constantData.InputWidth = (float)m_Sequence.InputWidth();
+		constantData.InputHeight = (float)m_Sequence.Height();
+		constantData.OutputWidth = (float)m_Sequence.Width();
+		constantData.OutputHeight = (float)m_Sequence.Height();
+		constantData.OnePixel = 1.0 / (float)m_Sequence.Width();
+		constantData.YOrigin = m_Sequence.RequiresVFlip()?1.0:0.0;
+		constantData.YCoordinateSign = m_Sequence.RequiresVFlip()?-1.0:1.0;
+		constantData.RequiresSwap = m_Sequence.RequiresByteSwap();
 
 		D3D11_BUFFER_DESC shaderVarsDescription;
 		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -738,6 +442,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		OutputDebugString( L"Set constants buffer\n" );
 		varsBuffer->Release();
 
+		// Create shader resource views to be able to access the 
+		// source textures
 		int i=0;
 		for(auto & shaderResourceView: m_ShaderResourceViews){
 			hr = m_Device->CreateShaderResourceView(m_CopyTextureIn[i],nullptr,&shaderResourceView);
@@ -749,7 +455,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		OutputDebugString( L"Created shader resource views\n" );
 
 		
-
+		// Create a backbuffer texture to render to
 		auto backBufferTexDescription = textureDescriptionCopy;
 		backBufferTexDescription.MipLevels = 1;
 		backBufferTexDescription.ArraySize = 1;
@@ -759,9 +465,9 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		backBufferTexDescription.BindFlags = D3D11_BIND_RENDER_TARGET;
 		backBufferTexDescription.CPUAccessFlags = 0;
 		backBufferTexDescription.MiscFlags = 0;
-		backBufferTexDescription.Width = m_Width;
-		backBufferTexDescription.Height = m_Height;
-		backBufferTexDescription.Format = outformat;
+		backBufferTexDescription.Width = m_Sequence.Width();
+		backBufferTexDescription.Height = m_Sequence.Height();
+		backBufferTexDescription.Format = m_Sequence.TextureOutFormat();
 
 		D3D11_RENDER_TARGET_VIEW_DESC viewDesc;
 		ZeroMemory(&viewDesc,sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
@@ -780,28 +486,27 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 		m_Context->OMSetRenderTargets(1,&m_RenderTargetView,nullptr);
 
 
-		textureDescriptionCopy.Width = m_Width;
-		textureDescriptionCopy.Format = outformat;
+		textureDescriptionCopy.Width = m_Sequence.Width();
+		textureDescriptionCopy.Format = m_Sequence.TextureOutFormat();
 		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_TextureBack);
 		if(FAILED(hr)){
-			throw std::exception("Coudln't create staging texture\n");
+			throw std::exception("Coudln't create backbuffer texture\n");
 		}
-		if(!device){
-			// if using our own device, create a shared handle for each texture
-			OutputDebugString( L"getting shared texture handle\n" );
-			IDXGIResource* pTempResource(NULL);
-			HANDLE sharedHandle;
-			hr = m_TextureBack->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
-			if(FAILED(hr)){
-				throw std::exception("Coudln't query interface\n");
-			}
-			hr = pTempResource->GetSharedHandle(&sharedHandle);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't get shared handle\n");
-			}
-			m_SharedHandles[m_TextureBack] = sharedHandle;
-			pTempResource->Release();
-		} 
+
+		// if using our own device, create a shared handle for each texture
+		OutputDebugString( L"getting shared texture handle\n" );
+		IDXGIResource* pTempResource(NULL);
+		HANDLE sharedHandle;
+		hr = m_TextureBack->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
+		if(FAILED(hr)){
+			throw std::exception("Coudln't query interface\n");
+		}
+		hr = pTempResource->GetSharedHandle(&sharedHandle);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't get shared handle\n");
+		}
+		m_SharedHandles[m_TextureBack] = sharedHandle;
+		pTempResource->Release();
 
 		
     }
@@ -812,7 +517,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	m_UploaderThreadRunning = true;
 	auto running = &m_UploaderThreadRunning;
 	auto currentFrame = &m_CurrentFrame;
-	auto imageFiles = &m_ImageFiles;
+	auto sequence = &m_Sequence;
 	auto readyToUpload = &m_ReadyToUpload;
 	auto readyToWait = &m_ReadyToWait;
 	auto readyToRender = &m_ReadyToRender;
@@ -821,7 +526,7 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 	auto externalRate = &m_ExternalRate;
 	auto nextFrameChannel = &m_NextFrameChannel;
 	auto internalRate = &m_InternalRate;
-	m_UploaderThread = std::thread([numbytesdata,rowpitch,offset,running,currentFrame,imageFiles,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
+	m_UploaderThread = std::thread([numbytesdata,running,currentFrame,sequence,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
 		auto nextFrameTime = HighResClock::now();
 		bool paused = false;
 		int nextFps = *fps;
@@ -845,22 +550,22 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 						}
 						if(nextFps>0){
 							(*currentFrame)+=1;
-							(*currentFrame)%=imageFiles->size();
+							(*currentFrame)%=sequence->NumImages();
 						}else if(nextFps<0){
 							(*currentFrame)-=1;
-							(*currentFrame)%=imageFiles->size();
+							(*currentFrame)%=sequence->NumImages();
 						}
 					}while(nextFrameTime<now);
 				}else{
 					paused = true;
 				}
 			}
-			*currentFrame%=imageFiles->size();
+			*currentFrame%=sequence->NumImages();
 			nextFps = *fps;
 			if(nextFrame.nextToLoad==-1){
 				nextFrame.nextToLoad = *currentFrame;
 			}else{
-				nextFrame.nextToLoad%=imageFiles->size();
+				nextFrame.nextToLoad%=sequence->NumImages();
 				*currentFrame = nextFrame.nextToLoad;
 			}
 			if(paused && nextFps!=0){
@@ -869,8 +574,8 @@ DX11Player::DX11Player(ID3D11Device * device, const std::string & directory)
 			}
 			auto ptr = (char*)nextFrame.mappedBuffer.pData;
 			if(ptr){
-				ptr += rowpitch*4-offset;
-				auto file = CreateFileA(imageFiles->at(nextFrame.nextToLoad).c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
+				ptr += sequence->RowPitch()*4-sequence->DataOffset();
+				auto file = CreateFileA(sequence->Image(nextFrame.nextToLoad).c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
 				if (file != INVALID_HANDLE_VALUE) {
 					ZeroMemory(&nextFrame.overlap,sizeof(OVERLAPPED));
 					nextFrame.overlap.hEvent = nextFrame.waitEvent;
@@ -1015,15 +720,7 @@ void DX11Player::OnRender(){
 		//m_CurrentOutFront += 1;
 		//m_CurrentOutFront %= OUTPUT_BUFFER_SIZE;
 
-		if(!m_DirectCopy){
-			/*D3D11_BOX box;
-			box.back = 1;
-			box.bottom = m_Height;
-			box.front = 0;
-			box.left = 0;
-			box.right = m_InputWidth;
-			box.top = 0;
-			m_Context->CopySubresourceRegion(m_BackBuffer,0,0,0,0,m_CopyTextureIn[m_CurrentOutFront],0,&m_CopyBox);*/
+		if(m_Sequence.InputFormat() != ImageSequence::DX11_NATIVE){
 			m_Context->PSSetShaderResources(0,1,&m_ShaderResourceViews[m_CurrentOutFront]);
 			m_Context->Draw(6, 0);
 			m_Context->Flush();
@@ -1041,32 +738,16 @@ void DX11Player::OnRender(){
 
 
 HANDLE DX11Player::GetSharedHandle(){
-	if(m_DirectCopy){
+	if(m_Sequence.InputFormat() == ImageSequence::DX11_NATIVE){
 		return m_SharedHandles[m_CopyTextureIn[m_CurrentOutFront]];
 	}else{
 		return m_SharedHandles[m_TextureBack];
 	}
 }
-	
-ID3D11Texture2D * DX11Player::GetTexturePointer(){
-	if(m_DirectCopy){
-		return m_CopyTextureIn[m_CurrentOutFront];
-	}else{
-		return m_TextureBack;
-	}
-}
-	
-ID3D11Texture2D * DX11Player::GetRenderTexturePointer(){
-	/*if(m_NextRenderBuffer!=-1){
-		return m_UploadBuffers[m_NextRenderBuffer];
-	}else{*/
-		return nullptr;
-	//}
-}
 
 std::string DX11Player::GetDirectory() const
 {
-	return m_Directory;
+	return m_Sequence.Directory();
 }
 
 int DX11Player::GetUploadBufferSize() const
@@ -1129,10 +810,10 @@ void DX11Player::SetInternalRate(int enabled)
 }
 
 extern "C"{
-	NATIVE_API DX11HANDLE DX11Player_Create(DX11HANDLE device, const char * directory)
+	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory)
 	{
 		try{
-			return new DX11Player(static_cast<ID3D11Device*>(device),directory);
+			return new DX11Player(directory);
 		}catch(std::exception & e){
 			OutputDebugStringA( e.what() );
 			return nullptr;
@@ -1152,16 +833,6 @@ extern "C"{
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player)
 	{
 		return static_cast<DX11Player*>(player)->GetSharedHandle();
-	}
-
-	NATIVE_API DX11HANDLE DX11Player_GetTexturePointer(DX11HANDLE player)
-	{
-		return static_cast<DX11Player*>(player)->GetTexturePointer();
-	}
-	
-	NATIVE_API DX11HANDLE DX11Player_GetRenderTexturePointer(DX11HANDLE player)
-	{
-		return static_cast<DX11Player*>(player)->GetRenderTexturePointer();
 	}
 
 	NATIVE_API const char * DX11Player_GetDirectory(DX11HANDLE player)

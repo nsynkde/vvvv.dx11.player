@@ -17,14 +17,13 @@
 #include <map>
 #include "Channel.h"
 #include "HighResClock.h"
+#include "ImageSequence.h"
 
 class DX11Player {
 public:
-	DX11Player(ID3D11Device * device, const std::string & directory);
+	DX11Player(const std::string & directory);
 	void OnRender();
 	HANDLE GetSharedHandle();
-	ID3D11Texture2D * GetTexturePointer();
-	ID3D11Texture2D * GetRenderTexturePointer();
 	int GetUploadBufferSize() const;
 	int GetWaitBufferSize() const;
 	int GetRenderBufferSize() const;
@@ -37,7 +36,7 @@ public:
 	void SendNextFrameToLoad(int nextFrame);
 	void SetInternalRate(int enabled);
 private:
-	std::string m_Directory;
+	ImageSequence m_Sequence;
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
@@ -45,19 +44,13 @@ private:
     ID3D11Texture2D* m_BackBuffer;
 	ID3D11RenderTargetView*  m_RenderTargetView;
     ID3D11Texture2D* m_TextureBack;
-	std::vector<std::string> m_ImageFiles;
 	std::thread m_UploaderThread;
 	std::thread m_WaiterThread;
 	std::thread m_RateThread;
 	bool m_UploaderThreadRunning;
 	bool m_WaiterThreadRunning;
 	bool m_RateThreadRunning;
-	size_t m_CurrentFrame;
-	size_t m_Width;
-	size_t m_Height;
-	size_t m_InputWidth;
 	D3D11_BOX m_CopyBox;
-	bool m_DirectCopy;
 
 	struct Frame{
 		int idx;
@@ -97,6 +90,7 @@ private:
 	Frame m_NextRenderFrame;
 	int m_DroppedFrames;
 	int m_Fps;
+	size_t m_CurrentFrame;
 	HighResClock::duration m_AvgDecodeDuration;
 	HighResClock::duration m_AvgPipelineLatency;
 
@@ -105,12 +99,10 @@ private:
 
 extern "C"{
 	typedef void * DX11HANDLE;
-	NATIVE_API DX11HANDLE DX11Player_Create(DX11HANDLE device, const char * directory);
+	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory);
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player);
 	NATIVE_API void DX11Player_OnRender(DX11HANDLE player);
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player);
-	NATIVE_API DX11HANDLE DX11Player_GetTexturePointer(DX11HANDLE player);
-	NATIVE_API DX11HANDLE DX11Player_GetRenderTexturePointer(DX11HANDLE player);
 	
 	NATIVE_API const char * DX11Player_GetDirectory(DX11HANDLE player);
 	NATIVE_API int DX11Player_DirectoryHasChanged(DX11HANDLE player, const char * dir);

@@ -225,7 +225,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                         if (FDX11NativePlayer[i] == IntPtr.Zero)
                         {
                             FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
-                            var nativePlayer = NativeInterface.DX11Player_Create(/*context.Device.ComPointer*/IntPtr.Zero, FDirectoryIn[i]);
+                            var nativePlayer = NativeInterface.DX11Player_Create(FDirectoryIn[i]);
                             if (nativePlayer != IntPtr.Zero)
                             {
                                 NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
@@ -290,7 +290,7 @@ namespace VVVV.Nodes.DX11PlayerNode
     internal class NativeInterface
     {
         [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
-        internal static extern IntPtr DX11Player_Create(IntPtr device, string directory);
+        internal static extern IntPtr DX11Player_Create(string directory);
 
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_Destroy(IntPtr player);
@@ -300,12 +300,6 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern IntPtr DX11Player_GetSharedHandle(IntPtr player);
-
-        [DllImport("Native.dll", SetLastError = false)]
-        internal static extern IntPtr DX11Player_GetTexturePointer(IntPtr player);
-       
-        [DllImport("Native.dll", SetLastError = false)]
-        internal static extern IntPtr DX11Player_GetRenderTexturePointer(IntPtr player);
         
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_DoneRender(IntPtr player);
