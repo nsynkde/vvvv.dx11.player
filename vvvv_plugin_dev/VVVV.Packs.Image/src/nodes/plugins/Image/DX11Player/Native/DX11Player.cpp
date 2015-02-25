@@ -5,12 +5,8 @@
 #include "DX11Player.h"
 #include <comdef.h>
 #include <sstream>
-#include <math.h>
 #include "Timer.h"
-#include <memory>
 #include <DirectXMath.h>
-#include <assert.h>
-#include <shlwapi.h>
 #include "VShader.h"
 #include "RGB_to_RGBA.h";
 #include "BGR_to_RGBA.h";
@@ -19,7 +15,6 @@
 #include "PSCbYCr101010_to_R10G10B10A2.h"
 #include "PSCbYCr161616_to_RGBA16161616.h"
 #include <WinIoCtl.h>
-#include <Windows.h>
 
 #pragma comment(lib, "Kernel32.lib")
 
