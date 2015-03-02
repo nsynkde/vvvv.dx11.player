@@ -22,6 +22,7 @@
 class DX11Player {
 public:
 	DX11Player(const std::string & directory);
+	~DX11Player();
 	void OnRender();
 	HANDLE GetSharedHandle();
 	int GetUploadBufferSize() const;
@@ -78,10 +79,11 @@ private:
 		}
 	};
 
-	Channel<Frame> m_ReadyToUpload;
-	Channel<Frame> m_ReadyToWait;
-	Channel<Frame> m_ReadyToRate;
-	Channel<Frame> m_ReadyToRender;
+	std::vector<Frame> m_FramePool;
+	Channel<Frame*> m_ReadyToUpload;
+	Channel<Frame*> m_ReadyToWait;
+	Channel<Frame*> m_ReadyToRate;
+	Channel<Frame*> m_ReadyToRender;
 	Channel<size_t> m_NextFrameChannel;
 	bool m_ExternalRate;
 	bool m_InternalRate;

@@ -1,4 +1,7 @@
 // include the basic windows header files and the Direct3D header files
+//#define _CRTDBG_MAP_ALLOC
+//#include <stdlib.h>
+//#include <crtdbg.h>
 #include <windows.h>
 #include <windowsx.h>
 #include <d3d11.h>
@@ -10,6 +13,9 @@
 #include "DX11Player.h"
 #include <chrono>
 #include "HighResClock.h"
+
+//#define VLD_FORCE_ENABLE
+#include <vld.h>
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
@@ -63,7 +69,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 {
     HWND hWnd;
     WNDCLASSEX wc;
-
+	//_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
     ZeroMemory(&wc, sizeof(WNDCLASSEX));
 
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -94,7 +100,12 @@ int WINAPI WinMain(HINSTANCE hInstance,
     ShowWindow(hWnd, nCmdShow);
 
     // set up and initialize Direct3D
-    InitD3D(hWnd);
+	try{
+		InitD3D(hWnd);
+	}catch(std::exception & exc){
+		OutputDebugStringA(exc.what());
+		return 1;
+	}
 
     // enter the main loop:
 
@@ -116,6 +127,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     // clean up DirectX and COM
     CleanD3D();
+	//ReportLiveObjects();
 
     return msg.wParam;
 }
@@ -221,20 +233,17 @@ void UpdateVerticalLine(){
     devcon->Unmap(pVBufferVerticalLine, 0);
 }
 
-ID3D11Texture2D * GetSharedTexture(HANDLE tex_handle){
+
+ID3D11Texture2D * GetTexture(){
 	ID3D11Texture2D * tex;
 	ID3D11Texture2D * sharedTex;
-	auto hr = dev->OpenSharedResource(tex_handle,__uuidof(ID3D11Resource),(void**)&tex);
+	auto hr = dev->OpenSharedResource(player->GetSharedHandle(),__uuidof(ID3D11Resource),(void**)&tex);
 	if(FAILED(hr)){
 		throw std::exception("Coudln't open shared texture");
 	}
 	hr = tex->QueryInterface(__uuidof(ID3D11Texture2D),(void**)&sharedTex);
 	tex->Release();
 	return sharedTex;
-}
-
-ID3D11Texture2D * GetTexture(){
-	return GetSharedTexture(player->GetSharedHandle());
 }
 
 
@@ -258,7 +267,8 @@ void RenderFrame(void)
     UINT offset = 0;
     devcon->PSSetShader(pPS, 0, 0);
 	ID3D11ShaderResourceView * shaderResourceView;
-	dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
+	auto tex = GetTexture();
+	dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
 	devcon->PSSetShaderResources(0,1,&shaderResourceView);
 	shaderResourceView->Release();
     devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
@@ -272,6 +282,7 @@ void RenderFrame(void)
     // switch the back buffer and the front buffer
     swapchain->Present(1, 0);
 	i++;
+	tex->Release();
 }
 
 
@@ -393,6 +404,7 @@ void InitPipeline()
     devcon->PSSetShader(pPS, 0, 0);
 	
 	D3D11_SAMPLER_DESC samplerDesc;
+	ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;

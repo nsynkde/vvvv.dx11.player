@@ -37,7 +37,7 @@ ImageSequence::ImageSequence(const std::string & directory)
 
 		if (!file.is_dir)
 		{
-			m_ImageFiles.push_back(directory+"\\"+std::string(file.name));
+			m_ImageFiles.emplace_back(directory+"\\"+std::string(file.name));
 		}
 	}
 	tinydir_close(&dir); 
@@ -297,6 +297,7 @@ ImageSequence::ImageSequence(const std::string & directory)
 
 ImageSequence::~ImageSequence(void)
 {
+	m_ImageFiles.clear();
 }
 
 const std::string & ImageSequence::Directory() const{
