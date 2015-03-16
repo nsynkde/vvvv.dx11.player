@@ -23,6 +23,8 @@
 #include "RGBA_to_YUV444_8_BGR.h"
 #include "RGBA_to_YUVS_BGR.h"
 
+#define USE_DIRECT_COPY 0
+
 
 static bool IsRGBA(DXGI_FORMAT format);
 static bool IsRGBA32(DXGI_FORMAT format);
@@ -108,22 +110,31 @@ ReadTextureDX11::ReadTextureDX11(HANDLE tex_handle, int outFormat, int num_rende
         case MEM_FMT_BGRA:
             if (!IsBGRA(sharedTexDescription.Format) && !IsBGRX(sharedTexDescription.Format))
                 throw std::exception("Input texture doesn't have the correct format: BGRA8888");
-            m_DirectCopy = true;
+#if USE_DIRECT_COPY
+			m_DirectCopy = true;
+#else
+			pixelShaderSrc = Passthrough;
+			sizePixelShaderSrc = sizeof(Passthrough);
+#endif
             backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
             backTextureFormat = sharedTexDescription.Format;
             break;
         case MEM_FMT_RGBA:
             if (!IsRGBA(sharedTexDescription.Format) && !IsBGRX(sharedTexDescription.Format))
                 throw std::exception("Input texture doesn't have the correct format: RGBA8888");
+#if USE_DIRECT_COPY
             if (IsRGBA32(sharedTexDescription.Format))
             {
                 m_DirectCopy = true;
             }
             else
             {
+#endif
 				pixelShaderSrc = Passthrough;
 				sizePixelShaderSrc = sizeof(Passthrough);
+#if USE_DIRECT_COPY
             }
+#endif
             backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
             backTextureFormat = backBufferFormat;
             break;
@@ -418,6 +429,7 @@ ReadTextureDX11::ReadTextureDX11(HANDLE tex_handle, int outFormat, int num_rende
 		pixelShader->Release();
 
 		D3D11_SAMPLER_DESC samplerDesc;
+		ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
 		samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -511,14 +523,16 @@ void ReadTextureDX11::SetSharedHandle(HANDLE tex_handle){
 	OutputDebugString( L"QueryInterface aux shared texture" );
 	tex->Release();
 
-	ID3D11ShaderResourceView * shaderResourceView;
-	hr = m_Device->CreateShaderResourceView(m_SharedTexture,nullptr,&shaderResourceView);
-	if(FAILED(hr)){
-		throw std::exception("Coudln't create shader resource view");
-	}
+	if(!m_DirectCopy){
+		ID3D11ShaderResourceView * shaderResourceView;
+		hr = m_Device->CreateShaderResourceView(m_SharedTexture,nullptr,&shaderResourceView);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create shader resource view");
+		}
 
-	m_Context->PSSetShaderResources(0,1,&shaderResourceView);
-	shaderResourceView->Release();
+		m_Context->PSSetShaderResources(0,1,&shaderResourceView);
+		shaderResourceView->Release();
+	}
 }
 
 ReadTextureDX11::~ReadTextureDX11()

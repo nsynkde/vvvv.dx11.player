@@ -160,7 +160,7 @@ namespace VVVV.Nodes.DeckLink
 
 			try
 			{
-				FCaptures[Slice].Lock.AcquireReaderLock(500);
+				FCaptures[Slice].Lock.WaitOne();
 				try
 				{
 					rect.Data.WriteRange(FCaptures[Slice].Data, FCaptures[Slice].BytesPerFrame);
@@ -174,7 +174,7 @@ namespace VVVV.Nodes.DeckLink
 				finally
 				{
 					srf.UnlockRectangle();
-					FCaptures[Slice].Lock.ReleaseReaderLock();
+                    FCaptures[Slice].Lock.ReleaseMutex();
 				}
 			}
 			catch

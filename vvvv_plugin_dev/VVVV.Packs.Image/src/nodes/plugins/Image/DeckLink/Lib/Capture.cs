@@ -22,7 +22,7 @@ namespace VVVV.Nodes.DeckLink
 		public bool FreshData { get; private set; }
 		public int Width { get; private set; }
 		public int Height { get; private set; }
-		public ReaderWriterLock Lock = new ReaderWriterLock();
+		public Mutex Lock = new Mutex();
 		public bool Ready { get; private set; }
 
         public delegate void FrameCallbackDelegate(IntPtr data, int deviceIdx);
@@ -50,7 +50,7 @@ namespace VVVV.Nodes.DeckLink
 			if (Ready)
 				Close();
 
-			this.Lock.AcquireWriterLock(10000);
+			//this.Lock.WaitOne();
 			try
 			{
 				if (device == null)
@@ -88,25 +88,30 @@ namespace VVVV.Nodes.DeckLink
 			}
 			finally
 			{
-				this.Lock.ReleaseWriterLock();
+				//this.Lock.ReleaseMutex();
 			}
 		}
 
 		public void Close()
 		{
-			this.Lock.AcquireWriterLock(10000);
+			//this.Lock.WaitOne();
 			try
 			{
-				if (!Ready)
-					return;
+                if (!Ready)
+                {
+                    //this.Lock.ReleaseMutex();
+                    return;
+                }
 
 				Ready = false;
-				FDevice.StopStreams();
-				FDevice.DisableVideoInput();
+                FDevice.SetCallback(null);
+                FDevice.StopStreams();
+                FDevice.DisableVideoInput();
+                 
 			}
 			finally
 			{
-				this.Lock.ReleaseWriterLock();
+                //this.Lock.ReleaseMutex();
 			}
 
 		}
@@ -118,16 +123,16 @@ namespace VVVV.Nodes.DeckLink
 
 		public void VideoInputFrameArrived(IDeckLinkVideoInputFrame videoFrame, IDeckLinkAudioInputPacket audioPacket)
 		{
-			this.Lock.AcquireWriterLock(5000);
+            this.Lock.WaitOne();
 			try
 			{
 				videoFrame.GetBytes(out FData);
-				System.Runtime.InteropServices.Marshal.ReleaseComObject(videoFrame);
-				FreshData = true;
                 if (FFrameCallback != null)
                 {
                     FFrameCallback(FData, FDeviceIdx);
                 }
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(videoFrame);
+                FreshData = true;
 			}
 			catch
 			{
@@ -135,7 +140,7 @@ namespace VVVV.Nodes.DeckLink
 			}
 			finally
 			{
-				this.Lock.ReleaseWriterLock();
+                this.Lock.ReleaseMutex();
 			}
 		}
 

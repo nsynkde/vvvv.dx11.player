@@ -271,7 +271,6 @@ namespace VVVV.Nodes.Bluefish
                 if (FInFlush[0])
                 {
                     var query = new SlimDX.Direct3D9.Query(device, SlimDX.Direct3D9.QueryType.Event);
-                    //query.Issue(SlimDX.Direct3D9.Issue.Begin);
                     query.Issue(SlimDX.Direct3D9.Issue.End);
                     query.CheckStatus(true);
                     query.Dispose();

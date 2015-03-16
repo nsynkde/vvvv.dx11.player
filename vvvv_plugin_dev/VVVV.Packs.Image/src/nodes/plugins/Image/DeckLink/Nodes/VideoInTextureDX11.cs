@@ -21,6 +21,7 @@ using VVVV.DX11;
 using FeralTic.DX11.Resources;
 using SlimDX.Direct3D11;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace VVVV.Nodes.DeckLink
 {
@@ -49,6 +50,9 @@ namespace VVVV.Nodes.DeckLink
         [Input("Sync")]
         IDiffSpread<bool> FSync;
 
+        [Input("Enabled", DefaultValue=1)]
+        IDiffSpread<bool> FEnabled;
+
 		[Input("Flush Streams", IsBang = true)]
 		ISpread<bool> FPinInFlush;
 
@@ -56,7 +60,7 @@ namespace VVVV.Nodes.DeckLink
 		ISpread<int> FPinOutFramesAvailable;
 
 		[Output("Frame Received", IsBang=true)]
-		ISpread<bool> FPinOutFrameReceived;
+        ISpread<bool> FPinOutFrameReceived;
 
 		[Output("Status")]
 		ISpread<string> FStatus;
@@ -69,6 +73,7 @@ namespace VVVV.Nodes.DeckLink
         ISpread<DataBox[]> FStagingDataBox = new Spread<DataBox[]>();
         ISpread<BlockingCollection<int>> FReadyToUpload = new Spread<BlockingCollection<int>>();
         ISpread<BlockingCollection<int>> FReadyToRender = new Spread<BlockingCollection<int>>();
+        Mutex mutex = new Mutex();
 
 		List<Capture> FCaptures = new List<Capture>();
 		#endregion fields & pins
@@ -101,7 +106,6 @@ namespace VVVV.Nodes.DeckLink
 			while (FCaptures.Count < SpreadMax)
             {
                 var capture = new Capture();
-                capture.FFrameCallback = new Capture.FrameCallbackDelegate(NewFrame);
                 capture.DeviceIdx = FCaptures.Count;
                 FCaptures.Add(capture);
 			}
@@ -111,11 +115,33 @@ namespace VVVV.Nodes.DeckLink
 				FCaptures.RemoveAt(FCaptures.Count - 1);
 			}
 
-			if (FPinInMode.IsChanged || FPinInDevice.IsChanged || FPinInFlags.IsChanged)
+            if (FEnabled.IsChanged)
+            {
+                for (int i = 0; i < FEnabled.SliceCount; i++)
+                {
+                    if (!FEnabled[i] && FCaptures[i] != null)
+                    {
+                        FCaptures[i].Close();
+                    }
+                    else if (FEnabled[i])
+                    {
+                        FRefreshTextures = true;
+                    }
+                }
+            }
+
+            if (FPinInMode.IsChanged || FPinInDevice.IsChanged || FPinInFlags.IsChanged || FEnabled.IsChanged)
 			{
-				for (int i = 0; i < SpreadMax; i++)
-					ReOpen(i);
+                mutex.WaitOne();
+                for (int i = 0; i < SpreadMax; i++)
+                {
+                    if (FEnabled[i])
+                    {
+                        ReOpen(i);
+                    }
+                }
                 FRefreshTextures = true;
+                mutex.ReleaseMutex();
 			}
 
 			bool reinitialise = false;
@@ -126,7 +152,14 @@ namespace VVVV.Nodes.DeckLink
 
 			for (int i = 0; i < SpreadMax; i++)
 			{
-				FPinOutFramesAvailable[i] = FCaptures[i].AvailableFrameCount;
+                if (FEnabled[i])
+                {
+                    FPinOutFramesAvailable[i] = FCaptures[i].AvailableFrameCount;
+                }
+                else
+                {
+                    FPinOutFramesAvailable[i] = 0;
+                }
 			}
 
             if (FFirstUse)
@@ -152,10 +185,16 @@ namespace VVVV.Nodes.DeckLink
 
         private void NewFrame(IntPtr Data, int DeviceIdx)
         {
-            int nextFrame = FReadyToUpload[DeviceIdx].Take();
-            var data = FStagingDataBox[DeviceIdx][nextFrame];
-            data.Data.WriteRange(FCaptures[DeviceIdx].Data, FCaptures[DeviceIdx].BytesPerFrame);
-            FReadyToRender[DeviceIdx].Add(nextFrame);
+            int nextFrame;
+            bool newFrame = FReadyToUpload[DeviceIdx].TryTake(out nextFrame,100);
+            if (newFrame)
+            {
+                mutex.WaitOne();
+                var data = FStagingDataBox[DeviceIdx][nextFrame];
+                data.Data.WriteRange(FCaptures[DeviceIdx].Data, FCaptures[DeviceIdx].BytesPerFrame);
+                mutex.ReleaseMutex();
+                FReadyToRender[DeviceIdx].Add(nextFrame);
+            }
         }
 
 		/*DateTime FLastUpdate = DateTime.Now;
@@ -166,14 +205,33 @@ namespace VVVV.Nodes.DeckLink
 			if (!FCaptures[Slice].Ready)
 				return;
 
-			if (!FCaptures[Slice].FreshData)
-			    return;
+            double timeout = FSync[Slice]?30:0;
+            if (timeout == 0)
+            {
+                if (!FCaptures[Slice].FreshData)
+                    return;
+            }
+            else
+            {
+                while (!FCaptures[Slice].FreshData)
+                {
+                    if ((DateTime.Now - FLastUpdate).TotalMilliseconds > timeout)
+                    {
+                        return; //timeout occured
+                    }
+                    else
+                    {
+                        System.Threading.Thread.Sleep(1);
+                    }
+                }
+                FLastUpdate = DateTime.Now;
+            }
 
             var data = context.MapSubresource(stagingTexture, 0, MapMode.Write, MapFlags.None);
 
 			try
 			{
-				FCaptures[Slice].Lock.AcquireReaderLock(500);
+				FCaptures[Slice].Lock.WaitOne();
 				try
 				{
                     data.Data.WriteRange(FCaptures[Slice].Data, FCaptures[Slice].BytesPerFrame);
@@ -187,7 +245,7 @@ namespace VVVV.Nodes.DeckLink
 				finally
 				{
                     context.UnmapSubresource(stagingTexture, 0);
-                    FCaptures[Slice].Lock.ReleaseReaderLock();
+                    FCaptures[Slice].Lock.ReleaseMutex();
                     context.CopyResource(stagingTexture, outTexture);
 				}
 			}
@@ -198,10 +256,27 @@ namespace VVVV.Nodes.DeckLink
 		}*/
 
 		public void Dispose()
-		{
+        {
+            FLogger.Log(LogType.Message, "Dispose");
+            mutex.WaitOne();
+            foreach (var capture in FCaptures)
+                capture.FFrameCallback = null;
+            mutex.ReleaseMutex();
 			foreach (var capture in FCaptures)
 				capture.Dispose();
+			GC.SuppressFinalize(this);
+		}
 
+        public void Destroy(IPluginIO pin, FeralTic.DX11.DX11RenderContext context, bool force)
+        {
+            FLogger.Log(LogType.Message, "DESTROY");
+            mutex.WaitOne();
+            foreach (var capture in FCaptures)
+                capture.FFrameCallback = null;
+            FRefreshTextures = true;
+            mutex.ReleaseMutex();
+            /*Dispose();
+            mutex.WaitOne();
             foreach (var texBuffer in FStagingTexture)
             {
                 foreach (var tex in texBuffer)
@@ -211,43 +286,45 @@ namespace VVVV.Nodes.DeckLink
             }
             foreach (var tex in FOutTexture)
             {
-                tex.Dispose();
+                tex[context].Dispose();
             }
-			GC.SuppressFinalize(this);
-		}
-
-        public void Destroy(IPluginIO pin, FeralTic.DX11.DX11RenderContext context, bool force)
-        {
-            Dispose();
+            mutex.ReleaseMutex();*/
         }
 
         public void Update(IPluginIO pin, FeralTic.DX11.DX11RenderContext context)
         {
             if (FRefreshTextures)
             {
+                mutex.WaitOne();
                 for(int i=0;i<FOutTexture.SliceCount;i++){
+
                     Texture2DDescription desc = new Texture2DDescription();
                     desc.ArraySize = 1;
                     desc.BindFlags = BindFlags.None;
                     desc.CpuAccessFlags = CpuAccessFlags.Write;
                     desc.Format = SlimDX.DXGI.Format.R8G8B8A8_UNorm;
                     desc.Height = FCaptures[i].Height;
-                    desc.Width = FCaptures[i].Width/2;
+                    desc.Width = FCaptures[i].Width / 2;
                     desc.MipLevels = 1;
                     desc.OptionFlags = ResourceOptionFlags.None;
                     desc.SampleDescription = new SlimDX.DXGI.SampleDescription(1, 0);
                     desc.Usage = ResourceUsage.Staging;
-                    FStagingTexture[i] = new Texture2D[2];
-                    FStagingDataBox[i] = new DataBox[2];
-                    FReadyToUpload[i] = new BlockingCollection<int>(new ConcurrentQueue<int>());
-                    FReadyToRender[i] = new BlockingCollection<int>(new ConcurrentQueue<int>());
-                    FLogger.Log(LogType.Message, "Creating staging textures");
-                    for(int j=0;j<FStagingTexture[i].Length;j++){
-                        FStagingTexture[i][j] = new Texture2D(context.Device, desc);
-                        FStagingDataBox[i][j] = context.Device.ImmediateContext.MapSubresource(FStagingTexture[i][j], 0, MapMode.Write, MapFlags.None);
-                        FReadyToUpload[i].Add(j);
-                    }
+                    if (FEnabled[i])
+                    {
+                        FStagingTexture[i] = new Texture2D[2];
+                        FStagingDataBox[i] = new DataBox[2];
+                        FReadyToUpload[i] = new BlockingCollection<int>(new ConcurrentQueue<int>());
+                        FReadyToRender[i] = new BlockingCollection<int>(new ConcurrentQueue<int>());
+                        FLogger.Log(LogType.Message, "Creating staging textures");
+                        for (int j = 0; j < FStagingTexture[i].Length; j++)
+                        {
+                            FStagingTexture[i][j] = new Texture2D(context.Device, desc);
+                            FStagingDataBox[i][j] = context.Device.ImmediateContext.MapSubresource(FStagingTexture[i][j], 0, MapMode.Write, MapFlags.None);
+                            FReadyToUpload[i].Add(j);
+                        }
 
+                        FCaptures[i].FFrameCallback = new Capture.FrameCallbackDelegate(NewFrame);
+                    }
                     desc.Usage = ResourceUsage.Default;
                     desc.CpuAccessFlags = CpuAccessFlags.None;
                     desc.BindFlags = BindFlags.ShaderResource;
@@ -255,32 +332,39 @@ namespace VVVV.Nodes.DeckLink
                     FOutTexture[i] = new DX11Resource<DX11Texture2D>();
                     FOutTexture[i][context] = tex;
                 }
-
+                mutex.ReleaseMutex();
                 FRefreshTextures = false;
             }
             for (int i = 0; i < FOutTexture.SliceCount; i++)
             {
-                //UpdateTexture(i, FStagingTexture[i], FOutTexture[i][context].Resource, context.Device.ImmediateContext);
+                //UpdateTexture(i, FStagingTexture[i][0], FOutTexture[i][context].Resource, context.Device.ImmediateContext);
 
-                int nextFrame;
-                bool newFrame;
-                if (FSync[i])
+                if (FEnabled[i])
                 {
-                    newFrame = true;
-                    nextFrame = FReadyToRender[i].Take();
+                    int nextFrame;
+                    bool newFrame;
+                    if (FSync[i])
+                    {
+                        newFrame = true;
+                        nextFrame = FReadyToRender[i].Take();
+                    }
+                    else
+                    {
+                        newFrame = FReadyToRender[i].TryTake(out nextFrame);
+                    }
+                    if (newFrame)
+                    {
+                        context.Device.ImmediateContext.UnmapSubresource(FStagingTexture[i][nextFrame], 0);
+                        context.Device.ImmediateContext.CopyResource(FStagingTexture[i][nextFrame], FOutTexture[i][context].Resource);
+                        FStagingDataBox[i][nextFrame] = context.Device.ImmediateContext.MapSubresource(FStagingTexture[i][nextFrame], 0, MapMode.Write, MapFlags.None);
+                        FReadyToUpload[i].Add(nextFrame);
+                    }
+                    FPinOutFrameReceived[i] = newFrame;
                 }
                 else
                 {
-                    newFrame = FReadyToRender[i].TryTake(out nextFrame);
+                    FPinOutFrameReceived[i] = false;
                 }
-                if (newFrame)
-                {
-                    context.Device.ImmediateContext.UnmapSubresource(FStagingTexture[i][nextFrame], 0);
-                    context.Device.ImmediateContext.CopyResource(FStagingTexture[i][nextFrame], FOutTexture[i][context].Resource);
-                    FStagingDataBox[i][nextFrame] = context.Device.ImmediateContext.MapSubresource(FStagingTexture[i][nextFrame], 0, MapMode.Write, MapFlags.None);
-                    FReadyToUpload[i].Add(nextFrame);
-                }
-                FPinOutFrameReceived[i] = newFrame;
             }
         }
     }

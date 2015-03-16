@@ -32,7 +32,7 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <PlatformToolset>v110</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -83,6 +83,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
     <LinkIncremental>false</LinkIncremental>
+    <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <PreBuildEvent>
@@ -191,6 +192,7 @@
     <ClInclude Include="src\BlueFishRendererDX11.h" />
     <ClInclude Include="src\BluePlayback.h" />
     <ClInclude Include="src\BlueSDIOut.h" />
+    <ClInclude Include="src\CaptureDevice.h" />
     <ClInclude Include="src\PlaybackDevice.h" />
     <ClInclude Include="src\ReadTextureDX11.h" />
     <ClInclude Include="src\stdafx.h" />
@@ -200,6 +202,7 @@
     <ClCompile Include="src\BlueFishRendererDX11.cpp" />
     <ClCompile Include="src\BluePlayback.cpp" />
     <ClCompile Include="src\BlueSDIOut.cpp" />
+    <ClCompile Include="src\CaptureDevice.cpp" />
     <ClCompile Include="src\PlaybackDevice.cpp" />
     <ClCompile Include="src\ReadTextureDX11.cpp" />
     <ClCompile Include="src\WorkerThread.cpp" />
