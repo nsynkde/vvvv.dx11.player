@@ -85,14 +85,14 @@ ImageSequence::ImageSequence(const std::string & directory)
 			throw std::exception(str.str().c_str());
 		}
 
-		std::stringstream str;
-		str << "TGA with x,y origin: " << header.x_origin << ", " << header.y_origin << " descriptor " << (int)header.imagedescriptor << std::endl;
-		OutputDebugStringA(str.str().c_str());
 		m_RequiresVFlip = !(header.imagedescriptor & 32);
 		auto alphaDepth = header.imagedescriptor & 15;
 		m_Width = header.width;
 		m_Height = header.height;
 		m_DataOffset = sizeof(TGA_HEADER) + header.idlength;
+		std::stringstream str;
+		str << "TGA with x,y origin: " << header.x_origin << ", " << header.y_origin << " descriptor " << (int)header.imagedescriptor <<  " alpha: " << alphaDepth << std::endl;
+		OutputDebugStringA(str.str().c_str());
 		switch(alphaDepth){
 			case 0:
 				m_TextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;

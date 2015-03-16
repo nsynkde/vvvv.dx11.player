@@ -15,7 +15,7 @@
 #include "HighResClock.h"
 
 //#define VLD_FORCE_ENABLE
-#include <vld.h>
+//#include <vld.h>
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
@@ -100,12 +100,12 @@ int WINAPI WinMain(HINSTANCE hInstance,
     ShowWindow(hWnd, nCmdShow);
 
     // set up and initialize Direct3D
-	try{
+	//try{
 		InitD3D(hWnd);
-	}catch(std::exception & exc){
+	/*}catch(std::exception & exc){
 		OutputDebugStringA(exc.what());
 		return 1;
-	}
+	}*/
 
     // enter the main loop:
 
@@ -424,12 +424,12 @@ void InitPipeline()
 	OutputDebugString( "Set sampler state" );
 	samplerState->Release();
 
-	try{
-		player = new DX11Player("D:\\TestMaterial\\bbb_4kcbycr10");
-	}catch(std::exception & e){
+	//try{
+		player = new DX11Player("D:\\TestMaterial\\bbb_4ktga_crop1");
+	/*}catch(std::exception & e){
 		OutputDebugStringA(e.what());
 		exit(1);
-	}
+	}*/
 	//player->SetFPS(24);
 	ID3D11ShaderResourceView * shaderResourceView;
 	hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);

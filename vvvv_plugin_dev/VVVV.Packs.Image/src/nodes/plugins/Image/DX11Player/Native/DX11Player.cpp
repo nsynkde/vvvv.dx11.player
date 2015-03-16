@@ -83,8 +83,9 @@ static uint32_t SectorSize(char cDisk)
         NULL)
         )
     {
-		throw std::exception("Error finding out disk sector size");
-        return -1;
+		//throw std::exception("Error finding out disk sector size");
+        //return -1;
+		return 512;
     }
 
 	return diskAlignment.BytesPerLogicalSector;
@@ -196,7 +197,7 @@ DX11Player::DX11Player(const std::string & directory)
 	textureDescriptionCopy.Width = m_Sequence.InputWidth();
 	textureDescriptionCopy.Height = m_Sequence.Height();
 	textureDescriptionCopy.Format = m_Sequence.TextureFormat();
-	if(m_Sequence.InputFormat() != ImageSequence::DX11_NATIVE){
+	if(m_Sequence.InputFormat() == ImageSequence::DX11_NATIVE){
 		textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 	}else{
 		textureDescriptionCopy.MiscFlags = 0;
@@ -484,6 +485,7 @@ DX11Player::DX11Player(const std::string & directory)
 
 		textureDescriptionCopy.Width = m_Sequence.Width();
 		textureDescriptionCopy.Format = m_Sequence.TextureOutFormat();
+		textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_TextureBack);
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create backbuffer texture\n");
