@@ -55,43 +55,77 @@ private:
 	bool m_RateThreadRunning;
 	D3D11_BOX m_CopyBox;
 
-	struct Frame{
-		int idx;
-		HighResClock::time_point presentationTime;
-		HighResClock::time_point loadTime;
-		HighResClock::duration decodeDuration;
-		size_t nextToLoad;
-		int fps;
-		OVERLAPPED overlap;
-		HANDLE waitEvent;
-		HANDLE file;
-		D3D11_MAPPED_SUBRESOURCE mappedBuffer;
-		ID3D11Texture2D* uploadBuffer;
+	class Frame{
+		struct Data{
+			static int nextidx;
+			int idx;
+			HighResClock::time_point presentationTime;
+			HighResClock::time_point loadTime;
+			HighResClock::duration decodeDuration;
+			size_t nextToLoad;
+			int fps;
+			OVERLAPPED overlap;
+			HANDLE waitEvent;
+			HANDLE file;
+			D3D11_MAPPED_SUBRESOURCE mappedBuffer;
+			ID3D11Texture2D* uploadBuffer;
+			ID3D11Device * device;
+			ID3D11DeviceContext * context;
+			bool mapped;
 
-		Frame()
-			:idx(-1)
-			,decodeDuration(0)
-			,nextToLoad(-1)
-			,fps(0)
-			,waitEvent(nullptr)
-			,file(nullptr)
-			,uploadBuffer(nullptr){
-				ZeroMemory(&overlap,sizeof(OVERLAPPED));
-				ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
+			Data(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format);
+
+			~Data();
+			
+
+			HRESULT CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture);
+		};
+		std::shared_ptr<Data> data;
+
+	public:
+		Frame();
+
+		Frame(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format);
+
+		HRESULT Map();
+
+		void Unmap();
+
+		void SetNextToLoad(size_t next);
+
+		size_t NextToLoad() const;
+
+		HighResClock::time_point LoadTime() const;
+
+		HighResClock::time_point PresentationTime() const;
+
+		ID3D11Texture2D* UploadBuffer();
+
+		bool ReadFile(const std::string & path, size_t offset, size_t numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps);
+
+		void Wait();
+
+		HighResClock::duration DecodeDuration() const;
+
+		int Fps() const;
+
+		void Reset();
+
+		operator bool() const{
+			return data!=nullptr;
 		}
 	};
 
-	std::vector<Frame> m_FramePool;
-	Channel<Frame*> m_ReadyToUpload;
-	Channel<Frame*> m_ReadyToWait;
-	Channel<Frame*> m_ReadyToRate;
-	Channel<Frame*> m_ReadyToRender;
+	Channel<Frame> m_ReadyToUpload;
+	Channel<Frame> m_ReadyToWait;
+	Channel<Frame> m_ReadyToRate;
+	Channel<Frame> m_ReadyToRender;
 	Channel<size_t> m_NextFrameChannel;
 	bool m_ExternalRate;
 	bool m_InternalRate;
 	std::map<ID3D11Texture2D*,HANDLE> m_SharedHandles;
 	int m_CurrentOutFront;
-	Frame m_NextRenderFrame;
+	size_t m_NextRenderFrame;
 	int m_DroppedFrames;
 	int m_Fps;
 	size_t m_CurrentFrame;

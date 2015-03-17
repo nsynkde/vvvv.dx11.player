@@ -81,6 +81,7 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		closed = true;
+		while(!m_queue.empty()) m_queue.pop();
         m_condition.notify_one();
 	}
 };

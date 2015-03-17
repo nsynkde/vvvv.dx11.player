@@ -21,6 +21,7 @@
 
 static const int RING_BUFFER_SIZE = 8;
 static const int OUTPUT_BUFFER_SIZE = 4;
+int DX11Player::Frame::Data::nextidx = 0;
 
 
 static bool IsFrameLate(const HighResClock::time_point & presentationTime, int fps_video, HighResClock::time_point now, HighResClock::duration max_lateness){
@@ -106,10 +107,10 @@ DX11Player::DX11Player(const std::string & directory)
 	,m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
-	,m_FramePool(RING_BUFFER_SIZE)
 	,m_ExternalRate(false)
 	,m_InternalRate(true)
 	,m_CurrentOutFront(OUTPUT_BUFFER_SIZE/2)
+	,m_NextRenderFrame(0)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
 	,m_CurrentFrame(0)
@@ -138,10 +139,9 @@ DX11Player::DX11Player(const std::string & directory)
 			NULL, hr, 0, lpBuf, 0, NULL);
 		throw std::exception((std::string("Coudln't create device: ") + lpBuf).c_str());
 	}
-	
-	
 
-	// uploader thread: reads async from disk to mapped GPU memory
+	// uploader thread: initializes the whole pipeline and then
+	// reads async from disk to mapped GPU memory
 	// and sends an event to wait on to the waiter thread
 	OutputDebugString( L"creating upload thread\n" );
 	auto running = &m_UploaderThreadRunning;
@@ -184,22 +184,9 @@ DX11Player::DX11Player(const std::string & directory)
 		// use a 4x4 tile so we write the header at the end of the first 4 rows and 
 		// then skip it when copying to the copy textures
 		for(int i=0;i<RING_BUFFER_SIZE;i++){
-			Frame & nextFrame = self->m_FramePool[i];
-			nextFrame.idx = i;
-			nextFrame.waitEvent = CreateEventW(0,false,false,0);
-			hr = self->CreateStagingTexture(sequence->InputWidth(),sequence->Height()+4,sequence->TextureFormat(),&nextFrame.uploadBuffer);
-			if(FAILED(hr)){
-				_com_error error(hr);
-				auto msg = error.ErrorMessage();
-
-				auto lpBuf = new char[1024];
-				ZeroMemory(lpBuf,sizeof(lpBuf));
-				FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-					NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), lpBuf, 0, NULL);
-				throw std::exception((std::string("Coudln't create staging texture") + lpBuf).c_str());
-			}
-			self->m_Context->Map(nextFrame.uploadBuffer,0,D3D11_MAP_WRITE,0,&nextFrame.mappedBuffer);
-			self->m_ReadyToUpload.send(&nextFrame);
+			Frame frame(self->m_Device,self->m_Context,self->m_Sequence->InputWidth(),self->m_Sequence->Height()+4,self->m_Sequence->TextureFormat());
+			frame.Map();
+			self->m_ReadyToUpload.send(frame);
 		}
 
 		// create the copy textures, used to copy from the upload
@@ -533,20 +520,21 @@ DX11Player::DX11Player(const std::string & directory)
 
 
 
-
-
-
+		// start the upload loop
 		*running = true;
 		auto nextFrameTime = HighResClock::now();
 		bool paused = false;
 		int nextFps = *fps;
-		Frame * nextFrame = nullptr;
+		Frame nextFrame;
 		while(readyToUpload->recv(nextFrame)){
 			auto now = HighResClock::now();
 			auto absFps = abs(nextFps);
 			if(*externalRate){
 				if(!nextFrameChannel->recv(*currentFrame)){
 					break;
+				}
+				while(nextFrameChannel->try_recv(*currentFrame)){
+					++self->m_DroppedFrames;
 				}
 				now = HighResClock::now();
 				nextFrameTime = now;
@@ -572,39 +560,22 @@ DX11Player::DX11Player(const std::string & directory)
 			}
 			*currentFrame%=sequence->NumImages();
 			nextFps = *fps;
-			if(nextFrame->nextToLoad==-1){
-				nextFrame->nextToLoad = *currentFrame;
+			if(nextFrame.NextToLoad()==-1){
+				nextFrame.SetNextToLoad(*currentFrame);
 			}else{
-				nextFrame->nextToLoad%=sequence->NumImages();
-				*currentFrame = nextFrame->nextToLoad;
+				nextFrame.SetNextToLoad(nextFrame.NextToLoad()%sequence->NumImages());
+				*currentFrame = nextFrame.NextToLoad();
 			}
 			if(paused && nextFps!=0){
 				nextFrameTime = now;
 				paused = false;
 			}
-			auto ptr = (char*)nextFrame->mappedBuffer.pData;
-			if(ptr){
-				ptr += sequence->RowPitch()*4-sequence->DataOffset();
-				auto file = CreateFileA(sequence->Image(nextFrame->nextToLoad).c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
-				if (file != INVALID_HANDLE_VALUE) {
-					ZeroMemory(&nextFrame->overlap,sizeof(OVERLAPPED));
-					nextFrame->overlap.hEvent = nextFrame->waitEvent;
-					nextFrame->file = file;
-					DWORD bytesRead=0;
-					DWORD totalBytesRead=0;
-					DWORD totalToRead = numbytesdata;
-					//SetFilePointer(file,HEADER_SIZE_BYTES,nullptr,FILE_BEGIN);
-					//while(totalBytesRead<totalToRead){
-						ReadFile(file,ptr+totalBytesRead,totalToRead - totalBytesRead,&bytesRead,&nextFrame->overlap);
-						//totalBytesRead += bytesRead;
-					//}
-					nextFrame->fps = nextFps;
-					nextFrame->loadTime = now;
-					nextFrame->presentationTime = nextFrameTime;
-					if(!readyToWait->send(nextFrame))
-					{
-						CloseHandle(nextFrame->file);
-					}
+
+			auto offset = sequence->RowPitch()*4-sequence->DataOffset();
+			if(nextFrame.ReadFile(sequence->Image(nextFrame.NextToLoad()),offset,numbytesdata,now,nextFrameTime,nextFps)){
+				if(!readyToWait->send(nextFrame))
+				{
+					break;
 				}
 			}
 		}
@@ -616,14 +587,17 @@ DX11Player::DX11Player(const std::string & directory)
 	m_WaiterThreadRunning = true;
 	running = &m_WaiterThreadRunning;
 	auto avgDecodeDuration = &m_AvgDecodeDuration;
-	m_WaiterThread = std::thread([running,readyToWait,readyToRate,avgDecodeDuration]{
+	m_WaiterThread = std::thread([running,readyToWait,readyToRate,readyToRender,avgDecodeDuration,internalRate]{
 		auto start = HighResClock::now();
-		Frame * nextFrame = nullptr;
+		Frame nextFrame;
 		while(readyToWait->recv(nextFrame)){
-			WaitForSingleObject(nextFrame->waitEvent,INFINITE);
-			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - nextFrame->loadTime).count()/(readyToWait->size()+1));
-			CloseHandle(nextFrame->file);
-			readyToRate->send(nextFrame);
+			nextFrame.Wait();
+			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.DecodeDuration()).count()/(readyToWait->size()+1));
+			if(*internalRate){
+				readyToRate->send(nextFrame);
+			}else{
+				readyToRender->send(nextFrame);
+			}
 		}
 	});
 
@@ -635,7 +609,7 @@ DX11Player::DX11Player(const std::string & directory)
 	running = &m_RateThreadRunning;
 	auto droppedFrames = &m_DroppedFrames;
 	m_RateThread = std::thread([running,readyToRate,readyToUpload,readyToRender,fps,droppedFrames,internalRate] {
-		Frame * nextFrame = nullptr;
+		Frame nextFrame;
 		auto prevFps = *fps;
 		auto absFps = abs(prevFps);
 		uint64_t periodns;
@@ -659,11 +633,11 @@ DX11Player::DX11Player(const std::string & directory)
 				timer.wait_next();
 				auto nextFps = *fps;
 				if(prevFps != nextFps){
-					if(nextFrame->fps!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
-						auto nextToLoad = nextFrame->nextToLoad;
+					if(nextFrame.Fps()!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
+						auto nextToLoad = nextFrame.NextToLoad();
 						auto waitingFor = nextToLoad;
 						do{
-							nextFrame->nextToLoad = nextToLoad;
+							nextFrame.SetNextToLoad(nextToLoad);
 							if(!readyToUpload->send(nextFrame)){
 								return;
 							}
@@ -671,7 +645,7 @@ DX11Player::DX11Player(const std::string & directory)
 							if(!readyToRate->recv(nextFrame)){
 								return;
 							}
-						}while(nextFrame->nextToLoad!=waitingFor);
+						}while(nextFrame.NextToLoad()!=waitingFor);
 					}
 					prevFps = nextFps;
 					absFps = abs(prevFps);
@@ -697,8 +671,8 @@ DX11Player::DX11Player(const std::string & directory)
 
 DX11Player::~DX11Player(){
 	m_RateThreadRunning = false;
-	m_UploaderThreadRunning = false;
 	m_WaiterThreadRunning = false;
+	m_UploaderThreadRunning = false;
 	m_ReadyToUpload.close();
 	m_ReadyToRate.close();
 	m_ReadyToRender.close();
@@ -722,9 +696,8 @@ DX11Player::~DX11Player(){
 	for(auto t: m_CopyTextureIn){
 		t->Release();
 	}
-	for(auto & f: m_FramePool){
-		f.uploadBuffer->Release();
-	}
+	m_SharedHandles.clear();
+	OutputDebugStringA("Player closed\n");
 	m_Context->Release();
 	m_Device->Release();
 }
@@ -748,29 +721,34 @@ HRESULT DX11Player::CreateStagingTexture(int Width, int Height, DXGI_FORMAT Form
 
 void DX11Player::OnRender(){
 	if(!m_UploaderThreadRunning) return;
-	Frame * frame=nullptr;
+	Frame frame;
 	auto now = HighResClock::now();
 	auto max_lateness = m_AvgPipelineLatency + std::chrono::milliseconds(2);
 	HighResClock::duration currentLatency;
 	bool late = true;
-	std::vector<Frame*> receivedFrames;
+	std::vector<Frame> receivedFrames;
 	while(late && m_ReadyToRender.try_recv(frame)){
-		currentLatency += now - frame->loadTime;
+		currentLatency += now - frame.LoadTime();
 		receivedFrames.push_back(frame);
-		late = !m_InternalRate || IsFrameLate(frame->presentationTime,abs(m_Fps),now,max_lateness);
+		late = !m_InternalRate || IsFrameLate(frame.PresentationTime(),abs(m_Fps),now,max_lateness);
 	}
 	if(!receivedFrames.empty()){
 		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
 	}
 
 	if(!receivedFrames.empty()){
-		m_NextRenderFrame = *receivedFrames.back();
-		m_Context->Unmap(m_NextRenderFrame.uploadBuffer, 0);
+		Frame frame = receivedFrames.back();
+		frame.Unmap();
 
-		m_Context->CopySubresourceRegion(m_CopyTextureIn[m_CurrentOutFront],0,0,0,0,m_NextRenderFrame.uploadBuffer,0,&m_CopyBox);
+		m_Context->CopySubresourceRegion(m_CopyTextureIn[m_CurrentOutFront],0,0,0,0,frame.UploadBuffer(),0,&m_CopyBox);
 		
-		m_Context->Map(m_NextRenderFrame.uploadBuffer,0,D3D11_MAP_WRITE,0,&m_NextRenderFrame.mappedBuffer);
+		frame.Map();
+		m_NextRenderFrame = frame.NextToLoad();
 		m_DroppedFrames+=int(receivedFrames.size())-1;
+		for(auto buffer: receivedFrames){
+			buffer.SetNextToLoad(-1);
+			m_ReadyToUpload.send(buffer);
+		}
 		//m_CurrentOutFront += 1;
 		//m_CurrentOutFront %= OUTPUT_BUFFER_SIZE;
 
@@ -784,10 +762,6 @@ void DX11Player::OnRender(){
 
 	}
 
-	for(auto buffer: receivedFrames){
-		buffer->nextToLoad = -1;
-		m_ReadyToUpload.send(buffer);
-	}
 }
 
 
@@ -838,7 +812,7 @@ size_t DX11Player::GetCurrentLoadFrame() const
 
 size_t DX11Player::GetCurrentRenderFrame() const
 {
-	return m_NextRenderFrame.nextToLoad;
+	return m_NextRenderFrame;
 }
 
 
@@ -862,15 +836,152 @@ void DX11Player::SendNextFrameToLoad(int nextFrame)
 void DX11Player::SetInternalRate(int enabled)
 {
 	m_InternalRate = enabled;
-	if(enabled && m_ExternalRate)
+	if(!m_InternalRate) m_ExternalRate = true;
+	if(m_InternalRate && m_ExternalRate)
 	{
-		m_ExternalRate = false;
 		m_NextFrameChannel.send(m_CurrentFrame);
 	}
 }
 
 bool DX11Player::IsReady() const{
 	return m_UploaderThreadRunning;
+}
+
+
+
+DX11Player::Frame::Data::Data(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format)
+	:idx(nextidx++)
+	,decodeDuration(0)
+	,nextToLoad(-1)
+	,fps(0)
+	,waitEvent(nullptr)
+	,file(nullptr)
+	,uploadBuffer(nullptr)
+	,context(context)
+	,device(device)
+	,mapped(false){
+		waitEvent = CreateEventW(0,false,false,0);
+		HRESULT hr = CreateStagingTexture(w,h,format,&uploadBuffer);
+		if(FAILED(hr)){
+			_com_error error(hr);
+			auto msg = error.ErrorMessage();
+
+			auto lpBuf = new char[1024];
+			ZeroMemory(lpBuf,sizeof(lpBuf));
+			FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+				NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), lpBuf, 0, NULL);
+			throw std::exception((std::string("Coudln't create staging texture") + lpBuf).c_str());
+		}
+		ZeroMemory(&overlap,sizeof(OVERLAPPED));
+		ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
+}
+
+DX11Player::Frame::Data::~Data(){
+	if(mapped) context->Unmap(uploadBuffer, 0);
+	uploadBuffer->Release();
+	if(file!=nullptr){
+		WaitForSingleObject(waitEvent,INFINITE);
+		CloseHandle(waitEvent);
+		CloseHandle(file);
+	}
+	OutputDebugStringA("Frame destroyed");
+}
+			
+
+HRESULT DX11Player::Frame::Data::CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture){
+	D3D11_TEXTURE2D_DESC textureUploadDescription;
+	textureUploadDescription.MipLevels = 1;
+	textureUploadDescription.ArraySize = 1;
+	textureUploadDescription.SampleDesc.Count = 1;
+	textureUploadDescription.SampleDesc.Quality = 0;
+	textureUploadDescription.Usage = D3D11_USAGE_STAGING;
+	textureUploadDescription.BindFlags = 0;
+	textureUploadDescription.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	textureUploadDescription.MiscFlags = 0;
+	textureUploadDescription.Width = Width;
+	textureUploadDescription.Height = Height;
+	textureUploadDescription.Format = Format;
+	return device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
+}
+
+DX11Player::Frame::Frame(){}
+
+DX11Player::Frame::Frame(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format)
+	:data(new Data(device,context,w,h,format)){
+}
+
+HRESULT DX11Player::Frame::Map(){
+	return data->context->Map(data->uploadBuffer,0,D3D11_MAP_WRITE,0,&data->mappedBuffer);
+}
+
+void DX11Player::Frame::Unmap(){
+	data->context->Unmap(data->uploadBuffer, 0);
+}
+
+void DX11Player::Frame::SetNextToLoad(size_t next){
+	data->nextToLoad = next;
+}
+
+size_t DX11Player::Frame::NextToLoad() const{
+	return data->nextToLoad;
+}
+
+HighResClock::time_point DX11Player::Frame::LoadTime() const{
+	return data->loadTime;
+}
+
+HighResClock::time_point DX11Player::Frame::PresentationTime() const{
+	return data->presentationTime;
+}
+
+ID3D11Texture2D* DX11Player::Frame::UploadBuffer(){
+	return data->uploadBuffer;
+}
+
+bool DX11Player::Frame::ReadFile(const std::string & path, size_t offset, size_t numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){
+	auto ptr = (char*)data->mappedBuffer.pData;
+	if(ptr){
+		ptr += offset;
+		auto file = CreateFileA(path.c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
+		if (file != INVALID_HANDLE_VALUE) {
+			ZeroMemory(&data->overlap,sizeof(OVERLAPPED));
+			data->overlap.hEvent = data->waitEvent;
+			data->file = file;
+			DWORD bytesRead=0;
+			DWORD totalBytesRead=0;
+			DWORD totalToRead = numbytesdata;
+			//SetFilePointer(file,HEADER_SIZE_BYTES,nullptr,FILE_BEGIN);
+			//while(totalBytesRead<totalToRead){
+				::ReadFile(file,ptr+totalBytesRead,totalToRead - totalBytesRead,&bytesRead,&data->overlap);
+				//totalBytesRead += bytesRead;
+			//}
+			data->fps = currentFps;
+			data->loadTime = now;
+			data->presentationTime = presentationTime;
+			return true;
+		}
+	}
+	return false;
+}
+
+void DX11Player::Frame::Wait(){
+	WaitForSingleObject(data->waitEvent,INFINITE);
+	data->decodeDuration = HighResClock::now() - data->loadTime;
+	CloseHandle(data->file);
+	data->file = nullptr;
+}
+
+HighResClock::duration DX11Player::Frame::DecodeDuration() const{
+return data->decodeDuration;
+}
+
+int DX11Player::Frame::Fps() const{
+	return data->fps;
+}
+
+
+void DX11Player::Frame::Reset(){
+	data.reset();
 }
 
 extern "C"{

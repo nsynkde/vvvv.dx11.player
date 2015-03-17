@@ -16,6 +16,7 @@ using VVVV.PluginInterfaces.V2;
 using VVVV.PluginInterfaces.V1;
 using SlimDX.Direct3D11;
 using VVVV.DX11;
+using VVVV.Nodes;
 
 namespace VVVV.Nodes.DX11PlayerNode
 {
@@ -79,10 +80,6 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Input("next frame")]
         public IDiffSpread<int> FNextFrameIn;
 
-
-        [Output("texture handle")]
-        public ISpread<UInt64> FTexHandleOut;
-
         [Output("status")]
         public ISpread<string> FStatusOut;
 
@@ -114,6 +111,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         public ISpread<bool> FIsReadyOut;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
+        private WorkerThread FDestroyerThread = new WorkerThread();
 
         [Import]
         ILogger FLogger;
@@ -131,7 +129,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     FFirstRun = false;
                     FRefreshTextures = true;
-                    FTexHandleOut.SliceCount = spreadMax;
                     FDX11NativePlayer.SliceCount = spreadMax;
                     FStatusOut.SliceCount = spreadMax;
                     FTextureOut.SliceCount = spreadMax;;
@@ -147,6 +144,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     {
                         FDX11NativePlayer[i] = IntPtr.Zero;
                         FIsReadyOut[i] = false;
+                        FTextureOut[i] = new DX11Resource<DX11Texture2D>();
                     }
                 }
             }
@@ -158,7 +156,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                if (FDX11NativePlayer[i] != IntPtr.Zero)
+                if (FDX11NativePlayer[i] != IntPtr.Zero && this.FIsReadyOut[i])
                 {
                     FUploadSizeOut[i] = NativeInterface.DX11Player_GetUploadBufferSize(FDX11NativePlayer[i]);
                     FWaitSizeOut[i] = NativeInterface.DX11Player_GetWaitBufferSize(FDX11NativePlayer[i]);
@@ -182,14 +180,15 @@ namespace VVVV.Nodes.DX11PlayerNode
                     {
                         if (NativeInterface.DX11Player_DirectoryHasChanged(FDX11NativePlayer[i], FDirectoryIn[i]) == 1)
                         {
-                            NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
+                            var nativePlayer = FDX11NativePlayer[i];
                             FDX11NativePlayer[i] = IntPtr.Zero;
-                            foreach (var tex in this.FTextureOut[i].Data.Values)
-                            {
-                                tex.Dispose();
-                            }
-                            this.FTextureOut[i].Data.Clear();
+                            var tex = this.FTextureOut[i];
+                            this.FTextureOut[i] = new DX11Resource<DX11Texture2D>();
                             this.FIsReadyOut[i] = false;
+                            FDestroyerThread.Perform(() => {
+                                NativeInterface.DX11Player_Destroy(nativePlayer);
+                                tex.Dispose();
+                            });
                         }
                     }
                 }
@@ -200,7 +199,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                 {
-                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    if (this.FIsReadyOut[i])
                     {
                         NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], FNextFrameIn[i]);
                     }
@@ -211,7 +210,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                 {
-                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    if (this.FIsReadyOut[i])
                     {
                         NativeInterface.DX11Player_SetInternalRate(FDX11NativePlayer[i], FInternalRate[i] ? 1 : 0);
                     }
@@ -231,21 +230,20 @@ namespace VVVV.Nodes.DX11PlayerNode
                     {
                         if (FDX11NativePlayer[i] == IntPtr.Zero)
                         {
-                            FLogger.Log(LogType.Message, "Creating " + FDirectoryIn[i]);
                             var nativePlayer = NativeInterface.DX11Player_Create(FDirectoryIn[i]);
                             if (nativePlayer != IntPtr.Zero)
                             {
                                 NativeInterface.DX11Player_SetFPS(nativePlayer, FFPSIn[i]);
+                                NativeInterface.DX11Player_SetInternalRate(nativePlayer, FInternalRate[i] ? 1 : 0);
                                 FDX11NativePlayer[i] = nativePlayer;
                                 //FTexHandleOut[i] = (UInt64)NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]);
-                                FTextureOut[i] = new DX11Resource<DX11Texture2D>();
+                                this.FIsReadyOut[i] = false;
                             }
                             else
                             {
                                 throw new Exception("Creating native player returned nullptr");
                             }
                         }
-                        this.FIsReadyOut[i] = false;
                     }
                 }
                 catch (Exception ex)
@@ -256,25 +254,26 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                if (!this.FTextureOut[i].Data.ContainsKey(context))
+                /*if (!this.FTextureOut[i].Data.ContainsKey(context))
                 {
                     FRefreshTextures = true;
-                }
+                }*/
                 if (FDX11NativePlayer[i] != IntPtr.Zero && NativeInterface.DX11Player_IsReady(FDX11NativePlayer[i]))
                 {
-                    NativeInterface.DX11Player_OnRender(FDX11NativePlayer[i]);
                     if (!FIsReadyOut[i])
                     {
                         //Texture2D tex = Texture2D.FromPointer(NativeInterface.DX11Player_GetTexturePointer(FDX11NativePlayer[i]));
                         Texture2D tex = context.Device.OpenSharedResource<Texture2D>(NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i]));
-
                         ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
-
                         DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
-
                         this.FTextureOut[i][context] = resource;
-                        FIsReadyOut[i] = true;
+                        if (!FInternalRate[i])
+                        {
+                            NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], FNextFrameIn[i]);
+                        }
                     }
+                    NativeInterface.DX11Player_OnRender(FDX11NativePlayer[i]);
+                    FIsReadyOut[i] = true;
                 }
             }
         }
@@ -285,6 +284,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
                 {
+                    NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
                     this.FTextureOut[i].Dispose(context);
                 }
             }
