@@ -13,6 +13,8 @@
 #include "DX11Player.h"
 #include <chrono>
 #include "HighResClock.h"
+#include <sstream>
+#include <chrono>
 
 //#define VLD_FORCE_ENABLE
 //#include <vld.h>
@@ -39,7 +41,8 @@ ID3D11Buffer *pVBuffer;                // the pointer to the vertex buffer
 ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex buffer
 DX11Player *player;
 HighResClock::time_point start;
-	
+bool ready = false;
+
 	// a struct to define a single vertex
 struct Vertex
 {
@@ -251,6 +254,7 @@ ID3D11Texture2D * GetTexture(){
 void RenderFrame(void)
 {
 	static int i = 0;
+	static auto starttime = HighResClock::now();
 	/*if(i==300){
 		player->SetFPS(0);
 	}*/
@@ -263,16 +267,34 @@ void RenderFrame(void)
     
 	
     // select which vertex buffer to display
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    devcon->PSSetShader(pPS, 0, 0);
-	ID3D11ShaderResourceView * shaderResourceView;
-	auto tex = GetTexture();
-	dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
-	devcon->PSSetShaderResources(0,1,&shaderResourceView);
-	shaderResourceView->Release();
-    devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
-	devcon->Draw(6, 0);
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	if(player->IsReady()){
+		if(!ready){
+			std::stringstream str;
+			str << "ready on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
+			OutputDebugStringA(str.str().c_str());
+			ID3D11ShaderResourceView * shaderResourceView;
+			auto hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
+			if(FAILED(hr)){
+				throw std::exception("Coudln't create shader resource view");
+			}
+			OutputDebugString("Created shader resource view" );
+
+			devcon->PSSetShaderResources(0,1,&shaderResourceView);
+			shaderResourceView->Release();
+			ready = true;
+		}
+		devcon->PSSetShader(pPS, 0, 0);
+		ID3D11ShaderResourceView * shaderResourceView;
+		//auto tex = GetTexture();
+		//dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
+		//devcon->PSSetShaderResources(0,1,&shaderResourceView);
+		//shaderResourceView->Release();
+		devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
+		devcon->Draw(6, 0);
+		//tex->Release();
+	}
 
 	UpdateVerticalLine();
     devcon->PSSetShader(pPSNoTex, 0, 0);
@@ -282,7 +304,6 @@ void RenderFrame(void)
     // switch the back buffer and the front buffer
     swapchain->Present(1, 0);
 	i++;
-	tex->Release();
 }
 
 
@@ -431,13 +452,4 @@ void InitPipeline()
 		exit(1);
 	}*/
 	//player->SetFPS(24);
-	ID3D11ShaderResourceView * shaderResourceView;
-	hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
-	if(FAILED(hr)){
-		throw std::exception("Coudln't create shader resource view");
-	}
-	OutputDebugString("Created shader resource view" );
-
-	devcon->PSSetShaderResources(0,1,&shaderResourceView);
-	shaderResourceView->Release();
 }

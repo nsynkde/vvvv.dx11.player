@@ -60,14 +60,18 @@ public:
     bool recv(Data& popped_value)
     {
 		std::unique_lock<std::mutex> lock(m_mutex);
-        while(m_queue.empty())
-        {
-            m_condition.wait(lock);
-        }
         if(closed)
 		{
 			return false;
 		}
+        while(m_queue.empty())
+        {
+            m_condition.wait(lock);
+			if(closed)
+			{
+				return false;
+			}
+        }
         popped_value=m_queue.front();
         m_queue.pop();
 		return true;

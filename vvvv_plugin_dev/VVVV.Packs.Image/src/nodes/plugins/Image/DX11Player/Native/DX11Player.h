@@ -18,6 +18,7 @@
 #include "Channel.h"
 #include "HighResClock.h"
 #include "ImageSequence.h"
+#include <memory>
 
 class DX11Player {
 public:
@@ -36,8 +37,9 @@ public:
 	int GetAvgLoadDurationMs() const;
 	void SendNextFrameToLoad(int nextFrame);
 	void SetInternalRate(int enabled);
+	bool IsReady() const;
 private:
-	ImageSequence m_Sequence;
+	std::shared_ptr<ImageSequence> m_Sequence;
 	ID3D11Device * m_Device;
 	ID3D11DeviceContext * m_Context;
 	std::vector<ID3D11Texture2D *> m_CopyTextureIn;
@@ -118,4 +120,5 @@ extern "C"{
 	NATIVE_API void DX11Player_SetFPS(DX11HANDLE player, int fps);
 	NATIVE_API void DX11Player_SendNextFrameToLoad(DX11HANDLE player, int nextFrame);
 	NATIVE_API void DX11Player_SetInternalRate(DX11HANDLE player, int enabled);
+	NATIVE_API bool DX11Player_IsReady(DX11HANDLE player);
 }
