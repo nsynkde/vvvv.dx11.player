@@ -3,25 +3,13 @@
 
 #include "stdafx.h"
 #include "DX11Player.h"
-#include <comdef.h>
 #include <sstream>
 #include "Timer.h"
-#include <DirectXMath.h>
-#include "VShader.h"
-#include "RGB_to_RGBA.h";
-#include "BGR_to_RGBA.h";
-#include "A2R10G10B10_to_R10G10B10A2.h"
-#include "PSCbYCr888_to_RGBA8888.h"
-#include "PSCbYCr101010_to_R10G10B10A2.h"
-#include "PSCbYCr161616_to_RGBA16161616.h"
 #include <WinIoCtl.h>
 
 #pragma comment(lib, "Kernel32.lib")
 
-
 static const int RING_BUFFER_SIZE = 8;
-static const int OUTPUT_BUFFER_SIZE = 4;
-int DX11Player::Frame::Data::nextidx = 0;
 
 
 static bool IsFrameLate(const HighResClock::time_point & presentationTime, int fps_video, HighResClock::time_point now, HighResClock::duration max_lateness){
@@ -97,53 +85,24 @@ size_t NextMultiple(size_t in, size_t multiple){
 }
 
 DX11Player::DX11Player(const std::string & directory)
-	:m_Device(nullptr)
-	,m_Context(nullptr)
-	,m_CopyTextureIn(OUTPUT_BUFFER_SIZE,nullptr)
-	,m_ShaderResourceViews(OUTPUT_BUFFER_SIZE,nullptr)
-	,m_BackBuffer(nullptr)
-	,m_RenderTargetView(nullptr)
-	,m_TextureBack(nullptr)
-	,m_UploaderThreadRunning(false)
+	:m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
 	,m_ExternalRate(false)
-	,m_InternalRate(true)
-	,m_CurrentOutFront(OUTPUT_BUFFER_SIZE/2)
+	,m_InternalRate(false)
 	,m_NextRenderFrame(0)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
 	,m_CurrentFrame(0)
 	,m_AvgDecodeDuration(0)
 	,m_AvgPipelineLatency(std::chrono::milliseconds(1000/m_Fps * 2))
+	,m_GotFirstFrame(false)
 {
-	HRESULT hr;
-
-	// create a dx11 device
-	OutputDebugString( L"creating device\n" );
-	D3D_FEATURE_LEVEL level;
-	hr = D3D11CreateDevice(nullptr,
-		D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
-		nullptr,
-		D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_SINGLETHREADED,
-		nullptr,
-		0,
-		D3D11_SDK_VERSION,
-		&m_Device,&level,
-		&m_Context);
-
-	if(FAILED(hr)){
-		auto lpBuf = new char[1024];
-		ZeroMemory(lpBuf,sizeof(lpBuf));
-		FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, hr, 0, lpBuf, 0, NULL);
-		throw std::exception((std::string("Coudln't create device: ") + lpBuf).c_str());
-	}
 
 	// uploader thread: initializes the whole pipeline and then
 	// reads async from disk to mapped GPU memory
 	// and sends an event to wait on to the waiter thread
-	OutputDebugString( L"creating upload thread\n" );
+	//OutputDebugString( L"creating upload thread\n" );
 	auto running = &m_UploaderThreadRunning;
 	auto currentFrame = &m_CurrentFrame;
 	auto sequence_ptr = &m_Sequence;
@@ -155,377 +114,48 @@ DX11Player::DX11Player(const std::string & directory)
 	auto externalRate = &m_ExternalRate;
 	auto nextFrameChannel = &m_NextFrameChannel;
 	auto internalRate = &m_InternalRate;
-	auto copyBox = &m_CopyBox;
 	auto self = this;
-	m_UploaderThread = std::thread([running,copyBox,directory,self,currentFrame,sequence_ptr,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
+	m_UploaderThread = std::thread([running,directory,self,currentFrame,sequence_ptr,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
 		*sequence_ptr = std::make_shared<ImageSequence>(directory);
 		auto sequence = *sequence_ptr;
 
 		// Add enough bytes to read the header + data but we need to read
 		// a multiple of the physical sector size since we are reading 
 		// directly from disk with no buffering
-		auto sectorSize = SectorSize('d');
+		auto sectorSize = SectorSize(directory[0]);
 		auto numbytesdata = NextMultiple(sequence->BytesData()+sequence->DataOffset(),sectorSize);
 
-		// box to copy upload buffer to texture skipping 4 first rows
-		// to skip header
-		copyBox->back = 1;
-		copyBox->bottom = sequence->Height() + 4;
-		copyBox->front = 0;
-		copyBox->left = 0;
-		copyBox->right = sequence->InputWidth();
-		copyBox->top = 4;
-	
-		HRESULT hr;
+
+		Format format = {
+			sequence->InputWidth(),
+			sequence->Height(),
+			sequence->InputFormat(),
+			sequence->TextureFormat(),
+			sequence->TextureOutFormat(),
+			sequence->InputDepth(),
+			sequence->Width(),
+			sequence->RequiresVFlip(),
+			sequence->RequiresByteSwap()
+		};
+		self->m_Context = Pool::GetInstance().AquireContext(format);
+		self->m_Context->Clear();
+
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.
-		// - create the upload buffers, we upload directly to these from the disk
-		// using 4 more rows than the original image to avoid the header. BC formats
-		// use a 4x4 tile so we write the header at the end of the first 4 rows and 
-		// then skip it when copying to the copy textures
-		for(int i=0;i<RING_BUFFER_SIZE;i++){
-			Frame frame(self->m_Device,self->m_Context,self->m_Sequence->InputWidth(),self->m_Sequence->Height()+4,self->m_Sequence->TextureFormat());
-			frame.Map();
+		for(auto i=0;i<RING_BUFFER_SIZE;i++){
+			auto frame = self->m_Context->GetFrame();
+			if(frame->Map()!=0){
+				OutputDebugString(L"Couldn't map frame");
+			}
 			self->m_ReadyToUpload.send(frame);
 		}
-
-		// create the copy textures, used to copy from the upload
-		// buffers and shared with the application or plugin
-		// if the input format is directly supported or
-		// to pass to the colorspace conversion shader
-		OutputDebugString( L"creating output textures\n" );
-		D3D11_TEXTURE2D_DESC textureDescriptionCopy;
-		textureDescriptionCopy.MipLevels = 1;
-		textureDescriptionCopy.ArraySize = 1;
-		textureDescriptionCopy.SampleDesc.Count = 1;
-		textureDescriptionCopy.SampleDesc.Quality = 0;
-		textureDescriptionCopy.Usage = D3D11_USAGE_DEFAULT;
-		textureDescriptionCopy.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		textureDescriptionCopy.CPUAccessFlags = 0;
-		textureDescriptionCopy.Width = sequence->InputWidth();
-		textureDescriptionCopy.Height = sequence->Height();
-		textureDescriptionCopy.Format = sequence->TextureFormat();
-		if(sequence->InputFormat() == ImageSequence::DX11_NATIVE){
-			textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
-		}else{
-			textureDescriptionCopy.MiscFlags = 0;
-		}
-		for(size_t i=0;i<self->m_CopyTextureIn.size();i++){
-			hr = self->m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&self->m_CopyTextureIn[i]);
-			// create a shared handle for each texture
-			if(sequence->InputFormat() == ImageSequence::DX11_NATIVE){
-				OutputDebugString( L"getting shared texture handle\n" );
-				IDXGIResource* pTempResource(NULL);
-				HANDLE sharedHandle;
-				hr = self->m_CopyTextureIn[i]->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
-				if(FAILED(hr)){
-					throw std::exception("Coudln't query interface\n");
-				}
-				hr = pTempResource->GetSharedHandle(&sharedHandle);
-				if(FAILED(hr)){
-					throw std::exception("Coudln't get shared handle\n");
-				}
-				self->m_SharedHandles[self->m_CopyTextureIn[i]] = sharedHandle;
-				pTempResource->Release();
-			}
-		}
-
-
-		// If the input format is not directly supported by DX11
-		// create a shader to process them and output the data
-		// as RGBA
-		if (sequence->InputFormat() != ImageSequence::DX11_NATIVE)
-		{
-			OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
-
-			// figure out the conversion shaders from the 
-			// image sequence input format and depth
-			const BYTE * pixelShaderSrc;
-			size_t sizePixelShaderSrc;
-			bool useSampler = true;
-
-			switch(sequence->InputFormat()){
-			case ImageSequence::ARGB:
-				if(sequence->InputDepth() == 10){
-					pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
-					sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
-					useSampler = false;
-				}else{
-					throw std::exception("ARGB conversion only supported for 10bits");
-				}
-				break;
-			
-			case ImageSequence::BGR:
-				pixelShaderSrc = BGR_to_RGBA;
-				sizePixelShaderSrc = sizeof(BGR_to_RGBA);
-				break;
-
-			case ImageSequence::CbYCr:
-				switch(sequence->InputDepth()){
-				case 8:
-					pixelShaderSrc = PSCbYCr888_to_RGBA8888;
-					sizePixelShaderSrc = sizeof(PSCbYCr888_to_RGBA8888);
-					break;
-				case 10:
-					pixelShaderSrc = PSCbYCr101010_to_R10G10B10A2;
-					sizePixelShaderSrc = sizeof(PSCbYCr101010_to_R10G10B10A2);
-					useSampler = false;
-					break;
-				case 16:
-					pixelShaderSrc = PSCbYCr161616_to_RGBA16161616;
-					sizePixelShaderSrc = sizeof(PSCbYCr161616_to_RGBA16161616);
-					break;
-				}
-				break;
-			
-
-			case ImageSequence::RGB:
-				pixelShaderSrc = RGB_to_RGBA;
-				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
-				break;
-			}
-
-			// Set the viewport to the size of the image
-			D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(sequence->Width()), float(sequence->Height()), 0.0f, 1.0f};
-			self->m_Context->RSSetViewports(1,&viewport); 
-			OutputDebugString( L"Set viewport" );
-
-			// Create Pixel and Vertex shaders
-			ID3D11VertexShader * vertexShader;
-			ID3D11PixelShader * pixelShader;
-			hr = self->m_Device->CreateVertexShader(VShader,sizeof(VShader),nullptr,&vertexShader);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create vertex shader\n");
-			}
-			OutputDebugString( L"Created vertex shader\n" );
-
-			hr = self->m_Device->CreatePixelShader(pixelShaderSrc,sizePixelShaderSrc,nullptr,&pixelShader);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create pixel shader\n");
-			}
-			OutputDebugString( L"Created pixel shader\n" );
-
-			self->m_Context->VSSetShader(vertexShader,nullptr,0);
-			self->m_Context->PSSetShader(pixelShader,nullptr,0);
-			OutputDebugString( L"Created vertex and pixel shaders\n" );
-
-			vertexShader->Release();
-			pixelShader->Release();
-
-			// Create a quad with the size of the image to
-			// render the color converted texture
-			struct Vertex
-			{
-				DirectX::XMFLOAT3 position;
-				DirectX::XMFLOAT2 texcoord;
-				Vertex(const DirectX::XMFLOAT3 &position, const DirectX::XMFLOAT2 &texcoord)
-					:position(position)
-					,texcoord(texcoord){}
-			};
-
-			D3D11_BUFFER_DESC vertexBufferDescription;
-			vertexBufferDescription.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			vertexBufferDescription.ByteWidth = 6 * sizeof(Vertex);
-			vertexBufferDescription.CPUAccessFlags = 0;
-			vertexBufferDescription.MiscFlags = 0;
-			vertexBufferDescription.StructureByteStride = 0;
-			vertexBufferDescription.Usage = D3D11_USAGE_DEFAULT;
-		
-			Vertex quad[] = {
-				Vertex(DirectX::XMFLOAT3(-1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 0.0f)),
-				Vertex(DirectX::XMFLOAT3(1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 0.0f)),
-				Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 1.0f)),
-
-				Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(0.0f, 1.0f)),
-				Vertex(DirectX::XMFLOAT3(1.0f, 1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 0.0f)),
-				Vertex(DirectX::XMFLOAT3(1.0f, -1.0f, 0.5f),DirectX::XMFLOAT2(1.0f, 1.0f)),
-			};
-
-			D3D11_SUBRESOURCE_DATA bufferData;
-			bufferData.pSysMem = quad;
-			bufferData.SysMemPitch = 0;
-			bufferData.SysMemSlicePitch = 0;
-		
-			ID3D11Buffer * vertexBuffer;
-			hr = self->m_Device->CreateBuffer(&vertexBufferDescription,&bufferData,&vertexBuffer);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create vertex buffer\n");
-			}
-			OutputDebugString( L"Created vertex buffer\n" );
-
-			D3D11_INPUT_ELEMENT_DESC layout[] = {
-				{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-				{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT, 0, sizeof(DirectX::XMFLOAT3), D3D11_INPUT_PER_VERTEX_DATA, 0},
-			};
-
-			ID3D11InputLayout * vertexLayout;
-			hr = self->m_Device->CreateInputLayout(layout, 2, VShader, sizeof(VShader), &vertexLayout);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create input layout\n");
-			}
-			OutputDebugString( L"Created vertex layout\n" );
-
-			self->m_Context->IASetInputLayout(vertexLayout);
-			OutputDebugString( L"Set vertex layout\n" );
-			vertexLayout->Release();
-
-			UINT stride = sizeof(Vertex);
-			UINT offset = 0;
-			self->m_Context->IASetVertexBuffers(0,1,&vertexBuffer,&stride,&offset);
-			self->m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			OutputDebugString( L"Created vertex buffer and topology\n" );
-			vertexBuffer->Release();
-
-
-			// if required create a sampler to access the texture
-			if(useSampler){
-				D3D11_SAMPLER_DESC samplerDesc;
-				ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
-				samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-				samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-				samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-				samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-				samplerDesc.MaxLOD = 0;//FLT_MAX;
-				samplerDesc.MaxAnisotropy = 0;//16;
-				samplerDesc.ComparisonFunc = (D3D11_COMPARISON_FUNC)0;//D3D11_COMPARISON_NEVER;
-				ID3D11SamplerState * samplerState;
-				hr = self->m_Device->CreateSamplerState(&samplerDesc,&samplerState);
-				if(FAILED(hr)){
-					throw std::exception("Coudln't create sampler\n");
-				}
-				OutputDebugString( L"Created sampler state\n" );
-
-				self->m_Context->PSSetSamplers(0,1,&samplerState);
-				OutputDebugString( L"Set sampler state\n" );
-				samplerState->Release();
-			}
-
-			// Create shader constants buffer
-			_declspec(align(16))
-			struct PS_CONSTANT_BUFFER
-			{
-				float InputWidth;
-				float InputHeight;
-				float OutputWidth;
-				float OutputHeight;
-				float OnePixel;
-				float YOrigin;
-				float YCoordinateSign;
-				bool RequiresSwap;
-			};
-
-			PS_CONSTANT_BUFFER constantData;
-			constantData.InputWidth = (float)sequence->InputWidth();
-			constantData.InputHeight = (float)sequence->Height();
-			constantData.OutputWidth = (float)sequence->Width();
-			constantData.OutputHeight = (float)sequence->Height();
-			constantData.OnePixel = 1.0 / (float)sequence->Width();
-			constantData.YOrigin = sequence->RequiresVFlip()?1.0:0.0;
-			constantData.YCoordinateSign = sequence->RequiresVFlip()?-1.0:1.0;
-			constantData.RequiresSwap = sequence->RequiresByteSwap();
-
-			D3D11_BUFFER_DESC shaderVarsDescription;
-			shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-			shaderVarsDescription.ByteWidth = sizeof(PS_CONSTANT_BUFFER);
-			shaderVarsDescription.CPUAccessFlags = 0;
-			shaderVarsDescription.MiscFlags = 0;
-			shaderVarsDescription.StructureByteStride = 0;
-			shaderVarsDescription.Usage = D3D11_USAGE_DEFAULT;
-		
-			bufferData.pSysMem = &constantData;
-			bufferData.SysMemPitch = 0;
-			bufferData.SysMemSlicePitch = 0;
-
-			ID3D11Buffer * varsBuffer;
-			hr = self->m_Device->CreateBuffer(&shaderVarsDescription,&bufferData,&varsBuffer);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create constant buffer\n");
-			}
-			OutputDebugString( L"Created constants buffer\n" );
-        
-			self->m_Context->PSSetConstantBuffers(0,1,&varsBuffer);
-			OutputDebugString( L"Set constants buffer\n" );
-			varsBuffer->Release();
-
-			// Create shader resource views to be able to access the 
-			// source textures
-			int i=0;
-			for(auto & shaderResourceView: self->m_ShaderResourceViews){
-				hr = self->m_Device->CreateShaderResourceView(self->m_CopyTextureIn[i],nullptr,&shaderResourceView);
-				if(FAILED(hr)){
-					throw std::exception("Coudln't create shader resource view\n");
-				}
-				i++;
-			}
-			OutputDebugString( L"Created shader resource views\n" );
-
-		
-			// Create a backbuffer texture to render to
-			auto backBufferTexDescription = textureDescriptionCopy;
-			backBufferTexDescription.MipLevels = 1;
-			backBufferTexDescription.ArraySize = 1;
-			backBufferTexDescription.SampleDesc.Count = 1;
-			backBufferTexDescription.SampleDesc.Quality = 0;
-			backBufferTexDescription.Usage = D3D11_USAGE_DEFAULT;
-			backBufferTexDescription.BindFlags = D3D11_BIND_RENDER_TARGET;
-			backBufferTexDescription.CPUAccessFlags = 0;
-			backBufferTexDescription.MiscFlags = 0;
-			backBufferTexDescription.Width = self->m_Sequence->Width();
-			backBufferTexDescription.Height = self->m_Sequence->Height();
-			backBufferTexDescription.Format = self->m_Sequence->TextureOutFormat();
-
-			D3D11_RENDER_TARGET_VIEW_DESC viewDesc;
-			ZeroMemory(&viewDesc,sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-			viewDesc.Format = backBufferTexDescription.Format;
-			viewDesc.Texture2D.MipSlice = 0;
-			viewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-
-			hr = self->m_Device->CreateTexture2D(&backBufferTexDescription,nullptr,&self->m_BackBuffer);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create back buffer texture\n");
-			}
-			hr = self->m_Device->CreateRenderTargetView(self->m_BackBuffer,&viewDesc,&self->m_RenderTargetView);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create render target view\n");
-			}
-			self->m_Context->OMSetRenderTargets(1,&self->m_RenderTargetView,nullptr);
-
-
-			textureDescriptionCopy.Width = self->m_Sequence->Width();
-			textureDescriptionCopy.Format = self->m_Sequence->TextureOutFormat();
-			textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
-			hr = self->m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&self->m_TextureBack);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create backbuffer texture\n");
-			}
-
-			// if using our own device, create a shared handle for each texture
-			OutputDebugString( L"getting shared texture handle\n" );
-			IDXGIResource* pTempResource(NULL);
-			HANDLE sharedHandle;
-			hr = self->m_TextureBack->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
-			if(FAILED(hr)){
-				throw std::exception("Coudln't query interface\n");
-			}
-			hr = pTempResource->GetSharedHandle(&sharedHandle);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't get shared handle\n");
-			}
-			self->m_SharedHandles[self->m_TextureBack] = sharedHandle;
-			pTempResource->Release();
-
-		
-		}
-
-
-
 
 		// start the upload loop
 		*running = true;
 		auto nextFrameTime = HighResClock::now();
 		bool paused = false;
 		int nextFps = *fps;
-		Frame nextFrame;
+		std::shared_ptr<Frame> nextFrame;
 		while(readyToUpload->recv(nextFrame)){
 			auto now = HighResClock::now();
 			auto absFps = abs(nextFps);
@@ -533,7 +163,7 @@ DX11Player::DX11Player(const std::string & directory)
 				if(!nextFrameChannel->recv(*currentFrame)){
 					break;
 				}
-				while(nextFrameChannel->try_recv(*currentFrame)){
+				while(nextFrameChannel->size()>2 && nextFrameChannel->try_recv(*currentFrame)){
 					++self->m_DroppedFrames;
 				}
 				now = HighResClock::now();
@@ -560,11 +190,11 @@ DX11Player::DX11Player(const std::string & directory)
 			}
 			*currentFrame%=sequence->NumImages();
 			nextFps = *fps;
-			if(nextFrame.NextToLoad()==-1){
-				nextFrame.SetNextToLoad(*currentFrame);
+			if(nextFrame->NextToLoad()==-1){
+				nextFrame->SetNextToLoad(*currentFrame);
 			}else{
-				nextFrame.SetNextToLoad(nextFrame.NextToLoad()%sequence->NumImages());
-				*currentFrame = nextFrame.NextToLoad();
+				nextFrame->SetNextToLoad(nextFrame->NextToLoad()%sequence->NumImages());
+				*currentFrame = nextFrame->NextToLoad();
 			}
 			if(paused && nextFps!=0){
 				nextFrameTime = now;
@@ -572,9 +202,10 @@ DX11Player::DX11Player(const std::string & directory)
 			}
 
 			auto offset = sequence->RowPitch()*4-sequence->DataOffset();
-			if(nextFrame.ReadFile(sequence->Image(nextFrame.NextToLoad()),offset,numbytesdata,now,nextFrameTime,nextFps)){
+			if(nextFrame->ReadFile(sequence->Image(nextFrame->NextToLoad()),offset,numbytesdata,now,nextFrameTime,nextFps)){
 				if(!readyToWait->send(nextFrame))
 				{
+					nextFrame->Wait();
 					break;
 				}
 			}
@@ -583,16 +214,16 @@ DX11Player::DX11Player(const std::string & directory)
 	
 	// waiter thread: waits for the transfer from disk to GPU mem to finish
 	// and sends the frame num to the rate thread
-	OutputDebugString( L"creating waiter thread\n" );
+	//OutputDebugString( L"creating waiter thread\n" );
 	m_WaiterThreadRunning = true;
 	running = &m_WaiterThreadRunning;
 	auto avgDecodeDuration = &m_AvgDecodeDuration;
 	m_WaiterThread = std::thread([running,readyToWait,readyToRate,readyToRender,avgDecodeDuration,internalRate]{
 		auto start = HighResClock::now();
-		Frame nextFrame;
+		std::shared_ptr<Frame> nextFrame;
 		while(readyToWait->recv(nextFrame)){
-			nextFrame.Wait();
-			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.DecodeDuration()).count()/(readyToWait->size()+1));
+			nextFrame->Wait();
+			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame->DecodeDuration()).count()/(readyToWait->size()+1));
 			if(*internalRate){
 				readyToRate->send(nextFrame);
 			}else{
@@ -609,7 +240,7 @@ DX11Player::DX11Player(const std::string & directory)
 	running = &m_RateThreadRunning;
 	auto droppedFrames = &m_DroppedFrames;
 	m_RateThread = std::thread([running,readyToRate,readyToUpload,readyToRender,fps,droppedFrames,internalRate] {
-		Frame nextFrame;
+		std::shared_ptr<Frame> nextFrame;
 		auto prevFps = *fps;
 		auto absFps = abs(prevFps);
 		uint64_t periodns;
@@ -633,11 +264,11 @@ DX11Player::DX11Player(const std::string & directory)
 				timer.wait_next();
 				auto nextFps = *fps;
 				if(prevFps != nextFps){
-					if(nextFrame.Fps()!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
-						auto nextToLoad = nextFrame.NextToLoad();
+					if(nextFrame->Fps()!=nextFps && ((prevFps>0 && nextFps<0) || (nextFps>0 && prevFps<0))){
+						auto nextToLoad = nextFrame->NextToLoad();
 						auto waitingFor = nextToLoad;
 						do{
-							nextFrame.SetNextToLoad(nextToLoad);
+							nextFrame->SetNextToLoad(nextToLoad);
 							if(!readyToUpload->send(nextFrame)){
 								return;
 							}
@@ -645,7 +276,7 @@ DX11Player::DX11Player(const std::string & directory)
 							if(!readyToRate->recv(nextFrame)){
 								return;
 							}
-						}while(nextFrame.NextToLoad()!=waitingFor);
+						}while(nextFrame->NextToLoad()!=waitingFor);
 					}
 					prevFps = nextFps;
 					absFps = abs(prevFps);
@@ -681,97 +312,51 @@ DX11Player::~DX11Player(){
 	m_RateThread.join();
 	m_UploaderThread.join();
 	m_WaiterThread.join();
-	if(m_BackBuffer){
-		m_BackBuffer->Release();
-	}
-	if(m_RenderTargetView){
-		m_RenderTargetView->Release();
-	}
-	if(m_TextureBack){
-		m_TextureBack->Release();
-	}
-	for(auto srv: m_ShaderResourceViews){
-		srv->Release();
-	}
-	for(auto t: m_CopyTextureIn){
-		t->Release();
-	}
-	m_SharedHandles.clear();
-	OutputDebugStringA("Player closed\n");
-	m_Context->Release();
-	m_Device->Release();
-}
-
-HRESULT DX11Player::CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture){
-	D3D11_TEXTURE2D_DESC textureUploadDescription;
-    textureUploadDescription.MipLevels = 1;
-    textureUploadDescription.ArraySize = 1;
-	textureUploadDescription.SampleDesc.Count = 1;
-	textureUploadDescription.SampleDesc.Quality = 0;
-	textureUploadDescription.Usage = D3D11_USAGE_STAGING;
-    textureUploadDescription.BindFlags = 0;
-	textureUploadDescription.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    textureUploadDescription.MiscFlags = 0;
-	textureUploadDescription.Width = Width;
-	textureUploadDescription.Height = Height;
-	textureUploadDescription.Format = Format;
-	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
 }
 
 
 void DX11Player::OnRender(){
 	if(!m_UploaderThreadRunning) return;
-	Frame frame;
+	std::shared_ptr<Frame> frame;
 	auto now = HighResClock::now();
 	auto max_lateness = m_AvgPipelineLatency + std::chrono::milliseconds(2);
 	HighResClock::duration currentLatency;
 	bool late = true;
-	std::vector<Frame> receivedFrames;
-	while(late && m_ReadyToRender.try_recv(frame)){
-		currentLatency += now - frame.LoadTime();
-		receivedFrames.push_back(frame);
-		late = !m_InternalRate || IsFrameLate(frame.PresentationTime(),abs(m_Fps),now,max_lateness);
-	}
-	if(!receivedFrames.empty()){
-		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
-	}
-
-	if(!receivedFrames.empty()){
-		Frame frame = receivedFrames.back();
-		frame.Unmap();
-
-		m_Context->CopySubresourceRegion(m_CopyTextureIn[m_CurrentOutFront],0,0,0,0,frame.UploadBuffer(),0,&m_CopyBox);
-		
-		frame.Map();
-		m_NextRenderFrame = frame.NextToLoad();
-		m_DroppedFrames+=int(receivedFrames.size())-1;
-		for(auto buffer: receivedFrames){
-			buffer.SetNextToLoad(-1);
-			m_ReadyToUpload.send(buffer);
+	std::vector<std::shared_ptr<Frame>> receivedFrames;
+	if(m_InternalRate){
+		while(late && m_ReadyToRender.try_recv(frame)){
+			currentLatency += now - frame->LoadTime();
+			receivedFrames.push_back(frame);
+			late = IsFrameLate(frame->PresentationTime(),abs(m_Fps),now,max_lateness);
 		}
-		//m_CurrentOutFront += 1;
-		//m_CurrentOutFront %= OUTPUT_BUFFER_SIZE;
-
-		if(m_Sequence->InputFormat() != ImageSequence::DX11_NATIVE){
-			m_Context->PSSetShaderResources(0,1,&m_ShaderResourceViews[m_CurrentOutFront]);
-			m_Context->Draw(6, 0);
-			m_Context->Flush();
-
-			m_Context->CopyResource(m_TextureBack, m_BackBuffer);
-		} 
-
+	}else{
+		late = false;
+		if(m_ReadyToRender.try_recv(frame)){
+			receivedFrames.push_back(frame);
+			currentLatency += now - frame->LoadTime();
+		}
+	}
+	if(!receivedFrames.empty()){
+		m_GotFirstFrame=true;
+		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
+		auto frame = receivedFrames.back();
+		frame->Unmap();
+		m_Context->CopyFrameToOutTexture(frame);
+		frame->Map();
+		m_NextRenderFrame = frame->NextToLoad();
+		m_DroppedFrames+=int(receivedFrames.size())-1;
+		for(auto frame: receivedFrames){
+			frame->SetNextToLoad(-1);
+			m_ReadyToUpload.send(frame);
+		}
 	}
 
 }
 
 
 HANDLE DX11Player::GetSharedHandle(){
-	if(!m_UploaderThreadRunning) return nullptr;
-	if(m_Sequence->InputFormat() == ImageSequence::DX11_NATIVE){
-		return m_SharedHandles[m_CopyTextureIn[m_CurrentOutFront]];
-	}else{
-		return m_SharedHandles[m_TextureBack];
-	}
+	if(!GotFirstFrame()) return nullptr;
+	return m_Context->GetSharedHandle();
 }
 
 std::string DX11Player::GetDirectory() const
@@ -847,142 +432,17 @@ bool DX11Player::IsReady() const{
 	return m_UploaderThreadRunning;
 }
 
-
-
-DX11Player::Frame::Data::Data(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format)
-	:idx(nextidx++)
-	,decodeDuration(0)
-	,nextToLoad(-1)
-	,fps(0)
-	,waitEvent(nullptr)
-	,file(nullptr)
-	,uploadBuffer(nullptr)
-	,context(context)
-	,device(device)
-	,mapped(false){
-		waitEvent = CreateEventW(0,false,false,0);
-		HRESULT hr = CreateStagingTexture(w,h,format,&uploadBuffer);
-		if(FAILED(hr)){
-			_com_error error(hr);
-			auto msg = error.ErrorMessage();
-
-			auto lpBuf = new char[1024];
-			ZeroMemory(lpBuf,sizeof(lpBuf));
-			FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), lpBuf, 0, NULL);
-			throw std::exception((std::string("Coudln't create staging texture") + lpBuf).c_str());
-		}
-		ZeroMemory(&overlap,sizeof(OVERLAPPED));
-		ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
-}
-
-DX11Player::Frame::Data::~Data(){
-	if(mapped) context->Unmap(uploadBuffer, 0);
-	uploadBuffer->Release();
-	if(file!=nullptr){
-		WaitForSingleObject(waitEvent,INFINITE);
-		CloseHandle(waitEvent);
-		CloseHandle(file);
-	}
-	OutputDebugStringA("Frame destroyed");
-}
-			
-
-HRESULT DX11Player::Frame::Data::CreateStagingTexture(int Width, int Height, DXGI_FORMAT Format, ID3D11Texture2D ** texture){
-	D3D11_TEXTURE2D_DESC textureUploadDescription;
-	textureUploadDescription.MipLevels = 1;
-	textureUploadDescription.ArraySize = 1;
-	textureUploadDescription.SampleDesc.Count = 1;
-	textureUploadDescription.SampleDesc.Quality = 0;
-	textureUploadDescription.Usage = D3D11_USAGE_STAGING;
-	textureUploadDescription.BindFlags = 0;
-	textureUploadDescription.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	textureUploadDescription.MiscFlags = 0;
-	textureUploadDescription.Width = Width;
-	textureUploadDescription.Height = Height;
-	textureUploadDescription.Format = Format;
-	return device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
-}
-
-DX11Player::Frame::Frame(){}
-
-DX11Player::Frame::Frame(ID3D11Device * device,ID3D11DeviceContext * context, int w, int h, DXGI_FORMAT format)
-	:data(new Data(device,context,w,h,format)){
-}
-
-HRESULT DX11Player::Frame::Map(){
-	return data->context->Map(data->uploadBuffer,0,D3D11_MAP_WRITE,0,&data->mappedBuffer);
-}
-
-void DX11Player::Frame::Unmap(){
-	data->context->Unmap(data->uploadBuffer, 0);
-}
-
-void DX11Player::Frame::SetNextToLoad(size_t next){
-	data->nextToLoad = next;
-}
-
-size_t DX11Player::Frame::NextToLoad() const{
-	return data->nextToLoad;
-}
-
-HighResClock::time_point DX11Player::Frame::LoadTime() const{
-	return data->loadTime;
-}
-
-HighResClock::time_point DX11Player::Frame::PresentationTime() const{
-	return data->presentationTime;
-}
-
-ID3D11Texture2D* DX11Player::Frame::UploadBuffer(){
-	return data->uploadBuffer;
-}
-
-bool DX11Player::Frame::ReadFile(const std::string & path, size_t offset, size_t numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){
-	auto ptr = (char*)data->mappedBuffer.pData;
-	if(ptr){
-		ptr += offset;
-		auto file = CreateFileA(path.c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
-		if (file != INVALID_HANDLE_VALUE) {
-			ZeroMemory(&data->overlap,sizeof(OVERLAPPED));
-			data->overlap.hEvent = data->waitEvent;
-			data->file = file;
-			DWORD bytesRead=0;
-			DWORD totalBytesRead=0;
-			DWORD totalToRead = numbytesdata;
-			//SetFilePointer(file,HEADER_SIZE_BYTES,nullptr,FILE_BEGIN);
-			//while(totalBytesRead<totalToRead){
-				::ReadFile(file,ptr+totalBytesRead,totalToRead - totalBytesRead,&bytesRead,&data->overlap);
-				//totalBytesRead += bytesRead;
-			//}
-			data->fps = currentFps;
-			data->loadTime = now;
-			data->presentationTime = presentationTime;
-			return true;
-		}
-	}
-	return false;
-}
-
-void DX11Player::Frame::Wait(){
-	WaitForSingleObject(data->waitEvent,INFINITE);
-	data->decodeDuration = HighResClock::now() - data->loadTime;
-	CloseHandle(data->file);
-	data->file = nullptr;
-}
-
-HighResClock::duration DX11Player::Frame::DecodeDuration() const{
-return data->decodeDuration;
-}
-
-int DX11Player::Frame::Fps() const{
-	return data->fps;
+bool DX11Player::GotFirstFrame() const{
+	return m_GotFirstFrame;
 }
 
 
-void DX11Player::Frame::Reset(){
-	data.reset();
+std::map<uint64_t,std::shared_ptr<DX11Player>> & Players(){
+	static auto * players = new std::map<uint64_t,std::shared_ptr<DX11Player>>;
+	return *players;
 }
+
+
 
 extern "C"{
 	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory)
@@ -1075,4 +535,8 @@ extern "C"{
 		return static_cast<DX11Player*>(player)->IsReady();
 	}
 
+	NATIVE_API bool DX11Player_GotFirstFrame(DX11HANDLE player)
+	{
+		return static_cast<DX11Player*>(player)->GotFirstFrame();
+	}
 }

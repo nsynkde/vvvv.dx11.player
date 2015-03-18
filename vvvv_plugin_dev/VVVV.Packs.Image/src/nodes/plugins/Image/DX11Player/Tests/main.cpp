@@ -2,6 +2,8 @@
 //#define _CRTDBG_MAP_ALLOC
 //#include <stdlib.h>
 //#include <crtdbg.h>
+
+
 #include <windows.h>
 #include <windowsx.h>
 #include <d3d11.h>
@@ -14,10 +16,11 @@
 #include <chrono>
 #include "HighResClock.h"
 #include <sstream>
+#include <memory>
 #include <chrono>
 
 //#define VLD_FORCE_ENABLE
-//#include <vld.h>
+#include <vld.h>
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
@@ -39,7 +42,7 @@ ID3D11PixelShader *pPS;                // the pointer to the pixel shader
 ID3D11PixelShader *pPSNoTex;                // the pointer to the pixel shader
 ID3D11Buffer *pVBuffer;                // the pointer to the vertex buffer
 ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex buffer
-DX11Player *player;
+std::shared_ptr<DX11Player> player;
 HighResClock::time_point start;
 bool ready = false;
 
@@ -259,9 +262,12 @@ void RenderFrame(void)
 		player->SetFPS(0);
 	}*/
     // clear the back buffer to a deep blue
-	//float color[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    //devcon->ClearRenderTargetView(backbuffer, color);
-	player->OnRender();
+	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
+    devcon->ClearRenderTargetView(backbuffer, color);
+	if(player->IsReady()){
+		player->SendNextFrameToLoad(i);
+		player->OnRender();
+	}
 	// devcon->Flush();
     // draw the vertex buffer to the back buffer
     
@@ -269,10 +275,10 @@ void RenderFrame(void)
     // select which vertex buffer to display
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	if(player->IsReady()){
+	if(player->GotFirstFrame()){
 		if(!ready){
 			std::stringstream str;
-			str << "ready on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
+			str << "got first frame on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
 			OutputDebugStringA(str.str().c_str());
 			ID3D11ShaderResourceView * shaderResourceView;
 			auto hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
@@ -286,14 +292,8 @@ void RenderFrame(void)
 			ready = true;
 		}
 		devcon->PSSetShader(pPS, 0, 0);
-		ID3D11ShaderResourceView * shaderResourceView;
-		//auto tex = GetTexture();
-		//dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
-		//devcon->PSSetShaderResources(0,1,&shaderResourceView);
-		//shaderResourceView->Release();
 		devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
 		devcon->Draw(6, 0);
-		//tex->Release();
 	}
 
 	UpdateVerticalLine();
@@ -304,6 +304,12 @@ void RenderFrame(void)
     // switch the back buffer and the front buffer
     swapchain->Present(1, 0);
 	i++;
+
+	if(i%240==0){
+		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1");
+		player->SetInternalRate(0);
+		ready = false;
+	}
 }
 
 
@@ -446,7 +452,8 @@ void InitPipeline()
 	samplerState->Release();
 
 	//try{
-		player = new DX11Player("D:\\TestMaterial\\bbb_4ktga_crop1");
+		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1");
+		player->SetInternalRate(0);
 	/*}catch(std::exception & e){
 		OutputDebugStringA(e.what());
 		exit(1);
