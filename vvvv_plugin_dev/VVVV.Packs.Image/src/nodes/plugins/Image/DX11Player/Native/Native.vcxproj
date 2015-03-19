@@ -151,6 +151,7 @@
     <ClInclude Include="A2R10G10B10_to_R10G10B10A2.h" />
     <ClInclude Include="BGR_to_RGBA.h" />
     <ClInclude Include="Channel.h" />
+    <ClInclude Include="Context.h" />
     <ClInclude Include="DDS.h" />
     <ClInclude Include="DX11Player.h" />
     <ClInclude Include="Frame.h" />
@@ -177,6 +178,7 @@
     <ClInclude Include="VShader.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Context.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsManaged>

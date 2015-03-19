@@ -138,7 +138,7 @@ DX11Player::DX11Player(const std::string & directory)
 			sequence->RequiresByteSwap()
 		};
 		self->m_Context = Pool::GetInstance().AquireContext(format);
-		self->m_Context->Clear();
+		//self->m_Context->Clear();
 
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.
