@@ -223,7 +223,7 @@ void InitD3D(HWND hWnd)
 
 void UpdateVerticalLine(){	
 	auto now = HighResClock::now();
-	float x = fmod(std::chrono::duration_cast<std::chrono::microseconds>(now-start).count()*0.5/1000000.0,1.0)*2.0-1.0;
+	float x = fmod(std::chrono::duration_cast<std::chrono::microseconds>(now-start).count()*0.5/1000000.0,1.0)*2.0f-1.0f;
 	Vertex verticalLine[] = {
 		Vertex(DirectX::XMFLOAT4(x, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(0.0f, 0.0f)),
 		Vertex(DirectX::XMFLOAT4(x+0.1f, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(1.0f, 0.0f)),
@@ -265,8 +265,8 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
-		player->SendNextFrameToLoad(i);
-		player->OnRender();
+		player->SendNextFrameToLoad(i+8);
+		player->OnRender(i);
 	}
 	// devcon->Flush();
     // draw the vertex buffer to the back buffer
@@ -305,11 +305,11 @@ void RenderFrame(void)
     swapchain->Present(1, 0);
 	i++;
 
-	if(i%240==0){
+	/*if(i%240==0){
 		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1");
 		player->SetInternalRate(0);
 		ready = false;
-	}
+	}*/
 }
 
 
@@ -452,7 +452,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	//try{
-		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1");
+		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1","*",8);
 		player->SetInternalRate(0);
 	/*}catch(std::exception & e){
 		OutputDebugStringA(e.what());

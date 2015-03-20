@@ -62,9 +62,9 @@ ID3D11Texture2D* Frame::UploadBuffer(){
 	return uploadBuffer;
 }
 
-bool Frame::ReadFile(const std::string & path, size_t offset, size_t numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){
+bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){
 	if(file != nullptr){
-		Wait();
+		Wait(INFINITE);
 	}
 	auto ptr = (char*)mappedBuffer.pData;
 	if(ptr){
@@ -84,12 +84,13 @@ bool Frame::ReadFile(const std::string & path, size_t offset, size_t numbytesdat
 	return false;
 }
 
-void Frame::Wait(){
-	if(file==nullptr) return;
-	WaitForSingleObject(waitEvent,INFINITE);
+bool Frame::Wait(DWORD millis){
+	if(file==nullptr) return false;
+	auto ret = WaitForSingleObject(waitEvent,millis);
 	decodeDuration = HighResClock::now() - loadTime;
 	CloseHandle(file);
 	file = nullptr;
+	return ret != WAIT_TIMEOUT && ret != WAIT_FAILED;
 }
 
 HighResClock::duration Frame::DecodeDuration() const{

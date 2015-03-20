@@ -8,13 +8,13 @@
 class Frame;
 
 struct Format{
-	int w;
-	int h;
+	size_t w;
+	size_t h;
 	ImageSequence::Format format;
 	DXGI_FORMAT in_format;
 	DXGI_FORMAT out_format;
-	int depth;
-	int out_w;
+	size_t depth;
+	size_t out_w;
 	bool vflip;
 	bool byteswap;
 };

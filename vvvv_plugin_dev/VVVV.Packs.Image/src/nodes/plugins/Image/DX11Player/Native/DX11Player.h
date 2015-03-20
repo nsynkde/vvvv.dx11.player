@@ -18,14 +18,22 @@
 #include "Channel.h"
 #include "ImageSequence.h"
 #include <memory>
+#include <deque>
 #include "Frame.h"
 #include "Pool.h"
 
 class DX11Player {
 public:
-	DX11Player(const std::string & directory);
+	enum Status{
+		Init = 0,
+		Ready,
+		FirstFrame,
+		Error = -1
+	};
+
+	DX11Player(const std::string & directory, const std::string & wildcard, size_t ring_buffer_size);
 	~DX11Player();
-	void OnRender();
+	void OnRender(int nextFrame);
 	HANDLE GetSharedHandle();
 	int GetUploadBufferSize() const;
 	int GetWaitBufferSize() const;
@@ -40,7 +48,10 @@ public:
 	void SetInternalRate(int enabled);
 	bool IsReady() const;
 	bool GotFirstFrame() const;
+	Status GetStatus();
+	std::string GetStatusMessage();
 private:
+	void ChangeStatus(Status code, const std::string & status);
 	std::shared_ptr<ImageSequence> m_Sequence;
 	std::shared_ptr<Context> m_Context;
 	std::thread m_UploaderThread;
@@ -54,22 +65,27 @@ private:
 	Channel<std::shared_ptr<Frame>> m_ReadyToRate;
 	Channel<std::shared_ptr<Frame>> m_ReadyToRender;
 	Channel<size_t> m_NextFrameChannel;
+	std::deque<size_t> m_SystemFrames;
 	bool m_ExternalRate;
 	bool m_InternalRate;
 	size_t m_NextRenderFrame;
 	int m_DroppedFrames;
 	int m_Fps;
+	size_t m_RingBufferSize;
 	size_t m_CurrentFrame;
 	HighResClock::duration m_AvgDecodeDuration;
 	HighResClock::duration m_AvgPipelineLatency;
 	bool m_GotFirstFrame;
+	std::string m_StatusDesc;
+	Status m_StatusCode;
+	std::mutex m;
 };
 
 extern "C"{
 	typedef void * DX11HANDLE;
-	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory);
+	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory, const char * wildcard, int ringBufferSize);
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player);
-	NATIVE_API void DX11Player_OnRender(DX11HANDLE player);
+	NATIVE_API void DX11Player_OnRender(DX11HANDLE player,int nextFrame);
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player);
 	
 	NATIVE_API const char * DX11Player_GetDirectory(DX11HANDLE player);
@@ -86,4 +102,6 @@ extern "C"{
 	NATIVE_API void DX11Player_SetInternalRate(DX11HANDLE player, int enabled);
 	NATIVE_API bool DX11Player_IsReady(DX11HANDLE player);
 	NATIVE_API bool DX11Player_GotFirstFrame(DX11HANDLE player);
+	NATIVE_API int DX11Player_GetStatus(DX11HANDLE player);
+	NATIVE_API const char * DX11Player_GetStatusMessage(DX11HANDLE player);
 }

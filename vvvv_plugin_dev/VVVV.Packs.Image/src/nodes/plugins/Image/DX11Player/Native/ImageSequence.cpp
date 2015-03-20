@@ -14,10 +14,22 @@
 #include "TGA.h"
 
 
+BOOL szWildMatch3(const char * pat, const char * str) {
+   switch (*pat) {
+      case '\0':
+         return !*str;
+      case '*' :
+         return szWildMatch3(pat+1, str) || *str && szWildMatch3(pat, str+1);
+      case '?' :
+         return *str && (*str != '.') && szWildMatch3(pat+1, str+1);
+      default  :
+		  return (::toupper(*str) == ::toupper(*pat)) &&
+                 szWildMatch3(pat+1, str+1);
+   } /* endswitch */
+}
 
 
-
-ImageSequence::ImageSequence(const std::string & directory)
+ImageSequence::ImageSequence(const std::string & directory, const std::string & wildcard)
 :m_Directory(directory)
 {
 	// list all files in folder
@@ -35,7 +47,7 @@ ImageSequence::ImageSequence(const std::string & directory)
 		tinydir_file file;
 		tinydir_readfile_n(&dir, &file, i);
 
-		if (!file.is_dir)
+		if (!file.is_dir && szWildMatch3(wildcard.c_str(),file.name))
 		{
 			m_ImageFiles.emplace_back(directory+"\\"+std::string(file.name));
 		}

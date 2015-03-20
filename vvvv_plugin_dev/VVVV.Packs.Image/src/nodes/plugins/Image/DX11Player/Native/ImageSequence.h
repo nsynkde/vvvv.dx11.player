@@ -6,7 +6,7 @@
 class ImageSequence
 {
 public:
-	ImageSequence(const std::string & directory);
+	ImageSequence(const std::string & directory, const std::string & wildcard);
 	~ImageSequence(void);
 	
 	enum Format{

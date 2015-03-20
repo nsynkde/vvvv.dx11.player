@@ -412,7 +412,7 @@ Format Context::GetFormat() const{
 }
 
 void ReleaseFrame(Frame * frame){
-	frame->Wait();
+	frame->Wait(INFINITE);
 	frame->SetNextToLoad(-1);
 	std::unique_lock<std::mutex> lock(frame->context->mutex);
 	frame->context->m_Frames.emplace_back(frame,&ReleaseFrame);

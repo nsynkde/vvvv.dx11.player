@@ -30,8 +30,8 @@ public:
 	HighResClock::time_point LoadTime() const;
 	HighResClock::time_point PresentationTime() const;
 	ID3D11Texture2D* UploadBuffer();
-	bool ReadFile(const std::string & path, size_t offset, size_t numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps);
-	void Wait();
+	bool ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps);
+	bool Wait(DWORD millis);
 	HighResClock::duration DecodeDuration() const;
 	int Fps() const;
 };

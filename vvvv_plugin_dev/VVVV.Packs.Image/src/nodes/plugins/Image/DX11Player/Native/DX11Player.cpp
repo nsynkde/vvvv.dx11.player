@@ -6,10 +6,11 @@
 #include <sstream>
 #include "Timer.h"
 #include <WinIoCtl.h>
+#include <Shlwapi.h>
 
 #pragma comment(lib, "Kernel32.lib")
 
-static const int RING_BUFFER_SIZE = 8;
+//static const int RING_BUFFER_SIZE = 12;
 
 
 static bool IsFrameLate(const HighResClock::time_point & presentationTime, int fps_video, HighResClock::time_point now, HighResClock::duration max_lateness){
@@ -48,7 +49,7 @@ static uint32_t SectorSize(char cDisk)
 
     if (hDevice == INVALID_HANDLE_VALUE)
     {
-		throw std::exception("Error finding out disk sector size");
+		//throw std::exception("Error finding out disk sector size");
         return -1;
     }   
 
@@ -80,23 +81,26 @@ static uint32_t SectorSize(char cDisk)
 	return diskAlignment.BytesPerLogicalSector;
 }
 
-size_t NextMultiple(size_t in, size_t multiple){
+DWORD NextMultiple(DWORD in, DWORD multiple){
 	return in + (multiple - in % multiple);
 }
 
-DX11Player::DX11Player(const std::string & directory)
+DX11Player::DX11Player(const std::string & directory, const std::string & wildcard, size_t ringBufferSize)
 	:m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
 	,m_RateThreadRunning(false)
 	,m_ExternalRate(false)
 	,m_InternalRate(false)
-	,m_NextRenderFrame(0)
+	,m_NextRenderFrame(-1)
 	,m_DroppedFrames(0)
 	,m_Fps(60)
+	,m_RingBufferSize(ringBufferSize)
 	,m_CurrentFrame(0)
 	,m_AvgDecodeDuration(0)
 	,m_AvgPipelineLatency(std::chrono::milliseconds(1000/m_Fps * 2))
 	,m_GotFirstFrame(false)
+	,m_StatusCode(Init)
+	,m_StatusDesc("Init")
 {
 
 	// uploader thread: initializes the whole pipeline and then
@@ -115,15 +119,33 @@ DX11Player::DX11Player(const std::string & directory)
 	auto nextFrameChannel = &m_NextFrameChannel;
 	auto internalRate = &m_InternalRate;
 	auto self = this;
-	m_UploaderThread = std::thread([running,directory,self,currentFrame,sequence_ptr,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate]{
-		*sequence_ptr = std::make_shared<ImageSequence>(directory);
+	m_UploaderThread = std::thread([running,directory,wildcard,self,currentFrame,sequence_ptr,readyToUpload,readyToWait,fps,externalRate,nextFrameChannel,internalRate,ringBufferSize]{
+		try{
+			*sequence_ptr = std::make_shared<ImageSequence>(directory,wildcard);
+		}catch(std::exception & e){
+			self->ChangeStatus(Error,e.what());
+			return;
+		}
 		auto sequence = *sequence_ptr;
 
 		// Add enough bytes to read the header + data but we need to read
 		// a multiple of the physical sector size since we are reading 
 		// directly from disk with no buffering
-		auto sectorSize = SectorSize(directory[0]);
-		auto numbytesdata = NextMultiple(sequence->BytesData()+sequence->DataOffset(),sectorSize);
+		if(!PathFileExistsA(directory.c_str())){
+			self->ChangeStatus(Error,"Cannot find folder");
+			return;
+		}
+		char buffer[4096] = {0};
+		auto ret = GetFullPathNameA(directory.c_str(),4096,buffer,nullptr);
+		if(ret==0){
+			self->ChangeStatus(Error,"Cannot recover folder drive");
+			return;
+		}
+		auto sectorSize = SectorSize(buffer[0]);
+		if(sectorSize<0){
+			self->ChangeStatus(Error,"Cannot drive retrieve sector size");
+		}
+		auto numbytesdata = NextMultiple((DWORD)sequence->BytesData()+sequence->DataOffset(),(DWORD)sectorSize);
 
 
 		Format format = {
@@ -142,16 +164,18 @@ DX11Player::DX11Player(const std::string & directory)
 
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.
-		for(auto i=0;i<RING_BUFFER_SIZE;i++){
+		for(auto i=0;i<ringBufferSize;i++){
 			auto frame = self->m_Context->GetFrame();
 			if(frame->Map()!=0){
-				OutputDebugString(L"Couldn't map frame");
+				self->ChangeStatus(Error,"Couldn't map frame");
+				return;
 			}
 			self->m_ReadyToUpload.send(frame);
 		}
 
 		// start the upload loop
 		*running = true;
+		self->ChangeStatus(Ready,"Ready");
 		auto nextFrameTime = HighResClock::now();
 		bool paused = false;
 		int nextFps = *fps;
@@ -163,9 +187,9 @@ DX11Player::DX11Player(const std::string & directory)
 				if(!nextFrameChannel->recv(*currentFrame)){
 					break;
 				}
-				while(nextFrameChannel->size()>2 && nextFrameChannel->try_recv(*currentFrame)){
+				/*while(nextFrameChannel->size()>2 && nextFrameChannel->try_recv(*currentFrame)){
 					++self->m_DroppedFrames;
-				}
+				}*/
 				now = HighResClock::now();
 				nextFrameTime = now;
 			}else{
@@ -205,7 +229,7 @@ DX11Player::DX11Player(const std::string & directory)
 			if(nextFrame->ReadFile(sequence->Image(nextFrame->NextToLoad()),offset,numbytesdata,now,nextFrameTime,nextFps)){
 				if(!readyToWait->send(nextFrame))
 				{
-					nextFrame->Wait();
+					nextFrame->Wait(INFINITE);
 					break;
 				}
 			}
@@ -218,17 +242,24 @@ DX11Player::DX11Player(const std::string & directory)
 	m_WaiterThreadRunning = true;
 	running = &m_WaiterThreadRunning;
 	auto avgDecodeDuration = &m_AvgDecodeDuration;
-	m_WaiterThread = std::thread([running,readyToWait,readyToRate,readyToRender,avgDecodeDuration,internalRate]{
+	auto dropped = &m_DroppedFrames;
+	m_WaiterThread = std::thread([running,readyToWait,readyToRate,readyToRender,readyToUpload,avgDecodeDuration,internalRate,fps,dropped]{
 		auto start = HighResClock::now();
 		std::shared_ptr<Frame> nextFrame;
 		while(readyToWait->recv(nextFrame)){
-			nextFrame->Wait();
+			auto ontime = nextFrame->Wait(INFINITE);//1000.0 / (double)*fps * (RING_BUFFER_SIZE/2));
 			*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame->DecodeDuration()).count()/(readyToWait->size()+1));
-			if(*internalRate){
-				readyToRate->send(nextFrame);
-			}else{
-				readyToRender->send(nextFrame);
-			}
+			//if(ontime){
+				if(*internalRate){
+					readyToRate->send(nextFrame);
+				}else{
+					readyToRender->send(nextFrame);
+				}
+			/*}else{
+				++(*dropped);
+				nextFrame->SetNextToLoad(-1);
+				readyToUpload->send(nextFrame);
+			}*/
 		}
 	});
 
@@ -315,37 +346,59 @@ DX11Player::~DX11Player(){
 }
 
 
-void DX11Player::OnRender(){
+int64_t distance(const std::vector<size_t> & frames, size_t current, size_t expected){
+	int d = 0;
+	return std::find(frames.begin(),frames.end(),expected) - std::find(frames.begin(),frames.end(),current);
+}
+
+void DX11Player::OnRender(int nextFrame){
 	if(!m_UploaderThreadRunning) return;
 	std::shared_ptr<Frame> frame;
 	auto now = HighResClock::now();
 	auto max_lateness = m_AvgPipelineLatency + std::chrono::milliseconds(2);
 	HighResClock::duration currentLatency;
-	bool late = true;
 	std::vector<std::shared_ptr<Frame>> receivedFrames;
 	if(m_InternalRate){
+		bool late = true;
 		while(late && m_ReadyToRender.try_recv(frame)){
 			currentLatency += now - frame->LoadTime();
 			receivedFrames.push_back(frame);
 			late = IsFrameLate(frame->PresentationTime(),abs(m_Fps),now,max_lateness);
 		}
 	}else{
-		late = false;
-		if(m_ReadyToRender.try_recv(frame)){
-			receivedFrames.push_back(frame);
-			currentLatency += now - frame->LoadTime();
+		auto nextSequencedFrame = nextFrame % m_Sequence->NumImages();		
+		std::vector<size_t> currentFrames(m_SystemFrames.begin(),m_SystemFrames.end());
+		//std::stringstream str;
+		//str << currentFrames.size() << " curretn: " << m_NextRenderFrame << " next " << nextSequencedFrame << " dist: " << distance(currentFrames,m_NextRenderFrame,nextSequencedFrame) << std::endl;
+		//OutputDebugStringA(str.str().c_str());
+		if(m_NextRenderFrame==-1 || distance(currentFrames,m_NextRenderFrame,nextSequencedFrame)>0){
+			while(m_ReadyToRender.try_recv(frame)){
+				currentLatency += now - frame->LoadTime();
+				receivedFrames.push_back(frame);
+				if(distance(currentFrames,nextSequencedFrame,frame->NextToLoad())>=0){
+					break;
+				}
+			}
 		}
 	}
+
 	if(!receivedFrames.empty()){
 		m_GotFirstFrame=true;
+		ChangeStatus(Status::FirstFrame,"FirstFrame");
 		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
 		auto frame = receivedFrames.back();
 		frame->Unmap();
 		m_Context->CopyFrameToOutTexture(frame);
 		frame->Map();
+		if(m_NextRenderFrame!=-1){
+			m_SystemFrames.erase(std::find(m_SystemFrames.begin(),m_SystemFrames.end(),m_NextRenderFrame));
+		}
 		m_NextRenderFrame = frame->NextToLoad();
 		m_DroppedFrames+=int(receivedFrames.size())-1;
 		for(auto frame: receivedFrames){
+			if(frame->NextToLoad()!=m_NextRenderFrame){
+				m_SystemFrames.erase(std::find(m_SystemFrames.begin(),m_SystemFrames.end(),frame->NextToLoad()));
+			}
 			frame->SetNextToLoad(-1);
 			m_ReadyToUpload.send(frame);
 		}
@@ -353,6 +406,24 @@ void DX11Player::OnRender(){
 
 }
 
+void DX11Player::ChangeStatus(Status code, const std::string & status){
+	std::unique_lock<std::mutex> lock(m);
+	if(code!=m_StatusCode){
+		m_StatusCode = code;
+		OutputDebugStringA(status.c_str());
+	}
+	m_StatusDesc = status;
+}
+
+DX11Player::Status DX11Player::GetStatus(){
+	std::unique_lock<std::mutex> lock(m);
+	return m_StatusCode;
+}
+
+std::string DX11Player::GetStatusMessage(){
+	std::unique_lock<std::mutex> lock(m);
+	return m_StatusDesc;
+}
 
 HANDLE DX11Player::GetSharedHandle(){
 	if(!GotFirstFrame()) return nullptr;
@@ -368,19 +439,19 @@ std::string DX11Player::GetDirectory() const
 int DX11Player::GetUploadBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return m_ReadyToUpload.size();
+	return (int)m_ReadyToUpload.size();
 }
 
 int DX11Player::GetWaitBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return m_ReadyToWait.size();
+	return (int)m_ReadyToWait.size();
 }
 
 int DX11Player::GetRenderBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return m_ReadyToRender.size();
+	return (int)m_ReadyToRender.size();
 }
 
 int DX11Player::GetDroppedFrames() const
@@ -407,20 +478,25 @@ void DX11Player::SetFPS(int fps){
 
 int DX11Player::GetAvgLoadDurationMs() const
 {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(m_AvgDecodeDuration).count();
+	return (int)std::chrono::duration_cast<std::chrono::milliseconds>(m_AvgDecodeDuration).count();
 }
 
 void DX11Player::SendNextFrameToLoad(int nextFrame)
 {
 	m_ExternalRate = true;
 	if(!m_UploaderThreadRunning) return;
-	m_NextFrameChannel.send(nextFrame);
+	if(m_NextRenderFrame==-1 || m_NextFrameChannel.size()<m_RingBufferSize){
+		m_NextFrameChannel.send(nextFrame%m_Sequence->NumImages());
+		m_SystemFrames.push_back(nextFrame%m_Sequence->NumImages());
+	}else{
+		m_DroppedFrames++;
+	}
 }
 
 
 void DX11Player::SetInternalRate(int enabled)
 {
-	m_InternalRate = enabled;
+	m_InternalRate = enabled!=0;
 	if(!m_InternalRate) m_ExternalRate = true;
 	if(m_InternalRate && m_ExternalRate)
 	{
@@ -429,30 +505,18 @@ void DX11Player::SetInternalRate(int enabled)
 }
 
 bool DX11Player::IsReady() const{
-	return m_UploaderThreadRunning;
+	return m_UploaderThreadRunning && m_StatusCode!=Error;
 }
 
 bool DX11Player::GotFirstFrame() const{
-	return m_GotFirstFrame;
+	return m_GotFirstFrame && m_StatusCode!=Error;
 }
-
-
-std::map<uint64_t,std::shared_ptr<DX11Player>> & Players(){
-	static auto * players = new std::map<uint64_t,std::shared_ptr<DX11Player>>;
-	return *players;
-}
-
 
 
 extern "C"{
-	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory)
+	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory, const char * wildcard, int ringBufferSize)
 	{
-		try{
-			return new DX11Player(directory);
-		}catch(std::exception & e){
-			OutputDebugStringA( e.what() );
-			return nullptr;
-		}
+		return new DX11Player(directory,wildcard,ringBufferSize);
 	}
 
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player)
@@ -460,9 +524,9 @@ extern "C"{
 		delete static_cast<DX11Player*>(player);
 	}
 
-	NATIVE_API void DX11Player_OnRender(DX11HANDLE player)
+	NATIVE_API void DX11Player_OnRender(DX11HANDLE player,int nextFrame)
 	{
-		static_cast<DX11Player*>(player)->OnRender();
+		static_cast<DX11Player*>(player)->OnRender(nextFrame);
 	}
 
 	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player)
@@ -502,12 +566,12 @@ extern "C"{
 
 	NATIVE_API int DX11Player_GetCurrentLoadFrame(DX11HANDLE player)
 	{
-		return static_cast<DX11Player*>(player)->GetCurrentLoadFrame();
+		return (int)static_cast<DX11Player*>(player)->GetCurrentLoadFrame();
 	}
 
 	NATIVE_API int DX11Player_GetCurrentRenderFrame(DX11HANDLE player)
 	{
-		return static_cast<DX11Player*>(player)->GetCurrentRenderFrame();
+		return (int)static_cast<DX11Player*>(player)->GetCurrentRenderFrame();
 	}
 
 	NATIVE_API int DX11Player_GetAvgLoadDurationMs(DX11HANDLE player)
@@ -538,5 +602,24 @@ extern "C"{
 	NATIVE_API bool DX11Player_GotFirstFrame(DX11HANDLE player)
 	{
 		return static_cast<DX11Player*>(player)->GotFirstFrame();
+	}
+
+	NATIVE_API int DX11Player_GetStatus(DX11HANDLE player)
+	{
+		return static_cast<DX11Player*>(player)->GetStatus();
+	}
+
+	NATIVE_API const char * DX11Player_GetStatusMessage(DX11HANDLE player)
+	{
+		std::string str = static_cast<DX11Player*>(player)->GetStatusMessage();
+		ULONG ulSize = str.size() + sizeof(char);
+		char* pszReturn = NULL;
+
+		pszReturn = (char*)::CoTaskMemAlloc(ulSize);
+		// Copy the contents of szSampleString
+		// to the memory pointed to by pszReturn.
+		strcpy(pszReturn, str.c_str());
+		// Return pszReturn.
+		return pszReturn;
 	}
 }
