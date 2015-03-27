@@ -116,7 +116,10 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // enter the main loop:
 
     MSG msg;
-
+	
+	for(int i=0;i<8;i++){
+		player->SendNextFrameToLoad(i);
+	}
     while(TRUE)
     {
         if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -240,16 +243,21 @@ void UpdateVerticalLine(){
 }
 
 
-ID3D11Texture2D * GetTexture(){
-	ID3D11Texture2D * tex;
-	ID3D11Texture2D * sharedTex;
-	auto hr = dev->OpenSharedResource(player->GetSharedHandle(),__uuidof(ID3D11Resource),(void**)&tex);
-	if(FAILED(hr)){
-		throw std::exception("Coudln't open shared texture");
+ID3D11Texture2D * GetTexture(int framenum){
+	auto sharedHandle = player->GetSharedHandle(framenum);
+	if(sharedHandle!=nullptr){
+		ID3D11Texture2D * tex;
+		ID3D11Texture2D * sharedTex;
+		auto hr = dev->OpenSharedResource(sharedHandle,__uuidof(ID3D11Resource),(void**)&tex);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't open shared texture");
+		}
+		hr = tex->QueryInterface(__uuidof(ID3D11Texture2D),(void**)&sharedTex);
+		tex->Release();
+		return sharedTex;
+	}else{
+		return nullptr;
 	}
-	hr = tex->QueryInterface(__uuidof(ID3D11Texture2D),(void**)&sharedTex);
-	tex->Release();
-	return sharedTex;
 }
 
 
@@ -266,34 +274,34 @@ void RenderFrame(void)
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
 		player->SendNextFrameToLoad(i+8);
-		player->OnRender(i);
+		player->Update();
 	}
 	// devcon->Flush();
     // draw the vertex buffer to the back buffer
     
-	
-    // select which vertex buffer to display
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	if(player->GotFirstFrame()){
+	
+	auto tex = GetTexture(i);
+	if(tex!=nullptr){
+		// select which vertex buffer to display
 		if(!ready){
 			std::stringstream str;
 			str << "got first frame on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
 			OutputDebugStringA(str.str().c_str());
-			ID3D11ShaderResourceView * shaderResourceView;
-			auto hr = dev->CreateShaderResourceView(GetTexture(),nullptr,&shaderResourceView);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create shader resource view");
-			}
-			OutputDebugString("Created shader resource view" );
-
-			devcon->PSSetShaderResources(0,1,&shaderResourceView);
-			shaderResourceView->Release();
 			ready = true;
 		}
+		ID3D11ShaderResourceView * shaderResourceView;
+		auto hr = dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create shader resource view");
+		}
+		devcon->PSSetShaderResources(0,1,&shaderResourceView);
 		devcon->PSSetShader(pPS, 0, 0);
 		devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
 		devcon->Draw(6, 0);
+		shaderResourceView->Release();
+		tex->Release();
 	}
 
 	UpdateVerticalLine();

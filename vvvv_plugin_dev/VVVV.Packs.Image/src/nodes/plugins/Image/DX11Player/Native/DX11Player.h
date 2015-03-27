@@ -33,8 +33,8 @@ public:
 
 	DX11Player(const std::string & directory, const std::string & wildcard, size_t ring_buffer_size);
 	~DX11Player();
-	void OnRender(int nextFrame);
-	HANDLE GetSharedHandle();
+	void Update();
+	HANDLE GetSharedHandle(int nextFrame);
 	int GetUploadBufferSize() const;
 	int GetWaitBufferSize() const;
 	int GetRenderBufferSize() const;
@@ -65,7 +65,7 @@ private:
 	Channel<std::shared_ptr<Frame>> m_ReadyToRate;
 	Channel<std::shared_ptr<Frame>> m_ReadyToRender;
 	Channel<size_t> m_NextFrameChannel;
-	std::deque<size_t> m_SystemFrames;
+	std::map<size_t,std::shared_ptr<Frame>> m_WaitingToPresent;
 	bool m_ExternalRate;
 	bool m_InternalRate;
 	size_t m_NextRenderFrame;
@@ -75,18 +75,22 @@ private:
 	size_t m_CurrentFrame;
 	HighResClock::duration m_AvgDecodeDuration;
 	HighResClock::duration m_AvgPipelineLatency;
+	HighResClock::time_point m_LastUpdateTime;
 	bool m_GotFirstFrame;
 	std::string m_StatusDesc;
 	Status m_StatusCode;
 	std::mutex m;
+	int m_LastFramePresented;
+	std::vector<size_t> m_AlreadyRequested;
+	int m_Throttle_n, m_Throttle_d, m_Throttle_counter;
 };
 
 extern "C"{
 	typedef void * DX11HANDLE;
 	NATIVE_API DX11HANDLE DX11Player_Create(const char * directory, const char * wildcard, int ringBufferSize);
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player);
-	NATIVE_API void DX11Player_OnRender(DX11HANDLE player,int nextFrame);
-	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player);
+	NATIVE_API void DX11Player_Update(DX11HANDLE player);
+	NATIVE_API HANDLE DX11Player_GetSharedHandle(DX11HANDLE player,int nextFrame);
 	
 	NATIVE_API const char * DX11Player_GetDirectory(DX11HANDLE player);
 	NATIVE_API int DX11Player_DirectoryHasChanged(DX11HANDLE player, const char * dir);

@@ -11,23 +11,54 @@ Frame::Frame(Context * context)
 ,file(nullptr)
 ,uploadBuffer(nullptr)
 ,context(context)
-,mapped(false){
+,mapped(false)
+,readyToPresent(false){
 	HRESULT hr = context->CreateStagingTexture(&uploadBuffer);
 	if(FAILED(hr)){
 		throw std::exception((std::string("Coudln't create staging texture")).c_str());
 	}
+	hr = context->CreateRenderTexture(&renderTexture);
+	if(FAILED(hr)){
+		throw std::exception((std::string("Coudln't create render texture")).c_str());
+	}
+	// if using our own device, create a shared handle for each texture
+	OutputDebugString( L"getting shared texture handle\n" );
+	IDXGIResource* pTempResource(NULL);
+	hr = renderTexture->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
+	if(FAILED(hr)){
+		throw std::exception("Coudln't query interface\n");
+	}
+	hr = pTempResource->GetSharedHandle(&renderTextureSharedHandle);
+	if(FAILED(hr)){
+		throw std::exception("Coudln't get shared handle\n");
+	}
+	pTempResource->Release();
 	ZeroMemory(&overlap,sizeof(OVERLAPPED));
 	ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
+	
+	if(Map()!=0){
+		throw std::exception("Coudln't map frame\n");
+	}
 }
 
 Frame::~Frame(){
 	if(mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
 	uploadBuffer->Release();
+	renderTexture->Release();
 	if(file!=nullptr){
 		WaitForSingleObject(waitEvent,INFINITE);
 		CloseHandle(waitEvent);
 		CloseHandle(file);
 	}
+}
+
+void Frame::Reset(){
+	SetNextToLoad(-1);
+	readyToPresent = false;
+}
+
+bool Frame::IsReadyToPresent(){
+	return readyToPresent;
 }
 
 HRESULT Frame::Map(){
@@ -40,6 +71,13 @@ void Frame::Unmap(){
 	if(!mapped) return;
 	mapped = false;
 	context->GetDX11Context()->Unmap(uploadBuffer, 0);
+}
+
+void Frame::Render(){
+	Unmap();
+	context->CopyFrameToOutTexture(this);
+	Map();
+	readyToPresent = true;
 }
 
 void Frame::SetNextToLoad(size_t next){
@@ -60,6 +98,14 @@ HighResClock::time_point Frame::PresentationTime() const{
 
 ID3D11Texture2D* Frame::UploadBuffer(){
 	return uploadBuffer;
+}
+
+ID3D11Texture2D* Frame::RenderTexture(){
+	return renderTexture;
+}
+
+HANDLE Frame::RenderTextureSharedHandle(){
+	return renderTextureSharedHandle;
 }
 
 bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){

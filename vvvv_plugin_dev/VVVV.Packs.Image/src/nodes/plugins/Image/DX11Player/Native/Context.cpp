@@ -11,17 +11,12 @@
 #include "PSCbYCr161616_to_RGBA16161616.h"
 #include "Frame.h"
 
-static const int OUTPUT_BUFFER_SIZE = 4;
-
 Context::Context(const Format & format)
 	:m_Device(nullptr)
 	,m_Context(nullptr)
-	,m_CopyTextureIn(OUTPUT_BUFFER_SIZE,nullptr)
-	,m_ShaderResourceViews(OUTPUT_BUFFER_SIZE,nullptr)
+	,m_ShaderResourceView(nullptr)
 	,m_BackBuffer(nullptr)
 	,m_RenderTargetView(nullptr)
-	,m_TextureBack(nullptr)
-	,m_CurrentOutFront(OUTPUT_BUFFER_SIZE/2)
 	,m_Format(format){
 
 	// box to copy upload buffer to texture skipping 4 first rows
@@ -55,48 +50,19 @@ Context::Context(const Format & format)
 			NULL, hr, 0, lpBuf, 0, NULL);
 		throw std::exception((std::string("Coudln't create device: ") + lpBuf).c_str());
 	}
-
-	// create the copy textures, used to copy from the upload
-	// buffers and shared with the application or plugin
-	// if the input format is directly supported or
-	// to pass to the colorspace conversion shader
-	OutputDebugString( L"creating output textures\n" );
-	D3D11_TEXTURE2D_DESC textureDescriptionCopy;
-	textureDescriptionCopy.MipLevels = 1;
-	textureDescriptionCopy.ArraySize = 1;
-	textureDescriptionCopy.SampleDesc.Count = 1;
-	textureDescriptionCopy.SampleDesc.Quality = 0;
-	textureDescriptionCopy.Usage = D3D11_USAGE_DEFAULT;
-	textureDescriptionCopy.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	textureDescriptionCopy.CPUAccessFlags = 0;
-	textureDescriptionCopy.Width = format.w;
-	textureDescriptionCopy.Height = format.h;
-	textureDescriptionCopy.Format = format.in_format;
-	if(format.format == ImageSequence::DX11_NATIVE){
-		textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
-	}else{
-		textureDescriptionCopy.MiscFlags = 0;
-	}
-	for(size_t i=0;i<m_CopyTextureIn.size();i++){
-		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn[i]);
-		// create a shared handle for each texture
-		if(format.format == ImageSequence::DX11_NATIVE){
-			OutputDebugString( L"getting shared texture handle\n" );
-			IDXGIResource* pTempResource(NULL);
-			HANDLE sharedHandle;
-			hr = m_CopyTextureIn[i]->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
-			if(FAILED(hr)){
-				throw std::exception("Coudln't query interface\n");
-			}
-			hr = pTempResource->GetSharedHandle(&sharedHandle);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't get shared handle\n");
-			}
-			m_SharedHandles[m_CopyTextureIn[i]] = sharedHandle;
-			pTempResource->Release();
-		}
-	}
-
+	
+	// Create a texture decription for the frames render texture
+	m_RenderTextureDescription.MipLevels = 1;
+	m_RenderTextureDescription.ArraySize = 1;
+	m_RenderTextureDescription.SampleDesc.Count = 1;
+	m_RenderTextureDescription.SampleDesc.Quality = 0;
+	m_RenderTextureDescription.Usage = D3D11_USAGE_DEFAULT;
+	m_RenderTextureDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	m_RenderTextureDescription.CPUAccessFlags = 0;
+	m_RenderTextureDescription.Width = format.out_w;
+	m_RenderTextureDescription.Height = format.h;
+	m_RenderTextureDescription.Format = format.out_format;
+	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
 	// If the input format is not directly supported by DX11
 	// create a shader to process them and output the data
@@ -104,6 +70,15 @@ Context::Context(const Format & format)
 	if (format.format != ImageSequence::DX11_NATIVE)
 	{
 		OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
+
+		// create the copy textures, used to copy from the upload
+		// buffers to pass to the colorspace conversion shader
+		OutputDebugString( L"creating output textures\n" );
+		D3D11_TEXTURE2D_DESC textureDescriptionCopy = m_RenderTextureDescription;
+		textureDescriptionCopy.Width = format.w;
+		textureDescriptionCopy.Format = format.in_format;
+		textureDescriptionCopy.MiscFlags = 0;
+		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn);
 
 		// figure out the conversion shaders from the 
 		// image sequence input format and depth
@@ -316,13 +291,9 @@ Context::Context(const Format & format)
 
 		// Create shader resource views to be able to access the 
 		// source textures
-		int i=0;
-		for(auto & shaderResourceView: m_ShaderResourceViews){
-			hr = m_Device->CreateShaderResourceView(m_CopyTextureIn[i],nullptr,&shaderResourceView);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create shader resource view\n");
-			}
-			i++;
+		hr = m_Device->CreateShaderResourceView(m_CopyTextureIn,nullptr,&m_ShaderResourceView);
+		if(FAILED(hr)){
+			throw std::exception("Coudln't create shader resource view\n");
 		}
 		OutputDebugString( L"Created shader resource views\n" );
 
@@ -357,32 +328,7 @@ Context::Context(const Format & format)
 		}
 		m_Context->OMSetRenderTargets(1,&m_RenderTargetView,nullptr);
 		
-		m_Context->PSSetShaderResources(0,1,&m_ShaderResourceViews[m_CurrentOutFront]);
-
-		textureDescriptionCopy.Width = format.out_w;
-		textureDescriptionCopy.Format = format.out_format;
-		textureDescriptionCopy.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
-		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_TextureBack);
-		if(FAILED(hr)){
-			throw std::exception("Coudln't create backbuffer texture\n");
-		}
-
-		// if using our own device, create a shared handle for each texture
-		OutputDebugString( L"getting shared texture handle\n" );
-		IDXGIResource* pTempResource(NULL);
-		HANDLE sharedHandle;
-		hr = m_TextureBack->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
-		if(FAILED(hr)){
-			throw std::exception("Coudln't query interface\n");
-		}
-		hr = pTempResource->GetSharedHandle(&sharedHandle);
-		if(FAILED(hr)){
-			throw std::exception("Coudln't get shared handle\n");
-		}
-		m_SharedHandles[m_TextureBack] = sharedHandle;
-		pTempResource->Release();
-
-		
+		m_Context->PSSetShaderResources(0,1,&m_ShaderResourceView);	
 	}
 }
 
@@ -393,16 +339,8 @@ Context::~Context(){
 	if(m_RenderTargetView){
 		m_RenderTargetView->Release();
 	}
-	if(m_TextureBack){
-		m_TextureBack->Release();
-	}
-	for(auto srv: m_ShaderResourceViews){
-		srv->Release();
-	}
-	for(auto t: m_CopyTextureIn){
-		t->Release();
-	}
-	m_SharedHandles.clear();
+	m_ShaderResourceView->Release();
+	m_CopyTextureIn->Release();
 	m_Context->Release();
 	m_Device->Release();
 }
@@ -436,26 +374,20 @@ ID3D11DeviceContext * Context::GetDX11Context(){
 }
 
 
-void Context::CopyFrameToOutTexture(std::shared_ptr<Frame> frame){
-	m_Context->CopySubresourceRegion(m_CopyTextureIn[m_CurrentOutFront],0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
+void Context::CopyFrameToOutTexture(Frame * frame){
 	if(m_Format.format != ImageSequence::DX11_NATIVE){
+		m_Context->CopySubresourceRegion(m_CopyTextureIn,0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
 		m_Context->Draw(6, 0);
-		m_Context->CopyResource(m_TextureBack, m_BackBuffer);
+		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
 		m_Context->Flush();
-	} 
+	} else {
+		m_Context->CopySubresourceRegion(frame->RenderTexture(),0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
+	}
 }
 
 void Context::Clear(){
 	const FLOAT BLACK[4] = {0.0f,0.0f,0.0f,0.0f};
 	m_Context->ClearRenderTargetView(m_RenderTargetView,BLACK);
-}
-	
-HANDLE Context::GetSharedHandle(){
-	if(m_Format.format == ImageSequence::DX11_NATIVE){
-		return m_SharedHandles[m_CopyTextureIn[m_CurrentOutFront]];
-	}else{
-		return m_SharedHandles[m_TextureBack];
-	}
 }
 
 HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
@@ -478,6 +410,10 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
 }
 
+HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture)
+{
+	return m_Device->CreateTexture2D(&m_RenderTextureDescription,nullptr,texture);
+}
 
 bool operator!=(const Format & format1, const Format & format2){
 	return format1.w != format2.w || format1.h != format2.h || format1.format!=format2.format || format1.in_format!=format2.in_format || format1.out_format!=format2.out_format || format1.depth!=format2.depth || format1.out_w != format2.out_w || format1.vflip!=format2.vflip || format1.byteswap!=format2.byteswap;
