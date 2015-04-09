@@ -65,8 +65,12 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     pluginfolder = pluginfolder + "\\" + "x86\\";
                 }
+                OutputDebugString("Adding " + pluginfolder + " to dll search path");
                 AddDllDirectory(pluginfolder);
-            }catch(Exception){
+            }
+            catch (Exception e)
+            {
+                OutputDebugString("Error adding dll search path" + e.StackTrace);
             }
 
         }
@@ -397,47 +401,59 @@ namespace VVVV.Nodes.DX11PlayerNode
 
     internal class NativeInterface
     {
-        [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
         internal static extern IntPtr DX11Player_Create(string directory, string wildcard, int ringBufferSize);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern void DX11Player_Destroy(IntPtr player);
+<<<<<<< Updated upstream
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern void DX11Player_Update(IntPtr player);
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern IntPtr DX11Player_GetSharedHandle(IntPtr player, int nextFrame);
         [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+=======
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
+        internal static extern void DX11Player_OnRender(IntPtr player,int nextFrame);
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
+        internal static extern IntPtr DX11Player_GetSharedHandle(IntPtr player);
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+>>>>>>> Stashed changes
         internal static extern string DX11Player_GetDirectory(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
         internal static extern int DX11Player_DirectoryHasChanged(IntPtr player, string dir);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetUploadBufferSize(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetWaitBufferSize(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetRenderBufferSize(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetDroppedFrames(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetCurrentLoadFrame(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetCurrentRenderFrame(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetAvgLoadDurationMs(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern void DX11Player_SetFPS(IntPtr player,int fps);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern void DX11Player_SendNextFrameToLoad(IntPtr player, int nextFrame);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern void DX11Player_SetInternalRate(IntPtr player, int enabled);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern bool DX11Player_IsReady(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern bool DX11Player_GotFirstFrame(IntPtr player);
+<<<<<<< Updated upstream
         [DllImport("Native.dll", SetLastError = false)]
         internal static extern int DX11Player_GetContextPoolSize();
         [DllImport("Native.dll", SetLastError = false)]
+=======
+        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
+>>>>>>> Stashed changes
         internal static extern int DX11Player_GetStatus(IntPtr player);
-        [DllImport("Native.dll", SetLastError = false, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         [return: MarshalAs(UnmanagedType.LPStr)]
         internal static extern string DX11Player_GetStatusMessage(IntPtr player);
     }
