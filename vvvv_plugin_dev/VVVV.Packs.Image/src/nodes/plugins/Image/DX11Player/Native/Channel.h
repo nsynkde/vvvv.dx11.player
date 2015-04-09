@@ -20,14 +20,12 @@ public:
 
     bool send(const Data & data)
     {
+		std::lock_guard<std::mutex> lock(m_mutex);
 		if(closed)
 		{
 			return false;
 		}
-
-		std::unique_lock<std::mutex> lock(m_mutex);
         m_queue.push(data);
-		lock.unlock();
         m_condition.notify_one();
 		return true;
     }
@@ -79,7 +77,7 @@ public:
 
 	void close()
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
+		std::lock_guard<std::mutex> lock(m_mutex);
 		closed = true;
 		while(!m_queue.empty()) m_queue.pop();
         m_condition.notify_one();

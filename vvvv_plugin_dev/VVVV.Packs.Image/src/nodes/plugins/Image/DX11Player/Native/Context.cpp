@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Context.h"
-#include "ImageSequence.h"
+#include "ImageFormat.h"
 #include <DirectXMath.h>
 #include "VShader.h"
 #include "RGB_to_RGBA.h"
@@ -11,7 +11,7 @@
 #include "PSCbYCr161616_to_RGBA16161616.h"
 #include "Frame.h"
 
-Context::Context(const Format & format)
+Context::Context(const ImageFormat::Format & format)
 	:m_Device(nullptr)
 	,m_Context(nullptr)
 	,m_ShaderResourceView(nullptr)
@@ -67,7 +67,7 @@ Context::Context(const Format & format)
 	// If the input format is not directly supported by DX11
 	// create a shader to process them and output the data
 	// as RGBA
-	if (format.format != ImageSequence::DX11_NATIVE)
+	if (format.pixel_format != ImageFormat::DX11_NATIVE)
 	{
 		OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
 
@@ -87,8 +87,8 @@ Context::Context(const Format & format)
 		size_t sizePixelShaderSrc;
 		bool useSampler = true;
 
-		switch(format.format){
-		case ImageSequence::ARGB:
+		switch(format.pixel_format){
+		case ImageFormat::ARGB:
 			if(format.depth == 10){
 				pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
 				sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
@@ -98,12 +98,12 @@ Context::Context(const Format & format)
 			}
 			break;
 			
-		case ImageSequence::BGR:
+		case ImageFormat::BGR:
 			pixelShaderSrc = BGR_to_RGBA;
 			sizePixelShaderSrc = sizeof(BGR_to_RGBA);
 			break;
 
-		case ImageSequence::CbYCr:
+		case ImageFormat::CbYCr:
 			switch(format.depth){
 			case 8:
 				pixelShaderSrc = PSCbYCr888_to_RGBA8888;
@@ -122,7 +122,7 @@ Context::Context(const Format & format)
 			break;
 			
 
-		case ImageSequence::RGB:
+		case ImageFormat::RGB:
 			pixelShaderSrc = RGB_to_RGBA;
 			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
 			break;
@@ -348,13 +348,12 @@ Context::~Context(){
 	m_Device->Release();
 }
 
-Format Context::GetFormat() const{
+ImageFormat::Format Context::GetFormat() const{
 	return m_Format;
 }
 
 void ReleaseFrame(Frame * frame){
 	frame->Cancel();
-	frame->Reset();
 	std::unique_lock<std::mutex> lock(frame->context->mutex);
 	frame->context->m_Frames.emplace_back(frame,&ReleaseFrame);
 }
@@ -367,7 +366,7 @@ std::shared_ptr<Frame> Context::GetFrame(){
 	}else{
 		auto frame = m_Frames.back();
 		m_Frames.pop_back();
-		frame->SetNextToLoad(-1);
+		frame->Reset();
 		return frame;
 	}
 }
@@ -378,7 +377,7 @@ ID3D11DeviceContext * Context::GetDX11Context(){
 
 
 void Context::CopyFrameToOutTexture(Frame * frame){
-	if(m_Format.format != ImageSequence::DX11_NATIVE){
+	if(m_Format.pixel_format != ImageFormat::DX11_NATIVE){
 		m_Context->CopySubresourceRegion(m_CopyTextureIn,0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
 		m_Context->Draw(6, 0);
 		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
@@ -417,8 +416,4 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture)
 {
 	return m_Device->CreateTexture2D(&m_RenderTextureDescription,nullptr,texture);
-}
-
-bool operator!=(const Format & format1, const Format & format2){
-	return format1.w != format2.w || format1.h != format2.h || format1.format!=format2.format || format1.in_format!=format2.in_format || format1.out_format!=format2.out_format || format1.depth!=format2.depth || format1.out_w != format2.out_w || format1.vflip!=format2.vflip || format1.byteswap!=format2.byteswap;
 }

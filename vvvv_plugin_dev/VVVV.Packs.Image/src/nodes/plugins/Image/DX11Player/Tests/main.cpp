@@ -18,6 +18,7 @@
 #include <sstream>
 #include <memory>
 #include <chrono>
+#include "tinydir.h"
 
 //#define VLD_FORCE_ENABLE
 #include <vld.h>
@@ -45,6 +46,7 @@ ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex 
 std::shared_ptr<DX11Player> player;
 HighResClock::time_point start;
 bool ready = false;
+std::vector<std::string> files;
 
 	// a struct to define a single vertex
 struct Vertex
@@ -118,7 +120,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
     MSG msg;
 	
 	for(int i=0;i<7;i++){
-		player->SendNextFrameToLoad(i);
+		player->SendNextFrameToLoad(files[i]);
 	}
     while(TRUE)
     {
@@ -244,7 +246,7 @@ void UpdateVerticalLine(){
 
 
 ID3D11Texture2D * GetTexture(int framenum){
-	auto sharedHandle = player->GetSharedHandle(framenum);
+	auto sharedHandle = player->GetSharedHandle(files[framenum%files.size()]);
 	if(sharedHandle!=nullptr){
 		ID3D11Texture2D * tex;
 		ID3D11Texture2D * sharedTex;
@@ -273,7 +275,7 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
-		player->SendNextFrameToLoad(i+7);
+		player->SendNextFrameToLoad(files[(i+7)%files.size()]);
 		player->Update();
 	}
 	// devcon->Flush();
@@ -459,12 +461,23 @@ void InitPipeline()
 	OutputDebugString( "Set sampler state" );
 	samplerState->Release();
 
-	//try{
-		player = std::make_shared<DX11Player>("D:\\TEST\\LEFT.stack","*",8);
-		player->SetInternalRate(0);
-	/*}catch(std::exception & e){
-		OutputDebugStringA(e.what());
-		exit(1);
-	}*/
-	//player->SetFPS(24);
+	tinydir_dir dir;
+	tinydir_open(&dir, "D:\\TEST\\LEFT.stack");
+
+	while (dir.has_next)
+	{
+		tinydir_file file;
+		tinydir_readfile(&dir, &file);
+
+		if (!file.is_dir)
+		{
+			files.push_back(file.path);
+		}
+
+		tinydir_next(&dir);
+	}
+
+	tinydir_close(&dir);
+
+	player = std::make_shared<DX11Player>(files[0],8);
 }

@@ -13,7 +13,7 @@ void ReleaseContext(Context * context){
 	Pool::GetInstance().contexts.emplace_back(context,&ReleaseContext);
 }
 
-std::shared_ptr<Context> Pool::AquireContext(const Format & format){
+std::shared_ptr<Context> Pool::AquireContext(const ImageFormat::Format & format){
 	std::unique_lock<std::mutex> lock(mutex);
 	auto context_it = contexts.begin();
 	while(context_it != contexts.end() && (*context_it)->GetFormat()!=format){

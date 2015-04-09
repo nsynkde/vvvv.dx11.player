@@ -1,30 +1,18 @@
 #pragma once
 #include <d3d11.h>
-#include "ImageSequence.h"
+#include "ImageFormat.h"
 #include <mutex>
 #include <memory>
 #include <map>
 
 class Frame;
 
-struct Format{
-	size_t w;
-	size_t h;
-	ImageSequence::Format format;
-	DXGI_FORMAT in_format;
-	DXGI_FORMAT out_format;
-	size_t depth;
-	size_t out_w;
-	bool vflip;
-	bool byteswap;
-	size_t row_padding;
-};
 
 class Context{
 public:
-	Context(const Format & format);
+	Context(const ImageFormat::Format & format);
 	~Context();
-	Format GetFormat() const;
+	ImageFormat::Format GetFormat() const;
 	std::shared_ptr<Frame> GetFrame();
 	ID3D11DeviceContext * GetDX11Context();
 	void CopyFrameToOutTexture(Frame * frame);
@@ -41,10 +29,8 @@ private:
 	ID3D11RenderTargetView*  m_RenderTargetView;
 	std::vector<std::shared_ptr<Frame>> m_Frames;
 	D3D11_BOX m_CopyBox;
-	Format m_Format;
+	ImageFormat::Format m_Format;
 	friend void ReleaseContext(Context * context);
 	friend void ReleaseFrame(Frame * frame);
 	std::mutex mutex;
 };
-
-bool operator!=(const Format & format1, const Format & format2);

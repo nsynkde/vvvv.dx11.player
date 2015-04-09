@@ -36,9 +36,6 @@
     <ClInclude Include="tinydir.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Channel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="HighResClock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -99,9 +96,6 @@
     <ClInclude Include="TGA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ImageSequence.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Pool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -109,6 +103,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageFormat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Channel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -158,9 +158,6 @@
     <ClCompile Include="libdpx\Writer.cpp">
       <Filter>libpdx</Filter>
     </ClCompile>
-    <ClCompile Include="ImageSequence.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Pool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -168,6 +165,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Context.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageFormat.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

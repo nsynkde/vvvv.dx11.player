@@ -5,8 +5,6 @@
 
 Frame::Frame(Context * context)
 :decodeDuration(0)
-,nextToLoad(-1)
-,fps(0)
 ,waitEvent(CreateEventW(0,false,false,0))
 ,file(nullptr)
 ,uploadBuffer(nullptr)
@@ -53,13 +51,14 @@ Frame::~Frame(){
 }
 
 void Frame::Reset(){
-	SetNextToLoad(-1);
+	SetNextToLoad("");
 	readyToPresent = false;
 }
 
 void Frame::Cancel(){
 	CancelIoEx(file,&overlap);
 	CloseHandle(file);
+	Reset();
 }
 
 bool Frame::IsReadyToPresent(){
@@ -89,20 +88,16 @@ size_t Frame::GetMappedRowPitch() const{
 	return mappedBuffer.RowPitch;
 }
 
-void Frame::SetNextToLoad(size_t next){
+void Frame::SetNextToLoad(const std::string & next){
 	nextToLoad = next;
 }
 
-size_t Frame::NextToLoad() const{
+const std::string &  Frame::NextToLoad() const{
 	return nextToLoad;
 }
 
 HighResClock::time_point Frame::LoadTime() const{
 	return loadTime;
-}
-
-HighResClock::time_point Frame::PresentationTime() const{
-	return presentationTime;
 }
 
 ID3D11Texture2D* Frame::UploadBuffer(){
@@ -117,7 +112,7 @@ HANDLE Frame::RenderTextureSharedHandle(){
 	return renderTextureSharedHandle;
 }
 
-bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps){
+bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now){
 	if(file != nullptr){
 		Wait(INFINITE);
 	}
@@ -130,9 +125,7 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 			overlap.hEvent = waitEvent;
 			DWORD bytesRead=0;
 			::ReadFile(file,ptr,numbytesdata,&bytesRead,&overlap);
-			fps = currentFps;
 			loadTime = now;
-			presentationTime = presentationTime;
 			return true;
 		}
 	}
@@ -150,8 +143,4 @@ bool Frame::Wait(DWORD millis){
 
 HighResClock::duration Frame::DecodeDuration() const{
 	return decodeDuration;
-}
-
-int Frame::Fps() const{
-	return fps;
 }

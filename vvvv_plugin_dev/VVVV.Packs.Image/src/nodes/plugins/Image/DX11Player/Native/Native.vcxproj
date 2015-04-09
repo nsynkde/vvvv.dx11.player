@@ -157,7 +157,7 @@
     <ClInclude Include="DDS.h" />
     <ClInclude Include="DX11Player.h" />
     <ClInclude Include="Frame.h" />
-    <ClInclude Include="ImageSequence.h" />
+    <ClInclude Include="ImageFormat.h" />
     <ClInclude Include="libdpx\BaseTypeConverter.h" />
     <ClInclude Include="libdpx\Codec.h" />
     <ClInclude Include="libdpx\DPX.h" />
@@ -199,7 +199,7 @@
     <ClCompile Include="Frame.cpp" />
     <ClCompile Include="HighResClock.cpp" />
     <ClCompile Include="DDSUtils.cpp" />
-    <ClCompile Include="ImageSequence.cpp" />
+    <ClCompile Include="ImageFormat.cpp" />
     <ClCompile Include="libdpx\Codec.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
