@@ -57,6 +57,11 @@ void Frame::Reset(){
 	readyToPresent = false;
 }
 
+void Frame::Cancel(){
+	CancelIoEx(file,&overlap);
+	CloseHandle(file);
+}
+
 bool Frame::IsReadyToPresent(){
 	return readyToPresent;
 }
@@ -78,6 +83,10 @@ void Frame::Render(){
 	context->CopyFrameToOutTexture(this);
 	Map();
 	readyToPresent = true;
+}
+
+size_t Frame::GetMappedRowPitch() const{
+	return mappedBuffer.RowPitch;
 }
 
 void Frame::SetNextToLoad(size_t next){

@@ -11,16 +11,16 @@ struct psInput
 
 
 cbuffer controls:register(b0){
-float InputWidth <string uiname="Input Width";> = 1920.0;
-float InputHeight <string uiname="Input Height";> = 1080.0;
-float OutputWidth <string uiname="Output Width";> = 1920.0;
-float OutputHeight <string uiname="Output Height";> = 1080.0;
-float OnePixelX = 1.0/1920.0;
-float YOrigin = 0.0;
-float YCoordinateSign = 1.0;
-bool RequiresSwap = false;
-	
-//float3x3 YUV2RGBTransform <string uiname="rgb2yuv matrix";>;
+	float InputWidth <string uiname="Input Width";> = 1920.0;
+	float InputHeight <string uiname="Input Height";> = 1080.0;
+	float OutputWidth <string uiname="Output Width";> = 1920.0;
+	float OutputHeight <string uiname="Output Height";> = 1080.0;
+	float OnePixelX = 1.0/1920.0;
+	float YOrigin = 0.0;
+	float YCoordinateSign = 1.0;
+	bool RequiresSwap = false;
+	float RowPadding;
+	//float3x3 YUV2RGBTransform <string uiname="rgb2yuv matrix";>;
 	
 };
 

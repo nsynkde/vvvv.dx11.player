@@ -44,12 +44,12 @@ public:
 	void SetFPS(int fps);
 	std::string GetDirectory() const;
 	int GetAvgLoadDurationMs() const;
-	void SendNextFrameToLoad(int nextFrame);
 	void SetInternalRate(int enabled);
 	bool IsReady() const;
 	bool GotFirstFrame() const;
 	Status GetStatus();
 	std::string GetStatusMessage();
+	void SendNextFrameToLoad(int nextFrame);
 private:
 	void ChangeStatus(Status code, const std::string & status);
 	std::shared_ptr<ImageSequence> m_Sequence;
@@ -65,6 +65,7 @@ private:
 	Channel<std::shared_ptr<Frame>> m_ReadyToRate;
 	Channel<std::shared_ptr<Frame>> m_ReadyToRender;
 	Channel<size_t> m_NextFrameChannel;
+	std::vector<size_t> m_SystemFrames;
 	std::map<size_t,std::shared_ptr<Frame>> m_WaitingToPresent;
 	bool m_ExternalRate;
 	bool m_InternalRate;
@@ -79,10 +80,7 @@ private:
 	bool m_GotFirstFrame;
 	std::string m_StatusDesc;
 	Status m_StatusCode;
-	std::mutex m;
-	int m_LastFramePresented;
-	std::vector<size_t> m_AlreadyRequested;
-	int m_Throttle_n, m_Throttle_d, m_Throttle_counter;
+	std::mutex m_SystemFramesMutex;
 };
 
 extern "C"{

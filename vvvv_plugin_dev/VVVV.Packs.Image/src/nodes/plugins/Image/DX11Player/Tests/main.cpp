@@ -117,7 +117,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     MSG msg;
 	
-	for(int i=0;i<8;i++){
+	for(int i=0;i<7;i++){
 		player->SendNextFrameToLoad(i);
 	}
     while(TRUE)
@@ -273,7 +273,7 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
-		player->SendNextFrameToLoad(i+8);
+		player->SendNextFrameToLoad(i+7);
 		player->Update();
 	}
 	// devcon->Flush();
@@ -460,7 +460,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	//try{
-		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1","*",8);
+		player = std::make_shared<DX11Player>("D:\\TEST\\LEFT.stack","*",8);
 		player->SetInternalRate(0);
 	/*}catch(std::exception & e){
 		OutputDebugStringA(e.what());

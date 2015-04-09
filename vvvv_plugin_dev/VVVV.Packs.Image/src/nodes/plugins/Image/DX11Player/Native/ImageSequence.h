@@ -30,6 +30,7 @@ public:
 	size_t InputDepth() const;
 	size_t DataOffset() const;
 	size_t BytesData() const;
+	size_t RowPadding() const;
 	bool RequiresByteSwap() const;
 	bool RequiresVFlip() const;
 private:
@@ -38,6 +39,7 @@ private:
 	size_t m_Width;
 	size_t m_Height;
 	size_t m_InputWidth;
+	size_t m_Padding;
 	size_t m_RowPitch;
 	DXGI_FORMAT m_TextureFormat;
 	DXGI_FORMAT m_TextureOutFormat;

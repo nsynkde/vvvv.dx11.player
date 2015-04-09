@@ -17,6 +17,7 @@ struct Format{
 	size_t out_w;
 	bool vflip;
 	bool byteswap;
+	size_t row_padding;
 };
 
 class Context{
@@ -45,3 +46,5 @@ private:
 	friend void ReleaseFrame(Frame * frame);
 	std::mutex mutex;
 };
+
+bool operator!=(const Format & format1, const Format & format2);

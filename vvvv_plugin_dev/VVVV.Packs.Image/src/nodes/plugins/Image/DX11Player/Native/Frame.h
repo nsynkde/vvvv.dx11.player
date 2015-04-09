@@ -40,7 +40,9 @@ public:
 	HANDLE RenderTextureSharedHandle();
 	bool ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now, HighResClock::time_point presentationTime, int currentFps);
 	bool Wait(DWORD millis);
+	void Cancel();
 	HighResClock::duration DecodeDuration() const;
 	int Fps() const;
+	size_t GetMappedRowPitch() const;
 };
 

@@ -25,7 +25,7 @@ Context::Context(const Format & format)
 	m_CopyBox.bottom = format.h + 4;
 	m_CopyBox.front = 0;
 	m_CopyBox.left = 0;
-	m_CopyBox.right = format.w;
+	m_CopyBox.right = format.w + format.row_padding;
 	m_CopyBox.top = 4;
 
 	HRESULT hr;
@@ -75,7 +75,8 @@ Context::Context(const Format & format)
 		// buffers to pass to the colorspace conversion shader
 		OutputDebugString( L"creating output textures\n" );
 		D3D11_TEXTURE2D_DESC textureDescriptionCopy = m_RenderTextureDescription;
-		textureDescriptionCopy.Width = format.w;
+		textureDescriptionCopy.Width = format.w + format.row_padding;
+		textureDescriptionCopy.Height = format.h; 
 		textureDescriptionCopy.Format = format.in_format;
 		textureDescriptionCopy.MiscFlags = 0;
 		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn);
@@ -254,6 +255,7 @@ Context::Context(const Format & format)
 			float YOrigin;
 			float YCoordinateSign;
 			bool RequiresSwap;
+			float RowPadding;
 		};
 
 		PS_CONSTANT_BUFFER constantData;
@@ -265,6 +267,7 @@ Context::Context(const Format & format)
 		constantData.YOrigin = (float)(format.vflip?1.0:0.0);
 		constantData.YCoordinateSign = (float)(format.vflip?-1.0:1.0);
 		constantData.RequiresSwap = format.byteswap;
+		constantData.RowPadding = (float)format.row_padding;
 
 		D3D11_BUFFER_DESC shaderVarsDescription;
 		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -299,7 +302,7 @@ Context::Context(const Format & format)
 
 		
 		// Create a backbuffer texture to render to
-		auto backBufferTexDescription = textureDescriptionCopy;
+		D3D11_TEXTURE2D_DESC backBufferTexDescription;
 		backBufferTexDescription.MipLevels = 1;
 		backBufferTexDescription.ArraySize = 1;
 		backBufferTexDescription.SampleDesc.Count = 1;
@@ -350,18 +353,18 @@ Format Context::GetFormat() const{
 }
 
 void ReleaseFrame(Frame * frame){
-	frame->Wait(INFINITE);
-	frame->SetNextToLoad(-1);
+	frame->Cancel();
+	frame->Reset();
 	std::unique_lock<std::mutex> lock(frame->context->mutex);
 	frame->context->m_Frames.emplace_back(frame,&ReleaseFrame);
 }
 
 std::shared_ptr<Frame> Context::GetFrame(){
+	std::unique_lock<std::mutex> lock(mutex);
 	if(m_Frames.empty()){
 		std::shared_ptr<Frame> frame(new Frame(this), &ReleaseFrame);
 		return frame;
 	}else{
-		std::unique_lock<std::mutex> lock(mutex);
 		auto frame = m_Frames.back();
 		m_Frames.pop_back();
 		frame->SetNextToLoad(-1);
@@ -404,8 +407,9 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	textureUploadDescription.BindFlags = 0;
 	textureUploadDescription.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	textureUploadDescription.MiscFlags = 0;
-	textureUploadDescription.Width = m_Format.w;
-	textureUploadDescription.Height = m_Format.h+4;
+	textureUploadDescription.Width = m_Format.w + m_Format.row_padding;
+	textureUploadDescription.Height = m_Format.h; 
+	textureUploadDescription.Height += 4;
 	textureUploadDescription.Format = m_Format.in_format;
 	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
 }

@@ -28,19 +28,26 @@ BOOL szWildMatch3(const char * pat, const char * str) {
    } /* endswitch */
 }
 
+static DWORD NextMultiple(DWORD in, DWORD multiple){
+	if(in % multiple != 0){
+		return in + (multiple - in % multiple);
+	}else{
+		return in;
+	}
+}
 
 ImageSequence::ImageSequence(const std::string & directory, const std::string & wildcard)
 :m_Directory(directory)
 {
 	// list all files in folder
 	// TODO: filter by extension
-	std::stringstream str;
+	/*std::stringstream str;
 	str << "trying to open folder " <<  directory << std::endl;
-	OutputDebugStringA( str.str().c_str());
+	OutputDebugStringA( str.str().c_str());*/
 	tinydir_dir dir;
 	tinydir_open_sorted(&dir, directory.c_str());
-	str << "reading folder " <<  directory <<  " with " << dir.n_files << " files" << std::endl;
-	OutputDebugStringA( str.str().c_str());
+	//str << "reading folder " <<  directory <<  " with " << dir.n_files << " files" << std::endl;
+	//OutputDebugStringA( str.str().c_str());
 	for (size_t i = 0; i < dir.n_files; i++)
 	{
 
@@ -67,6 +74,7 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 	m_RowPitch = 0;
 	m_DataOffset = 0;
 	m_BytesData = 0;
+	m_Padding = 0;
 	m_RequiresByteSwap = false;
 	m_RequiresVFlip = false;
 
@@ -102,14 +110,30 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 		m_Width = header.width;
 		m_Height = header.height;
 		m_DataOffset = sizeof(TGA_HEADER) + header.idlength;
-		std::stringstream str;
-		str << "TGA with x,y origin: " << header.x_origin << ", " << header.y_origin << " descriptor " << (int)header.imagedescriptor <<  " alpha: " << alphaDepth << std::endl;
-		OutputDebugStringA(str.str().c_str());
+		/*std::stringstream str;
+		str << "TGA " << std::endl;
+		str << "idlength " << (int)header.idlength << std::endl;
+		str << "colourmaptyp e" << (int)header.colourmaptype << std::endl;
+		str << "datatypecode " << (int)header.datatypecode << std::endl;
+		str << "colourmaporigin " << (int)header.colourmaporigin << std::endl;
+		str << "colourmaplength " << (int)header.colourmaplength << std::endl;
+		str << "colourmapdepth " << (int)header.colourmapdepth << std::endl;
+		str << "x_origin " << (int)header.x_origin << std::endl;
+		str << "y_origin " << (int)header.y_origin << std::endl;
+		str << "width " << (int)header.width << std::endl;
+		str << "height " << (int)header.height << std::endl;
+		str << "bitsperpixel " << (int)header.bitsperpixel << std::endl;
+		str << "imagedescriptor " << (int)header.imagedescriptor << std::endl;
+		OutputDebugStringA(str.str().c_str());*/
 		switch(alphaDepth){
 			case 0:
 				m_TextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 				m_TextureOutFormat = m_TextureFormat;
 				m_InputWidth = header.width*3/4;
+				m_Padding = NextMultiple(m_InputWidth,8) - m_InputWidth;
+				if(header.width*3.0/4.0>m_InputWidth){
+					throw std::exception("Can't convert image size to RGBA. Row size in bytes has to be a multiple of 32.");
+				}
 				m_RowPitch = header.width * 3;
 				m_InputFormat = BGR;
 			break;
@@ -136,7 +160,9 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 		m_Width = header.pixelsPerLine;
 		m_Height = header.linesPerElement * header.numberOfElements;
 		auto dpx_descriptor = header.ImageDescriptor(0);
-		std::stringstream str;
+		m_RequiresByteSwap = header.RequiresByteSwap();
+		m_InputDepth = header.BitDepth(0);
+		/*std::stringstream str;
 		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
 		str << " signed: " << header.DataSign(0)  << std::endl;
 		str << " colorimetric: " << header.Colorimetric(0)  << std::endl;
@@ -149,7 +175,6 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 		str << " black " << header.BlackLevel() << std::endl;
 		str << " black gain " << header.BlackGain() << std::endl;
 		str << " gamma " << header.Gamma() << std::endl;
-		m_RequiresByteSwap = header.RequiresByteSwap();
 		str << " first 8 bytes: "  << std::endl;
 		uint64_t buffer;
 		dpx::ElementReadStream element(&stream);
@@ -158,9 +183,8 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 		for(int i=0;i<8;i++){
 			str << std::bitset<8>(data[i]) << std::endl;
 		}
-		m_InputDepth = header.BitDepth(0);
-
-		OutputDebugStringA(str.str().c_str());
+		OutputDebugStringA(str.str().c_str());*/
+		std::stringstream str;
 		switch(dpx_descriptor){
 		case dpx::Descriptor::kAlpha:
 			switch(m_InputDepth){
@@ -208,6 +232,8 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 				m_TextureOutFormat = m_TextureFormat;
 				m_RowPitch = m_Width * 3;
 				m_InputWidth = header.pixelsPerLine*3/4;
+				m_Padding = NextMultiple(m_InputWidth,8) - m_InputWidth;
+				m_InputFormat = RGB;
 				break;
 			case 10:
 				if(header.ImagePacking(0)==1){
@@ -215,6 +241,7 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 					m_TextureOutFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 					m_RowPitch = m_Width * 4;
 					m_InputWidth = header.pixelsPerLine;
+					m_InputFormat = ARGB;
 				}else{
 					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
 				}
@@ -224,15 +251,16 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 				m_TextureOutFormat = m_TextureFormat;
 				m_RowPitch = m_Width * 3 * 2;
 				m_InputWidth = header.pixelsPerLine*3/4;
+				m_InputFormat = RGB;
 				break;
 			case 32:
 				m_TextureFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 				m_TextureOutFormat = m_TextureFormat;
 				m_RowPitch = m_Width * 3 * 4;
 				m_InputWidth = header.pixelsPerLine*3/4;
+				m_InputFormat = RGB;
 				break;
 			}
-			m_InputFormat = RGB;
 			break;
 		case dpx::Descriptor::kRGBA:
 			switch(m_InputDepth){
@@ -301,9 +329,9 @@ ImageSequence::ImageSequence(const std::string & directory, const std::string & 
 	}
 		
 	//size_t numbytesfile = m_BytesData + m_DataOffset;
-	std::stringstream ss;
+	/*std::stringstream ss;
 	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << m_Width << "x" << m_Height << " " << m_InputFormat << " with " << m_BytesData << " bytes per file and " << m_DataOffset << " m_DataOffset, m_RowPitch: " << m_RowPitch << " input tex format " << m_TextureFormat << " and output tex format " << m_TextureOutFormat << std::endl;
-	OutputDebugStringA( ss.str().c_str() ); 
+	OutputDebugStringA( ss.str().c_str() ); */
 }
 
 
@@ -342,6 +370,10 @@ size_t ImageSequence::InputWidth() const{
 size_t ImageSequence::RowPitch() const
 {
 	return m_RowPitch;
+}
+
+size_t ImageSequence::RowPadding() const{
+	return m_Padding;
 }
 
 DXGI_FORMAT ImageSequence::TextureFormat() const

@@ -9,6 +9,7 @@ Pool & Pool::GetInstance(){
 }
 
 void ReleaseContext(Context * context){
+	std::unique_lock<std::mutex> lock(Pool::GetInstance().mutex);
 	Pool::GetInstance().contexts.emplace_back(context,&ReleaseContext);
 }
 
@@ -29,3 +30,6 @@ std::shared_ptr<Context> Pool::AquireContext(const Format & format){
 	}
 }
 
+int Pool::Size(){
+	return contexts.size();
+}
