@@ -152,7 +152,9 @@
   <ItemGroup>
     <ClInclude Include="A2R10G10B10_to_R10G10B10A2.h" />
     <ClInclude Include="BGR_to_RGBA.h" />
+    <ClInclude Include="blockingconcurrentqueue.h" />
     <ClInclude Include="Channel.h" />
+    <ClInclude Include="concurrentqueue.h" />
     <ClInclude Include="Context.h" />
     <ClInclude Include="DDS.h" />
     <ClInclude Include="DX11Player.h" />
