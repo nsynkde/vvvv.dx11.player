@@ -50,15 +50,13 @@ Frame::~Frame(){
 	}
 }
 
-void Frame::Reset(){
-	SetNextToLoad("");
-	readyToPresent = false;
-}
-
 void Frame::Cancel(){
-	CancelIoEx(file,&overlap);
-	CloseHandle(file);
-	Reset();
+	if (file != nullptr){
+		CancelIoEx(file, nullptr);
+		CloseHandle(file);
+		file = nullptr;
+	}
+	readyToPresent = false;
 }
 
 bool Frame::IsReadyToPresent(){
@@ -88,11 +86,7 @@ size_t Frame::GetMappedRowPitch() const{
 	return mappedBuffer.RowPitch;
 }
 
-void Frame::SetNextToLoad(const std::string & next){
-	nextToLoad = next;
-}
-
-const std::string &  Frame::NextToLoad() const{
+const std::string &  Frame::SourcePath() const{
 	return nextToLoad;
 }
 
@@ -113,8 +107,10 @@ HANDLE Frame::RenderTextureSharedHandle(){
 }
 
 bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata, HighResClock::time_point now){
+	nextToLoad = "";
+	readyToPresent = false;
 	if(file != nullptr){
-		Wait(INFINITE);
+		Cancel();
 	}
 	auto ptr = (char*)mappedBuffer.pData;
 	if(ptr){
@@ -126,6 +122,7 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 			DWORD bytesRead=0;
 			::ReadFile(file,ptr,numbytesdata,&bytesRead,&overlap);
 			loadTime = now;
+			nextToLoad = path;
 			return true;
 		}
 	}

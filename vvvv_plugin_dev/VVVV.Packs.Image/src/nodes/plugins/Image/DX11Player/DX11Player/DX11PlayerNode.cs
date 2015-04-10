@@ -15,6 +15,7 @@ using FeralTic.DX11.Resources;
 using VVVV.PluginInterfaces.V2;
 using VVVV.PluginInterfaces.V1;
 using SlimDX.Direct3D11;
+using SlimDX.DXGI;
 using VVVV.DX11;
 using VVVV.Nodes;
 
@@ -85,11 +86,20 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Input("frame render idx")]
         public IDiffSpread<int> FNextFrameRenderIn;
 
+        [Input("always show last frame")]
+        public IDiffSpread<bool> FAlwaysShowLastIn;
+
         [Output("status")]
         public ISpread<string> FStatusOut;
 
         [Output("texture")]
         public ISpread<DX11Resource<DX11Texture2D>> FTextureOut;
+
+        [Output("size")]
+        public ISpread<Vector2D> FSizeOut;
+
+        [Output("tex format")]
+        public ISpread<Format> FFormatOut;
 
         [Output("upload buffer size")]
         public ISpread<int> FUploadSizeOut;
@@ -184,6 +194,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FGetNextFrame.SliceCount = NumSpreads;
                     FLoadFrameOut.SliceCount = NumSpreads;
                     FRenderFrameOut.SliceCount = NumSpreads;
+                    FSizeOut.SliceCount = NumSpreads;
+                    FFormatOut.SliceCount = NumSpreads;
                     FContextPoolSize.SliceCount = 1;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
@@ -270,6 +282,18 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             }
 
+            if (FAlwaysShowLastIn.IsChanged)
+            {
+                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                {
+                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    {
+                        NativeInterface.DX11Player_SetAlwaysShowLastFrame(FDX11NativePlayer[i], FAlwaysShowLastIn[i]);
+                    }
+                }
+
+            }
+
             FContextPoolSize[0] = NativeInterface.DX11Player_GetContextPoolSize();
 
         }
@@ -288,6 +312,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                             var nativePlayer = NativeInterface.DX11Player_Create(FFormatFile[i], FFileLoadIn[i].Count());
                             if (nativePlayer != IntPtr.Zero)
                             {
+                                NativeInterface.DX11Player_SetAlwaysShowLastFrame(nativePlayer, FAlwaysShowLastIn[i]);
                                 FDX11NativePlayer[i] = nativePlayer;
                             }
                             else
@@ -332,8 +357,13 @@ namespace VVVV.Nodes.DX11PlayerNode
                                 this.FSharedTextureCache[i][handle][context] = resource;
                                 this.FTextureOut[i] = this.FSharedTextureCache[i][handle];
                             }
+                            this.FSizeOut[i] = new Vector2D(this.FTextureOut[i][context].Width,this.FTextureOut[i][context].Height);
+                            this.FFormatOut[i] = this.FTextureOut[i][context].Format;
                             this.FGotFirstFrameOut[i] = true;
-                            FGetNextFrame[i] = false;
+                            if (FFileLoadIn[i][renderFrame] == NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]))
+                            {
+                                FGetNextFrame[i] = false;
+                            }
                         }
                     }
                 }
@@ -419,6 +449,8 @@ namespace VVVV.Nodes.DX11PlayerNode
         [DllImport("DX11PlayerNative.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern void DX11Player_SetSystemFrames(IntPtr player, String[] frames, int size);
 
+        [DllImport("DX11PlayerNative.dll")]
+        internal static extern void DX11Player_SetAlwaysShowLastFrame(IntPtr player, bool always);
     }
 
 }

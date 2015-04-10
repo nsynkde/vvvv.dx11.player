@@ -366,7 +366,6 @@ std::shared_ptr<Frame> Context::GetFrame(){
 	}else{
 		auto frame = m_Frames.back();
 		m_Frames.pop_back();
-		frame->Reset();
 		return frame;
 	}
 }

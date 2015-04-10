@@ -48,6 +48,7 @@ public:
 	std::string GetCurrentRenderFrame() const;
 	void SendNextFrameToLoad(const std::string & nextFrame);
 	void SetSystemFrames(std::vector<std::string> & frames);
+	void SetAlwaysShowLastFrame(bool alwaysShowLastFrame);
 private:
 	void ChangeStatus(Status code, const std::string & status);
 	std::shared_ptr<Context> m_Context;
@@ -72,4 +73,5 @@ private:
 	std::string m_StatusDesc;
 	Status m_StatusCode;
 	std::mutex m_SystemFramesMutex;
+	bool m_AlwaysShowLastFrame;
 };

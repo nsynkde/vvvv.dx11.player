@@ -268,6 +268,9 @@ void RenderFrame(void)
 {
 	static int i = 0;
 	static auto starttime = HighResClock::now();
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
 	/*if(i==300){
 		player->SetFPS(0);
 	}*/
@@ -275,35 +278,39 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
+		std::vector<std::string> current_frames( files.begin()+i, files.begin()+i+7 );
+		player->SetSystemFrames(current_frames);
 		player->SendNextFrameToLoad(files[(i+7)%files.size()]);
 		player->Update();
-	}
-	// devcon->Flush();
-    // draw the vertex buffer to the back buffer
+		// devcon->Flush();
+		// draw the vertex buffer to the back buffer
     
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-	
-	auto tex = GetTexture(i);
-	if(tex!=nullptr){
-		// select which vertex buffer to display
-		if(!ready){
-			std::stringstream str;
-			str << "got first frame on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
-			OutputDebugStringA(str.str().c_str());
-			ready = true;
+		auto tex = GetTexture(i);
+		if(tex!=nullptr){
+			// select which vertex buffer to display
+			if(!ready){
+				std::stringstream str;
+				str << "got first frame on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
+				OutputDebugStringA(str.str().c_str());
+				ready = true;
+			}
+			ID3D11ShaderResourceView * shaderResourceView;
+			auto hr = dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
+			if(FAILED(hr)){
+				throw std::exception("Coudln't create shader resource view");
+			}
+			devcon->PSSetShaderResources(0,1,&shaderResourceView);
+			devcon->PSSetShader(pPS, 0, 0);
+			devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
+			devcon->Draw(6, 0);
+			shaderResourceView->Release();
+			tex->Release();
+		}else{
+			OutputDebugStringA((std::string("Got null texture for ") + files[i] + "\n").c_str());
 		}
-		ID3D11ShaderResourceView * shaderResourceView;
-		auto hr = dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
-		if(FAILED(hr)){
-			throw std::exception("Coudln't create shader resource view");
-		}
-		devcon->PSSetShaderResources(0,1,&shaderResourceView);
-		devcon->PSSetShader(pPS, 0, 0);
-		devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
-		devcon->Draw(6, 0);
-		shaderResourceView->Release();
-		tex->Release();
+		i++;
+	}else{
+		OutputDebugStringA("Player not ready\n");
 	}
 
 	UpdateVerticalLine();
@@ -313,7 +320,6 @@ void RenderFrame(void)
 
     // switch the back buffer and the front buffer
     swapchain->Present(1, 0);
-	i++;
 
 	/*if(i%240==0){
 		player = std::make_shared<DX11Player>("D:\\TestMaterial\\bbb_4ktga_crop1");
@@ -462,7 +468,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "D:\\TEST\\LEFT.stack");
+	tinydir_open(&dir, "D:\\TestMaterial\\bbb_4ktga_crop1");
 
 	while (dir.has_next)
 	{

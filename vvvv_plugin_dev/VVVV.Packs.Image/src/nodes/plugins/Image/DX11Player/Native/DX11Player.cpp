@@ -87,6 +87,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	,m_GotFirstFrame(false)
 	,m_StatusCode(Init)
 	,m_StatusDesc("Init")
+	,m_AlwaysShowLastFrame(false)
 {
 
 	// uploader thread: initializes the whole pipeline and then
@@ -140,7 +141,6 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		try{
 			for(auto i=0;i<ringBufferSize;i++){
 				auto frame = self->m_Context->GetFrame();
-				frame->Reset();
 				self->m_ReadyToUpload.send(frame);
 			}
 		}catch(std::exception & e){
@@ -157,9 +157,10 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			auto now = HighResClock::now();
 			auto in_system=false;
 			std::set<std::string> s_system;
+			std::string localCurrentFrame;
 			auto dropped_now=0;
 			do{
-				if(!nextFrameChannel->recv(*currentFrame)){
+				if (!nextFrameChannel->recv(localCurrentFrame)){
 					*running = false;
 					return;
 				}
@@ -167,16 +168,15 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 				s_system.clear();
 				std::lock_guard<std::mutex> lock(*systemFramesMutex);
 				s_system.insert( systemFrames->begin(), systemFrames->end() );
-			}while(s_system.find(*currentFrame)==s_system.end() && !PathFileExistsA(currentFrame->c_str()));
+			} while (s_system.find(localCurrentFrame) == s_system.end() && !PathFileExistsA(localCurrentFrame.c_str()));
 			dropped_now-=1;
 			*dropped += dropped_now;
-			nextFrame->SetNextToLoad(*currentFrame);
+			*currentFrame = localCurrentFrame;
 
 			auto offset = (fileInfo.row_pitch+fileInfo.format.row_padding*4)*4-fileInfo.data_offset;
 			if(nextFrame->ReadFile(*currentFrame,offset,numbytesdata,now)){
 				if(!readyToWait->send(nextFrame))
 				{
-					nextFrame->Wait(INFINITE);
 					*running = false;
 					break;
 				}
@@ -190,24 +190,28 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	m_WaiterThreadRunning = true;
 	running = &m_WaiterThreadRunning;
 	auto avgDecodeDuration = &m_AvgDecodeDuration;
-	m_WaiterThread = std::thread([running,readyToWait,readyToRender,readyToUpload,avgDecodeDuration,systemFrames,systemFramesMutex,dropped]{
-		auto start = HighResClock::now();
+	auto alwaysShowLastFrame = &m_AlwaysShowLastFrame;
+	m_WaiterThread = std::thread([running, readyToWait, readyToRender, readyToUpload, avgDecodeDuration, systemFrames, systemFramesMutex, dropped, alwaysShowLastFrame]{
 		std::shared_ptr<Frame> nextFrame;
-		while(readyToWait->recv(nextFrame)){
-			/*std::set<std::string> s_system;
-			{
+		while (readyToWait->recv(nextFrame)){
+			std::set<std::string> s_system;
+			if (!alwaysShowLastFrame){
 				std::lock_guard<std::mutex> lock(*systemFramesMutex);
-				s_system.insert( systemFrames->begin(), systemFrames->end() );
+				s_system.insert(systemFrames->begin(), systemFrames->end());
 			}
-			if(s_system.find(nextFrame->NextToLoad())==s_system.end()){
-				nextFrame->Cancel();
+			if (alwaysShowLastFrame || s_system.find(nextFrame->SourcePath()) != s_system.end()){
+				auto ontime = nextFrame->Wait(INFINITE);
+				if (ontime){ // since t=INIFINITE only false if read failed
+					*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame->DecodeDuration()).count() / (readyToWait->size() + 1));
+					readyToRender->send(nextFrame);
+				}else{
+					readyToUpload->send(nextFrame);
+					(*dropped)++;
+				}
+			}else{
 				readyToUpload->send(nextFrame);
 				(*dropped)++;
-			}else{*/
-				auto ontime = nextFrame->Wait(INFINITE);
-				*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame->DecodeDuration()).count()/(readyToWait->size()+1));
-				readyToRender->send(nextFrame);
-			//}
+			}
 		}
 	});
 }
@@ -225,42 +229,51 @@ DX11Player::~DX11Player(){
 
 void DX11Player::Update(){
 	if(!m_UploaderThreadRunning) return;
-	std::shared_ptr<Frame> frame;
 	auto now = HighResClock::now();
 	HighResClock::duration currentLatency;
 	std::vector<std::shared_ptr<Frame>> receivedFrames;
+	std::shared_ptr<Frame> frame;
+	std::shared_ptr<Frame> lastFrame;
 	while(m_ReadyToRender.try_recv(frame)){
 		currentLatency += now - frame->LoadTime();
 		receivedFrames.push_back(frame);
 	}
-	std::set<std::string> s_system( m_SystemFrames.begin(), m_SystemFrames.end() );
+	std::set<std::string> s_system(m_SystemFrames.begin(), m_SystemFrames.end());
 	if(!receivedFrames.empty()){
 		m_GotFirstFrame=true;
 		ChangeStatus(Status::FirstFrame,"FirstFrame");
 		m_AvgPipelineLatency = std::chrono::nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(currentLatency).count() / receivedFrames.size());
+		if (m_AlwaysShowLastFrame){
+			lastFrame = receivedFrames.back();
+			receivedFrames.pop_back();
+		}
 		for(auto & frame: receivedFrames){
-			if(s_system.find(frame->NextToLoad())==s_system.end()){
+			if (s_system.find(frame->SourcePath()) == s_system.end()){
 				m_DroppedFrames++;
-				frame->Reset();
 				m_ReadyToUpload.send(frame);
 			}else{
-				auto prev_frame = m_WaitingToPresent.find(frame->NextToLoad());
+				auto prev_frame = m_WaitingToPresent.find(frame->SourcePath());
 				if(prev_frame!=m_WaitingToPresent.end()){
-					prev_frame->second->Reset();
 					m_ReadyToUpload.send(prev_frame->second);
 					m_WaitingToPresent.erase(prev_frame);
 				}
-				m_WaitingToPresent[frame->NextToLoad()] = frame;
+				m_WaitingToPresent[frame->SourcePath()] = frame;
 			}
 		}
 	}
 	for(auto frame = m_WaitingToPresent.begin(); frame!=m_WaitingToPresent.end();){
-		if(s_system.find(frame->first)==s_system.end()){
-			frame->second->Reset();
+		if ((!m_AlwaysShowLastFrame || lastFrame || m_WaitingToPresent.size()>1) && s_system.find(frame->first) == s_system.end()){
 			m_ReadyToUpload.send(frame->second);
 			m_WaitingToPresent.erase(frame++);
 		}else{
 			++frame;
+		}
+	}
+	if (lastFrame){
+		if (m_WaitingToPresent.empty()){
+			m_WaitingToPresent[lastFrame->SourcePath()] = lastFrame;
+		}else{
+			m_ReadyToUpload.send(lastFrame);
 		}
 	}
 
@@ -297,9 +310,11 @@ HANDLE DX11Player::GetSharedHandle(const std::string & nextFrame){
 	}	
 	auto next = m_WaitingToPresent.find(nextFrame);
 	if(next==m_WaitingToPresent.end()){
-		return nullptr;	
+		next = m_WaitingToPresent.begin();
+		m_NextRenderFrame = next->second->SourcePath();
+	}else{
+		m_NextRenderFrame = nextFrame;
 	}
-	m_NextRenderFrame = nextFrame;
 	if(!next->second->IsReadyToPresent()){
 		next->second->Render();
 	}
@@ -347,7 +362,11 @@ void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
 		OutputDebugStringA(str.str().c_str());
 		return;
 	}
-	m_NextFrameChannel.send(nextFrame);
+	if (m_NextFrameChannel.size() < m_RingBufferSize * 2){
+		m_NextFrameChannel.send(nextFrame);
+	}else{
+		m_DroppedFrames++;
+	}
 }
 
 void DX11Player::SetSystemFrames(std::vector<std::string> & frames){
@@ -363,7 +382,9 @@ bool DX11Player::GotFirstFrame() const{
 	return m_GotFirstFrame && m_StatusCode!=Error;
 }
 
-
+void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame){
+	m_AlwaysShowLastFrame = alwaysShowLastFrame;
+}
 
 
 extern "C"{
@@ -487,5 +508,9 @@ extern "C"{
 	NATIVE_API void DX11Player_SetSystemFrames(DX11HANDLE player, char**frames, int numframes){
 		std::vector<std::string> framesString(frames,frames+numframes);
 		static_cast<DX11Player*>(player)->SetSystemFrames(framesString);
+	}
+
+	NATIVE_API void DX11Player_SetAlwaysShowLastFrame(DX11HANDLE player, bool always){
+		static_cast<DX11Player*>(player)->SetAlwaysShowLastFrame(always);
 	}
 }
