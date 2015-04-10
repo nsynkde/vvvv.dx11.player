@@ -270,7 +270,7 @@ void DX11Player::Update(){
 		}
 	}
 	if (lastFrame){
-		if (m_WaitingToPresent.empty()){
+		if (m_WaitingToPresent.empty() || s_system.find(lastFrame->SourcePath()) != s_system.end()){
 			m_WaitingToPresent[lastFrame->SourcePath()] = lastFrame;
 		}else{
 			m_ReadyToUpload.send(lastFrame);
