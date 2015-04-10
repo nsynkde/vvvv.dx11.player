@@ -57,7 +57,7 @@ private:
 	bool m_UploaderThreadRunning;
 	bool m_WaiterThreadRunning;
 	Channel<std::shared_ptr<Frame>> m_ReadyToUpload;
-	Channel<std::shared_ptr<Frame>> m_ReadyToWait;
+	Channel<std::pair<int,std::shared_ptr<Frame>>> m_ReadyToWait;
 	Channel<std::shared_ptr<Frame>> m_ReadyToRender;
 	Channel<std::string> m_NextFrameChannel;
 	std::vector<std::string> m_SystemFrames;

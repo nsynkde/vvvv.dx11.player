@@ -175,7 +175,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 
 			auto offset = (fileInfo.row_pitch+fileInfo.format.row_padding*4)*4-fileInfo.data_offset;
 			if(nextFrame->ReadFile(*currentFrame,offset,numbytesdata,now)){
-				if(!readyToWait->send(nextFrame))
+				if(!readyToWait->send(make_pair(readyToWait->size()+1,nextFrame)))
 				{
 					*running = false;
 					break;
@@ -192,24 +192,24 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	auto avgDecodeDuration = &m_AvgDecodeDuration;
 	auto alwaysShowLastFrame = &m_AlwaysShowLastFrame;
 	m_WaiterThread = std::thread([running, readyToWait, readyToRender, readyToUpload, avgDecodeDuration, systemFrames, systemFramesMutex, dropped, alwaysShowLastFrame]{
-		std::shared_ptr<Frame> nextFrame;
+		std::pair<int,std::shared_ptr<Frame>> nextFrame;
 		while (readyToWait->recv(nextFrame)){
 			std::set<std::string> s_system;
 			if (!alwaysShowLastFrame){
 				std::lock_guard<std::mutex> lock(*systemFramesMutex);
 				s_system.insert(systemFrames->begin(), systemFrames->end());
 			}
-			if (alwaysShowLastFrame || s_system.find(nextFrame->SourcePath()) != s_system.end()){
-				auto ontime = nextFrame->Wait(INFINITE);
+			if (alwaysShowLastFrame || s_system.find(nextFrame.second->SourcePath()) != s_system.end()){
+				auto ontime = nextFrame.second->Wait(INFINITE);
 				if (ontime){ // since t=INIFINITE only false if read failed
-					*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame->DecodeDuration()).count() / (readyToWait->size() + 1));
-					readyToRender->send(nextFrame);
+					*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
+					readyToRender->send(nextFrame.second);
 				}else{
-					readyToUpload->send(nextFrame);
+					readyToUpload->send(nextFrame.second);
 					(*dropped)++;
 				}
 			}else{
-				readyToUpload->send(nextFrame);
+				readyToUpload->send(nextFrame.second);
 				(*dropped)++;
 			}
 		}
