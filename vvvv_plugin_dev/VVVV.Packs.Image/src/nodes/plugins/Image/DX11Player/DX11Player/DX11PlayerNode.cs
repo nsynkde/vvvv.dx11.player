@@ -29,7 +29,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         Error = -1
     };
     [PluginInfo(Name = "Player", Category = "DX11.Texture")]
-    public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceProvider
+    public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceProvider, IDisposable
     {
         
 
@@ -324,7 +324,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
                         if (handle != IntPtr.Zero)
                         {
-                            if (FSharedTextureCache[i].ContainsKey(handle))
+                            if (FSharedTextureCache[i].ContainsKey(handle) && FSharedTextureCache[i][handle].Contains(context))
                             {
                                 this.FTextureOut[i] = FSharedTextureCache[i][handle];
                             }
@@ -333,7 +333,10 @@ namespace VVVV.Nodes.DX11PlayerNode
                                 Texture2D tex = context.Device.OpenSharedResource<Texture2D>(handle);
                                 ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
                                 DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
-                                this.FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
+                                if (!FSharedTextureCache[i].ContainsKey(handle))
+                                {
+                                    this.FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
+                                }
                                 this.FSharedTextureCache[i][handle][context] = resource;
                                 this.FTextureOut[i] = this.FSharedTextureCache[i][handle];
                             }
@@ -368,6 +371,25 @@ namespace VVVV.Nodes.DX11PlayerNode
         }
 
         public void Destroy(IPluginIO pin, DX11RenderContext context, bool force)
+        {
+            for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+            {
+                foreach (var handle in this.FSharedTextureCache[i])
+                {
+                    if (handle.Value.Contains(context))
+                    {
+                        handle.Value.Dispose();
+                        FSharedTextureCache[i].Remove(handle.Key);
+                    }
+                }
+                if (this.FTextureOut[i].Contains(context))
+                {
+                    this.FTextureOut[i] = null;
+                }
+            }
+        }
+
+        public void Dispose()
         {
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
