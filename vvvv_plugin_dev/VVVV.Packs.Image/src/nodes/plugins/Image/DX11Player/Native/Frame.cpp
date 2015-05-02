@@ -52,7 +52,25 @@ Frame::~Frame(){
 
 void Frame::Cancel(){
 	if (file != nullptr){
-		CancelIoEx(file, nullptr);
+		auto result = CancelIoEx(file, &overlap);
+		if (result == TRUE || GetLastError() != ERROR_NOT_FOUND)
+		{
+			// Wait for the I/O subsystem to acknowledge our cancellation.
+			// Depending on the timing of the calls, the I/O might complete with a
+			// cancellation status, or it might complete normally (if the ReadFile was
+			// in the process of completing at the time CancelIoEx was called, or if
+			// the device does not support cancellation).
+			// This call specifies TRUE for the bWait parameter, which will block
+			// until the I/O either completes or is canceled, thus resuming execution, 
+			// provided the underlying device driver and associated hardware are functioning 
+			// properly. If there is a problem with the driver it is better to stop 
+			// responding here than to try to continue while masking the problem.
+
+			DWORD bytesRead;
+			result = GetOverlappedResult(file, &overlap, &bytesRead, TRUE);
+
+			// ToDo: check result and log errors. 
+		}
 		CloseHandle(file);
 		file = nullptr;
 	}

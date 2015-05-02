@@ -209,7 +209,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 					(*dropped)++;
 				}
 			}else{
-				//nextFrame.second->Cancel();
+				nextFrame.second->Cancel();
 				readyToUpload->send(nextFrame.second);
 				(*dropped)++;
 			}

@@ -21,7 +21,6 @@ class Frame{
 	bool readyToPresent;
 	HRESULT Map();
 	void Unmap();
-	void Cancel();
 	friend void ReleaseFrame(Frame * frame);
 
 public:
@@ -38,5 +37,6 @@ public:
 	bool Wait(DWORD millis);
 	HighResClock::duration DecodeDuration() const;
 	size_t GetMappedRowPitch() const;
+	void Cancel();
 };
 
