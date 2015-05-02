@@ -351,6 +351,7 @@ public:
 	// memory barrier).
 	explicit BlockingConcurrentQueue(size_t capacity = 6 * BLOCK_SIZE)
 		: inner(capacity), sema(create<LightweightSemaphore>(), &BlockingConcurrentQueue::template destroy<LightweightSemaphore>)
+		, is_closed(false)
 	{
 		if (!sema) {
 			throw std::bad_alloc();
@@ -366,6 +367,7 @@ public:
 	// with the queue itself).
 	BlockingConcurrentQueue(BlockingConcurrentQueue&& other) MOODYCAMEL_NOEXCEPT
 		: inner(std::move(other.inner)), sema(std::move(other.sema))
+		, is_closed(false)
 	{ }
 	
 	inline BlockingConcurrentQueue& operator=(BlockingConcurrentQueue&& other) MOODYCAMEL_NOEXCEPT
@@ -403,6 +405,9 @@ public:
 	// Thread-safe.
 	inline bool enqueue(T const& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue(item))) {
 			sema->signal();
 			return true;
@@ -417,6 +422,9 @@ public:
 	// Thread-safe.
 	inline bool enqueue(T&& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue(std::move(item)))) {
 			sema->signal();
 			return true;
@@ -430,6 +438,9 @@ public:
 	// Thread-safe.
 	inline bool enqueue(producer_token_t const& token, T const& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue(token, item))) {
 			sema->signal();
 			return true;
@@ -443,6 +454,9 @@ public:
 	// Thread-safe.
 	inline bool enqueue(producer_token_t const& token, T&& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue(token, std::move(item)))) {
 			sema->signal();
 			return true;
@@ -459,6 +473,9 @@ public:
 	template<typename It>
 	inline bool enqueue_bulk(It itemFirst, size_t count)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue_bulk(std::forward<It>(itemFirst), count))) {
 			sema->signal((LightweightSemaphore::ssize_t)(ssize_t)count);
 			return true;
@@ -475,6 +492,9 @@ public:
 	template<typename It>
 	inline bool enqueue_bulk(producer_token_t const& token, It itemFirst, size_t count)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (details::likely(inner.enqueue_bulk(token, std::forward<It>(itemFirst), count))) {
 			sema->signal((LightweightSemaphore::ssize_t)(ssize_t)count);
 			return true;
@@ -489,6 +509,9 @@ public:
 	// Thread-safe.
 	inline bool try_enqueue(T const& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue(item)) {
 			sema->signal();
 			return true;
@@ -503,6 +526,9 @@ public:
 	// Thread-safe.
 	inline bool try_enqueue(T&& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue(std::move(item))) {
 			sema->signal();
 			return true;
@@ -515,6 +541,9 @@ public:
 	// Thread-safe.
 	inline bool try_enqueue(producer_token_t const& token, T const& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue(token, item)) {
 			sema->signal();
 			return true;
@@ -527,6 +556,9 @@ public:
 	// Thread-safe.
 	inline bool try_enqueue(producer_token_t const& token, T&& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue(token, std::move(item))) {
 			sema->signal();
 			return true;
@@ -544,6 +576,9 @@ public:
 	template<typename It>
 	inline bool try_enqueue_bulk(It itemFirst, size_t count)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue_bulk(std::forward<It>(itemFirst), count)) {
 			sema->signal((LightweightSemaphore::ssize_t)(ssize_t)count);
 			return true;
@@ -559,6 +594,9 @@ public:
 	template<typename It>
 	inline bool try_enqueue_bulk(producer_token_t const& token, It itemFirst, size_t count)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (inner.try_enqueue_bulk(token, std::forward<It>(itemFirst), count)) {
 			sema->signal((LightweightSemaphore::ssize_t)(ssize_t)count);
 			return true;
@@ -574,6 +612,9 @@ public:
 	template<typename U>
 	inline bool try_dequeue(U& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (sema->tryWait()) {
 			while (!inner.try_dequeue(item)) {
 				continue;
@@ -590,6 +631,9 @@ public:
 	template<typename U>
 	inline bool try_dequeue(consumer_token_t& token, U& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		if (sema->tryWait()) {
 			while (!inner.try_dequeue(token, item)) {
 				continue;
@@ -607,6 +651,9 @@ public:
 	template<typename It>
 	inline size_t try_dequeue_bulk(It itemFirst, size_t max)
 	{
+		if (is_closed){
+			return 0;
+		}
 		size_t count = 0;
 		max = (size_t)sema->tryWaitMany((LightweightSemaphore::ssize_t)(ssize_t)max);
 		while (count != max) {
@@ -623,6 +670,9 @@ public:
 	template<typename It>
 	inline size_t try_dequeue_bulk(consumer_token_t& token, It itemFirst, size_t max)
 	{
+		if (is_closed){
+			return 0;
+		}
 		size_t count = 0;
 		max = (size_t)sema->tryWaitMany((LightweightSemaphore::ssize_t)(ssize_t)max);
 		while (count != max) {
@@ -637,12 +687,19 @@ public:
 	// dequeues it.
 	// Never allocates. Thread-safe.
 	template<typename U>
-	inline void wait_dequeue(U& item)
+	inline bool wait_dequeue(U& item)
 	{
+		if (is_closed){
+			return false;
+		}
 		sema->wait();
+		if (is_closed){
+			return false;
+		}
 		while (!inner.try_dequeue(item)) {
 			continue;
 		}
+		return true;
 	}
 	
 	// Blocks the current thread until there's something to dequeue, then
@@ -651,7 +708,13 @@ public:
 	template<typename U>
 	inline void wait_dequeue(consumer_token_t& token, U& item)
 	{
+		if (is_closed){
+			return;
+		}
 		sema->wait();
+		if (is_closed){
+			return;
+		}
 		while (!inner.try_dequeue(token, item)) {
 			continue;
 		}
@@ -665,6 +728,9 @@ public:
 	template<typename It>
 	inline size_t wait_dequeue_bulk(It itemFirst, size_t max)
 	{
+		if (is_closed){
+			return 0;
+		}
 		size_t count = 0;
 		max = (size_t)sema->waitMany((LightweightSemaphore::ssize_t)(ssize_t)max);
 		while (count != max) {
@@ -681,6 +747,9 @@ public:
 	template<typename It>
 	inline size_t wait_dequeue_bulk(consumer_token_t& token, It itemFirst, size_t max)
 	{
+		if (is_closed){
+			return 0;
+		}
 		size_t count = 0;
 		max = (size_t)sema->waitMany((LightweightSemaphore::ssize_t)(ssize_t)max);
 		while (count != max) {
@@ -711,6 +780,18 @@ public:
 	}
 	
 
+	void close()
+	{
+		is_closed = true;
+		sema->signal();
+		T item;
+		if (sema->tryWait()) {
+			while (inner.try_dequeue(item)) {
+				continue;
+			}
+		}
+	}
+
 private:
 	template<typename U>
 	static inline U* create()
@@ -738,6 +819,7 @@ private:
 private:
 	ConcurrentQueue inner;
 	std::unique_ptr<LightweightSemaphore, void (*)(LightweightSemaphore*)> sema;
+	bool is_closed;
 	
 	//static_assert(reinterpret_cast<ConcurrentQueue*>((BlockingConcurrentQueue*)0) == &((BlockingConcurrentQueue*)0)->inner, "BlockingConcurrentQueue must have ConcurrentQueue as its first member");
 };

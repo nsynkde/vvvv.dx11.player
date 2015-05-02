@@ -21,7 +21,7 @@
 #include "tinydir.h"
 
 //#define VLD_FORCE_ENABLE
-#include <vld.h>
+//#include <vld.h>
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
@@ -309,6 +309,7 @@ void RenderFrame(void)
 			OutputDebugStringA((std::string("Got null texture for ") + files[i] + "\n").c_str());
 		}
 		i++;
+		i %= files.size() - 7;
 	}else{
 		OutputDebugStringA("Player not ready\n");
 	}
@@ -468,7 +469,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "D:\\TestMaterial\\bbb_4ktga_crop1");
+	tinydir_open(&dir, "c:\\Users\\arturo\\Downloads\\test_material\\1930x1080");
 
 	while (dir.has_next)
 	{

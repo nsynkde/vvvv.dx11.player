@@ -104,10 +104,12 @@ ImageFormat::FileInfo ImageFormat::FormatFor(const std::string & imageFile)
 				fileInfo.format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				fileInfo.format.out_format = fileInfo.format.in_format;
 				fileInfo.format.w = header.width*3/4;
-				fileInfo.format.row_padding = NextMultiple(fileInfo.format.w,8) - fileInfo.format.w;
-				if(header.width*3.0/4.0>fileInfo.format.w){
-					throw std::exception("Can't convert image size to RGBA. Row size in bytes has to be a multiple of 32.");
-				}
+				fileInfo.format.row_padding = NextMultiple(fileInfo.format.w,32) - fileInfo.format.w;
+				/*if(header.width*3.0/4.0>fileInfo.format.w){
+					std::stringstream str;
+					str << "Can't convert image size to RGBA. Row size in bytes should be % 3/4. w = " << header.width << " w*3/4 = " << fileInfo.format.w << " w*3.0*4.0 = " << header.width*3.0 / 4.0;
+					throw std::exception(str.str().c_str());
+				}*/
 				fileInfo.row_pitch = header.width * 3;
 				fileInfo.format.pixel_format = BGR;
 			break;

@@ -7,21 +7,14 @@ class Channel
 {
 private:
 	moodycamel::BlockingConcurrentQueue<Data> m_queue;
-	bool closed;
 public:
 	Channel()
-	:closed(false)
 	{
 	}
 
     bool send(const Data & data)
     {
-		if(closed)
-		{
-			return false;
-		}
-        m_queue.enqueue(data);
-		return true;
+        return m_queue.enqueue(data);
     }
 
     bool empty() const
@@ -36,7 +29,7 @@ public:
 
     bool try_recv(Data& out_value)
     {
-        if(empty() || closed)
+        if(empty())
         {
             return false;
         }
@@ -46,18 +39,11 @@ public:
 
     bool recv(Data& popped_value)
     {
-        if(closed)
-		{
-			return false;
-		}
-		m_queue.wait_dequeue(popped_value);
-		return true;
+		return m_queue.wait_dequeue(popped_value);
     }
 
 	void close()
 	{
-		closed = true;
-		Data data;
-		while (m_queue.try_dequeue(data));
+		m_queue.close();
 	}
 };

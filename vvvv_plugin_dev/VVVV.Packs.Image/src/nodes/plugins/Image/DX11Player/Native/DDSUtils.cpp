@@ -5,6 +5,7 @@
 #include <memory>
 #include <assert.h>
 #include "DDS.h"
+#include <algorithm>
 
 namespace DirectX{
 
