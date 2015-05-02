@@ -21,7 +21,7 @@ std::shared_ptr<Context> Pool::AquireContext(const ImageFormat::Format & format)
 	}
 	if(context_it == contexts.end()){
 		// Create an extra context since will surely need it at some point
-		contexts.push_back(std::shared_ptr<Context>(new Context(format),&ReleaseContext));
+		// contexts.push_back(std::shared_ptr<Context>(new Context(format),&ReleaseContext));
 		return std::shared_ptr<Context>(new Context(format),&ReleaseContext);
 	}else{
 		auto context = *context_it;

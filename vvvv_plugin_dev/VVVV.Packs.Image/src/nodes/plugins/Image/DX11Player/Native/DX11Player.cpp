@@ -168,7 +168,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 				s_system.clear();
 				std::lock_guard<std::mutex> lock(*systemFramesMutex);
 				s_system.insert( systemFrames->begin(), systemFrames->end() );
-			} while (s_system.find(localCurrentFrame) == s_system.end() && !PathFileExistsA(localCurrentFrame.c_str()));
+			} while (s_system.find(localCurrentFrame) == s_system.end() || !PathFileExistsA(localCurrentFrame.c_str()));
 			dropped_now-=1;
 			*dropped += dropped_now;
 			*currentFrame = localCurrentFrame;
@@ -209,6 +209,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 					(*dropped)++;
 				}
 			}else{
+				//nextFrame.second->Cancel();
 				readyToUpload->send(nextFrame.second);
 				(*dropped)++;
 			}
@@ -362,7 +363,7 @@ void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
 		OutputDebugStringA(str.str().c_str());
 		return;
 	}
-	if (m_NextFrameChannel.size() < m_RingBufferSize * 2){
+	if (m_NextFrameChannel.size() <= m_RingBufferSize){
 		m_NextFrameChannel.send(nextFrame);
 	}else{
 		m_DroppedFrames++;

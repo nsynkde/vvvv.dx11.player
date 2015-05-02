@@ -249,26 +249,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
             }
 
-            for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
-            {
-                if (this.FIsReady[i])
-                {
-                    NativeInterface.DX11Player_SetSystemFrames(FDX11NativePlayer[i],FFileLoadIn[i].ToArray(),FFileLoadIn[i].Count());
-                    var diff = FFileLoadIn[i].Except(FPrevFrames[i]);
-                    foreach (var f in diff)
-                    {
-                        NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], f);
-                        FGetNextFrame[i] = true;
-                    }
-                    if (FDX11NativePlayer[i] != IntPtr.Zero && FPrevFrames[i].Count() != FFileLoadIn[i].Count())
-                    {
-                        DestroyPlayer(i);
-                        this.FRefreshTextures = true;
-                    }
-                    FPrevFrames[i] = FFileLoadIn[i].Clone();
-                }
-            }
-
             if (FNextFrameRenderIn.IsChanged)
             {
                 for (int i = 0; i < FPrevRenderFrames.SliceCount; i++)
@@ -365,6 +345,23 @@ namespace VVVV.Nodes.DX11PlayerNode
                                 FGetNextFrame[i] = false;
                             }
                         }
+                    }
+
+                    if (this.FIsReady[i])
+                    {
+                        NativeInterface.DX11Player_SetSystemFrames(FDX11NativePlayer[i], FFileLoadIn[i].ToArray(), FFileLoadIn[i].Count());
+                        var diff = FFileLoadIn[i].Except(FPrevFrames[i]);
+                        foreach (var f in diff)
+                        {
+                            NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], f);
+                            FGetNextFrame[i] = true;
+                        }
+                        if (FDX11NativePlayer[i] != IntPtr.Zero && FPrevFrames[i].Count() != FFileLoadIn[i].Count())
+                        {
+                            DestroyPlayer(i);
+                            this.FRefreshTextures = true;
+                        }
+                        FPrevFrames[i] = FFileLoadIn[i].Clone();
                     }
                 }
             }

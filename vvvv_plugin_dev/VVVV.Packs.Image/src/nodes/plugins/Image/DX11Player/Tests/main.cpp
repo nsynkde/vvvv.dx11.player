@@ -118,28 +118,24 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // enter the main loop:
 
     MSG msg;
+	ZeroMemory(&msg, sizeof(MSG));
 	
 	for(int i=0;i<7;i++){
 		player->SendNextFrameToLoad(files[i]);
 	}
-    while(TRUE)
+	while (msg.message != WM_QUIT)
     {
         if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-
-            if(msg.message == WM_QUIT)
-                break;
         }
 
         RenderFrame();
-    }
+	}
 
-    // clean up DirectX and COM
     CleanD3D();
 	//ReportLiveObjects();
-
     return msg.wParam;
 }
 
@@ -410,18 +406,18 @@ void InitPipeline()
     // load and compile the two shaders
 	HRESULT hr = dev->CreateVertexShader(VShader,sizeof(VShader),nullptr,&pVS);
 	if(FAILED(hr)){
-		throw std::exception("Coudln't create vertex shader");
+		throw std::exception("Coudln't create vertex shader\n");
 	}
-	OutputDebugString( "Created vertex shader" );
+	OutputDebugString( "Created vertex shader\n" );
 
 	hr = dev->CreatePixelShader(PShader,sizeof(PShader),nullptr,&pPS);
 	if(FAILED(hr)){
-		throw std::exception("Coudln't create pixel shader");
+		throw std::exception("Coudln't create pixel shader\n");
 	}
 
 	hr = dev->CreatePixelShader(PShaderNoTex,sizeof(PShaderNoTex),nullptr,&pPSNoTex);
 	if(FAILED(hr)){
-		throw std::exception("Coudln't create pixel shader");
+		throw std::exception("Coudln't create pixel shader\n");
 	}
 	
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
@@ -432,14 +428,14 @@ void InitPipeline()
 	ID3D11InputLayout * vertexLayout;
 	hr = dev->CreateInputLayout(layout, 2, VShader, sizeof(VShader), &vertexLayout);
 	if(FAILED(hr)){
-		throw std::exception("Coudln't create input layout");
+		throw std::exception("Coudln't create input layout\n");
 		//std::cout << "Coudln't create input layout" << std::endl;
 		
 	}
-	OutputDebugString( "Created vertex layout" );
+	OutputDebugString( "Created vertex layout\n" );
 
 	devcon->IASetInputLayout(vertexLayout);
-	OutputDebugString( "Set vertex layout" );
+	OutputDebugString( "Set vertex layout\n" );
 	vertexLayout->Release();
 	
 
@@ -460,16 +456,16 @@ void InitPipeline()
 	ID3D11SamplerState * samplerState;
 	hr = dev->CreateSamplerState(&samplerDesc,&samplerState);
 	if(FAILED(hr)){
-		throw std::exception("Coudln't create sampler");
+		throw std::exception("Coudln't create sampler\n");
 	}
-	OutputDebugString( "Created sampler state" );
+	OutputDebugString( "Created sampler state\n" );
 
 	devcon->PSSetSamplers(0,1,&samplerState);
-	OutputDebugString( "Set sampler state" );
+	OutputDebugString( "Set sampler state\n" );
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "c:\\Users\\arturo\\Downloads\\test_material\\1930x1080");
+	tinydir_open(&dir, "c:\\Users\\arturo\\Downloads\\test_material\\2000x1080");
 
 	while (dir.has_next)
 	{
