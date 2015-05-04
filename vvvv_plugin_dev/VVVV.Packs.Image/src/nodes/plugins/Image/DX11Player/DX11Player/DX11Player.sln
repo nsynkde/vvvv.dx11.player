@@ -6,13 +6,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DX11Player", "DX11Player.cs
 		{2F0AAA28-A677-4383-A928-FF7554728D8C} = {2F0AAA28-A677-4383-A928-FF7554728D8C}
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{7C45AF3D-979E-4A10-9805-E58AD659934B}"
-	ProjectSection(SolutionItems) = preProject
-		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\NuGet.exe = .nuget\NuGet.exe
-		.nuget\NuGet.targets = .nuget\NuGet.targets
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Native", "..\Native\Native.vcxproj", "{2F0AAA28-A677-4383-A928-FF7554728D8C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tests", "..\Tests\Tests.vcxproj", "{C4DE4503-9F46-49F3-883D-08CB5BBEE355}"
