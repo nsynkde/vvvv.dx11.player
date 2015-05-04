@@ -1,0 +1,203 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{14944c9b-6d04-464c-9d94-61705ed738f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libpdx">
+      <UniqueIdentifier>{4ec2105e-3891-44bb-b91a-0eb57cbebe23}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+    <Text Include="..\Shaders\HeadersPixelS.hlsl">
+      <Filter>Shaders</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DX11Player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tinydir.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HighResClock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DDS.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RGB_to_RGBA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VShader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\BaseTypeConverter.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\Codec.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\DPX.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\DPXHeader.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\DPXStream.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\ElementReadStream.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\EndianSwap.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\ReaderInternal.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\RunLengthEncoding.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="libdpx\WriterInternal.h">
+      <Filter>libpdx</Filter>
+    </ClInclude>
+    <ClInclude Include="BGR_to_RGBA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="A2R10G10B10_to_R10G10B10A2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PSCbYCr101010_to_R10G10B10A2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PSCbYCr888_to_RGBA8888.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TGA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageFormat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Channel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="blockingconcurrentqueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="concurrentqueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11Player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HighResClock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\Codec.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\DPX.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\DPXHeader.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\ElementReadStream.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\InStream.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\OutStream.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\Reader.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\RunLengthEncoding.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="libdpx\Writer.cpp">
+      <Filter>libpdx</Filter>
+    </ClCompile>
+    <ClCompile Include="Pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Frame.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Context.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageFormat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Shaders\RGB_to_RGBA.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\VShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\BGR_to_RGBA.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\A2R10G10B10_to_R10G10B10A2.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\CbYCr101010_to_R10G10B10A2.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\CbYCr888_to_RGBA8888.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\CbYCr161616_to_RGBA16161616.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

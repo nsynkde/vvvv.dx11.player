@@ -1,0 +1,17 @@
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta32.0.dtd" >
+   <PATCH nodename="C:\DEV\bluefish\vvvv_patches\console.v4p" systemname="console" filename="C:\DEV\bluefish\vvvv_patches\console.v4p">
+   <BOUNDS type="Window" left="5055" top="5715" width="9000" height="6945">
+   </BOUNDS>
+   <NODE systemname="Renderer (TTY)" nodename="Renderer (TTY)" componentmode="InAWindow" id="0">
+   <BOUNDS type="Node" left="3360" top="1545" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="3360" top="1545" width="2400" height="1800">
+   </BOUNDS>
+   <BOUNDS type="Window" left="14400" top="0" width="14400" height="17580">
+   </BOUNDS>
+   </NODE>
+   <PACK Name="VVVV.Packs" Version="0.1.0">
+   </PACK>
+   <PACK Name="addonpack" Version="31.9.0">
+   </PACK>
+   </PATCH>

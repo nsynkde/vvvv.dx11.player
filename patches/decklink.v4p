@@ -1,0 +1,141 @@
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta33.1.dtd" >
+   <PATCH nodename="C:\DEV\bluefish\vvvv_patches\decklink.v4p" scrollx="0" scrolly="-360" systemname="decklink" filename="C:\DEV\bluefish\vvvv_patches\decklink.v4p">
+   <BOUNDS type="Window" left="2415" top="4185" width="9000" height="6000">
+   </BOUNDS>
+   <NODE systemname="ListDevices (DeckLink)" filename="%VVVV%\packs\DeckLink\nodes\plugins\VVVV.Nodes.DeckLink.dll" nodename="ListDevices (DeckLink)" componentmode="Hidden" id="1">
+   <BOUNDS type="Node" left="2040" top="585" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Device" visible="1">
+   </PIN>
+   <PIN pinname="Refresh" slicecount="1" visible="1" values="0">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="3" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="1395" top="1905" width="480" height="480">
+   </BOUNDS>
+   <BOUNDS type="Node" left="1395" top="1905" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Boolean">
+   </PIN>
+   <PIN pinname="Behavior" slicecount="1" values="Toggle">
+   </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
+   </NODE>
+   <NODE systemname="VideoIn (DeckLink DX11.Texture)" filename="%VVVV%\packs\DeckLink\nodes\plugins\VVVV.Nodes.DeckLink.dll" nodename="VideoIn (DeckLink DX11.Texture)" componentmode="Hidden" id="4">
+   <BOUNDS type="Node" left="1740" top="1260" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Video mode" slicecount="1" values="bmdModeHD720p60">
+   </PIN>
+   <PIN pinname="TextureDX11" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="1" srcpinname="Device" dstnodeid="4" dstpinname="Device">
+   </LINK>
+   <LINK srcnodeid="4" srcpinname="Frame Received" dstnodeid="3" dstpinname="Y Input Value">
+   </LINK>
+   <NODE systemname="Renderer (DX11)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Renderer (DX11)" componentmode="InAWindow" id="5">
+   <BOUNDS type="Node" left="2010" top="4215" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="2010" top="4215" width="6000" height="4500">
+   </BOUNDS>
+   <BOUNDS type="Window" left="7065" top="10740" width="6240" height="5010">
+   </BOUNDS>
+   <PIN pinname="Swap effect" slicecount="1" values="Discard">
+   </PIN>
+   <PIN pinname="Layers" visible="1">
+   </PIN>
+   <PIN pinname="VSync" slicecount="1" values="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="6">
+   <BOUNDS type="Node" left="2265" top="2370" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="Layer" visible="1">
+   </PIN>
+   <PIN pinname="Transform" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="UniformScale (Transform)" nodename="UniformScale (Transform)" componentmode="Hidden" id="7">
+   <BOUNDS type="Node" left="3390" top="1440" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Transform Out" visible="1">
+   </PIN>
+   <PIN pinname="XYZ" slicecount="1" values="2">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="7" srcpinname="Transform Out" dstnodeid="6" dstpinname="Transform">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="8" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="1410" top="0" width="480" height="480">
+   </BOUNDS>
+   <BOUNDS type="Node" left="1410" top="0" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="0">
+   </PIN>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Boolean">
+   </PIN>
+   <PIN pinname="Behavior" slicecount="1" values="Press">
+   </PIN>
+   <PIN pinname="X Input Value" slicecount="1" values="0">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="8" srcpinname="Y Output Value" dstnodeid="1" dstpinname="Refresh">
+   </LINK>
+   <NODE systemname="PerfMeter (DX11.Debug)" filename="%VVVV%\packs\dx11\nodes\modules\PerfMeter (DX11.Debug).v4p" nodename="PerfMeter (DX11.Debug)" componentmode="Hidden" id="9">
+   <BOUNDS type="Node" left="4680" top="2175" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Layer" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Group (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Group (DX11.Layer)" componentmode="Hidden" id="10">
+   <BOUNDS type="Node" left="2910" top="3465" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Layer 1" visible="1">
+   </PIN>
+   <PIN pinname="Layer 2" visible="1">
+   </PIN>
+   <PIN pinname="Layer Out" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="6" srcpinname="Layer" dstnodeid="10" dstpinname="Layer 1">
+   <LINKPOINT x="3045" y="3405">
+   </LINKPOINT>
+   </LINK>
+   <LINK srcnodeid="9" srcpinname="Layer" dstnodeid="10" dstpinname="Layer 2">
+   </LINK>
+   <LINK srcnodeid="10" srcpinname="Layer Out" dstnodeid="5" dstpinname="Layers">
+   </LINK>
+   <NODE systemname="Renderer (TTY)" nodename="Renderer (TTY)" componentmode="InAWindow" id="11">
+   <BOUNDS type="Node" left="7035" top="4230" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="7035" top="4230" width="2400" height="1800">
+   </BOUNDS>
+   <BOUNDS type="Window" left="14085" top="10155" width="6240" height="5010">
+   </BOUNDS>
+   </NODE>
+   <PACK Name="addonpack" Version="33.0.0">
+   </PACK>
+   <NODE systemname="YUV2RGB (DX11.TextureFX)" filename="\\BOX\iris\decklink\YUV2RGB.tfx" nodename="YUV2RGB (DX11.TextureFX)" componentmode="Hidden" id="12">
+   <BOUNDS type="Node" left="2745" top="1875" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture In" visible="1">
+   </PIN>
+   <PIN pinname="Texture Out" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="4" srcpinname="TextureDX11" dstnodeid="12" dstpinname="Texture In">
+   </LINK>
+   <LINK srcnodeid="12" srcpinname="Texture Out" dstnodeid="6" dstpinname="Texture">
+   </LINK>
+   </PATCH>
