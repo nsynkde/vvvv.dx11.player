@@ -20,7 +20,7 @@ Frame::Frame(Context * context)
 		throw std::exception((std::string("Coudln't create render texture")).c_str());
 	}
 	// if using our own device, create a shared handle for each texture
-	OutputDebugString( L"getting shared texture handle\n" );
+	//OutputDebugString( L"getting shared texture handle\n" );
 	IDXGIResource* pTempResource(NULL);
 	hr = renderTexture->QueryInterface( __uuidof(IDXGIResource), (void**)&pTempResource );
 	if(FAILED(hr)){

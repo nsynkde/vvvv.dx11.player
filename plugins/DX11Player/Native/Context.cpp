@@ -31,7 +31,7 @@ Context::Context(const ImageFormat::Format & format)
 	HRESULT hr;
 
 	// create a dx11 device
-	OutputDebugString( L"creating device\n" );
+	///OutputDebugString( L"creating device\n" );
 	D3D_FEATURE_LEVEL level;
 	hr = D3D11CreateDevice(nullptr,
 		D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
@@ -69,11 +69,11 @@ Context::Context(const ImageFormat::Format & format)
 	// as RGBA
 	if (format.pixel_format != ImageFormat::DX11_NATIVE)
 	{
-		OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
+		//OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
 
 		// create the copy textures, used to copy from the upload
 		// buffers to pass to the colorspace conversion shader
-		OutputDebugString( L"creating output textures\n" );
+		//OutputDebugString( L"creating output textures\n" );
 		D3D11_TEXTURE2D_DESC textureDescriptionCopy = m_RenderTextureDescription;
 		textureDescriptionCopy.Width = format.w + format.row_padding;
 		textureDescriptionCopy.Height = format.h; 
@@ -131,7 +131,7 @@ Context::Context(const ImageFormat::Format & format)
 		// Set the viewport to the size of the image
 		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(format.out_w), float(format.h), 0.0f, 1.0f};
 		m_Context->RSSetViewports(1,&viewport); 
-		OutputDebugString( L"Set viewport" );
+		//OutputDebugString( L"Set viewport" );
 
 		// Create Pixel and Vertex shaders
 		ID3D11VertexShader * vertexShader;
@@ -140,17 +140,17 @@ Context::Context(const ImageFormat::Format & format)
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create vertex shader\n");
 		}
-		OutputDebugString( L"Created vertex shader\n" );
+		//OutputDebugString( L"Created vertex shader\n" );
 
 		hr = m_Device->CreatePixelShader(pixelShaderSrc,sizePixelShaderSrc,nullptr,&pixelShader);
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create pixel shader\n");
 		}
-		OutputDebugString( L"Created pixel shader\n" );
+		//OutputDebugString( L"Created pixel shader\n" );
 
 		m_Context->VSSetShader(vertexShader,nullptr,0);
 		m_Context->PSSetShader(pixelShader,nullptr,0);
-		OutputDebugString( L"Created vertex and pixel shaders\n" );
+		//OutputDebugString( L"Created vertex and pixel shaders\n" );
 
 		vertexShader->Release();
 		pixelShader->Release();
@@ -194,7 +194,7 @@ Context::Context(const ImageFormat::Format & format)
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create vertex buffer\n");
 		}
-		OutputDebugString( L"Created vertex buffer\n" );
+		//OutputDebugString( L"Created vertex buffer\n" );
 
 		D3D11_INPUT_ELEMENT_DESC layout[] = {
 			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
@@ -206,17 +206,17 @@ Context::Context(const ImageFormat::Format & format)
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create input layout\n");
 		}
-		OutputDebugString( L"Created vertex layout\n" );
+		//OutputDebugString( L"Created vertex layout\n" );
 
 		m_Context->IASetInputLayout(vertexLayout);
-		OutputDebugString( L"Set vertex layout\n" );
+		//OutputDebugString( L"Set vertex layout\n" );
 		vertexLayout->Release();
 
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 		m_Context->IASetVertexBuffers(0,1,&vertexBuffer,&stride,&offset);
 		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		OutputDebugString( L"Created vertex buffer and topology\n" );
+		//OutputDebugString( L"Created vertex buffer and topology\n" );
 		vertexBuffer->Release();
 
 
@@ -236,10 +236,10 @@ Context::Context(const ImageFormat::Format & format)
 			if(FAILED(hr)){
 				throw std::exception("Coudln't create sampler\n");
 			}
-			OutputDebugString( L"Created sampler state\n" );
+			//OutputDebugString( L"Created sampler state\n" );
 
 			m_Context->PSSetSamplers(0,1,&samplerState);
-			OutputDebugString( L"Set sampler state\n" );
+			//OutputDebugString( L"Set sampler state\n" );
 			samplerState->Release();
 		}
 
@@ -286,10 +286,10 @@ Context::Context(const ImageFormat::Format & format)
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create constant buffer\n");
 		}
-		OutputDebugString( L"Created constants buffer\n" );
+		//OutputDebugString( L"Created constants buffer\n" );
         
 		m_Context->PSSetConstantBuffers(0,1,&varsBuffer);
-		OutputDebugString( L"Set constants buffer\n" );
+		//OutputDebugString( L"Set constants buffer\n" );
 		varsBuffer->Release();
 
 		// Create shader resource views to be able to access the 
@@ -298,7 +298,7 @@ Context::Context(const ImageFormat::Format & format)
 		if(FAILED(hr)){
 			throw std::exception("Coudln't create shader resource view\n");
 		}
-		OutputDebugString( L"Created shader resource views\n" );
+		//OutputDebugString( L"Created shader resource views\n" );
 
 		
 		// Create a backbuffer texture to render to

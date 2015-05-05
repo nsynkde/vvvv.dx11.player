@@ -45,7 +45,6 @@ ID3D11Buffer *pVBuffer;                // the pointer to the vertex buffer
 ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex buffer
 std::shared_ptr<DX11Player> player;
 HighResClock::time_point start;
-bool ready = false;
 std::vector<std::string> files;
 
 	// a struct to define a single vertex
@@ -120,9 +119,9 @@ int WINAPI WinMain(HINSTANCE hInstance,
     MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
 	
-	for(int i=0;i<7;i++){
+	/*for(int i=0;i<7;i++){
 		player->SendNextFrameToLoad(files[i]);
-	}
+	}*/
 	while (msg.message != WM_QUIT)
     {
         if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -262,8 +261,10 @@ ID3D11Texture2D * GetTexture(int framenum){
 // this is the function used to render a single frame
 void RenderFrame(void)
 {
-	static int i = 0;
+	static int nextToLoad = 8;
+	static int nextToRender = 0;
 	static auto starttime = HighResClock::now();
+	static auto wasReady = false;
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
@@ -274,38 +275,44 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
-		std::vector<std::string> current_frames( files.begin()+i, files.begin()+i+7 );
+		std::vector<std::string> current_frames( files.begin()+nextToRender, files.begin()+nextToLoad );
 		player->SetSystemFrames(current_frames);
-		player->SendNextFrameToLoad(files[(i+7)%files.size()]);
-		player->Update();
-		// devcon->Flush();
-		// draw the vertex buffer to the back buffer
-    
-		auto tex = GetTexture(i);
-		if(tex!=nullptr){
-			// select which vertex buffer to display
-			if(!ready){
-				std::stringstream str;
-				str << "got first frame on " << i << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
-				OutputDebugStringA(str.str().c_str());
-				ready = true;
+		if(!wasReady){
+			for(int i=0;i<8;i++){
+				player->SendNextFrameToLoad(files[i]);
 			}
-			ID3D11ShaderResourceView * shaderResourceView;
-			auto hr = dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
-			if(FAILED(hr)){
-				throw std::exception("Coudln't create shader resource view");
-			}
-			devcon->PSSetShaderResources(0,1,&shaderResourceView);
-			devcon->PSSetShader(pPS, 0, 0);
-			devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
-			devcon->Draw(6, 0);
-			shaderResourceView->Release();
-			tex->Release();
+			player->Update();
+			std::stringstream str;
+			str << "got first frame on " << nextToRender << " at " << std::chrono::duration_cast<std::chrono::milliseconds>(HighResClock::now() - starttime).count() << "ms" << std::endl;
+			OutputDebugStringA(str.str().c_str());
+			wasReady = true;
 		}else{
-			OutputDebugStringA((std::string("Got null texture for ") + files[i] + "\n").c_str());
+			// devcon->Flush();
+			// draw the vertex buffer to the back buffer
+    
+			auto tex = GetTexture(nextToRender);
+			if(tex!=nullptr){
+				ID3D11ShaderResourceView * shaderResourceView;
+				auto hr = dev->CreateShaderResourceView(tex,nullptr,&shaderResourceView);
+				if(FAILED(hr)){
+					throw std::exception("Coudln't create shader resource view");
+				}
+				devcon->PSSetShaderResources(0,1,&shaderResourceView);
+				devcon->PSSetShader(pPS, 0, 0);
+				devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
+				devcon->Draw(6, 0);
+				shaderResourceView->Release();
+				tex->Release();
+			}else{
+				OutputDebugStringA((std::string("Got null texture for ") + files[nextToRender] + "\n").c_str());
+			}
+			player->SendNextFrameToLoad(files[nextToLoad]);
+			player->Update();
+			nextToLoad+=1;
+			nextToLoad %= files.size();
+			nextToRender+=1;
+			nextToRender %= files.size();
 		}
-		i++;
-		i %= files.size() - 7;
 	}else{
 		OutputDebugStringA("Player not ready\n");
 	}
@@ -465,7 +472,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "c:\\Users\\arturo\\Downloads\\test_material\\2000x1080");
+	tinydir_open(&dir, "d:\\TestMaterial\\bbb_4ktga_crop1");
 
 	while (dir.has_next)
 	{

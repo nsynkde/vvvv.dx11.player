@@ -205,6 +205,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 					*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
 					readyToRender->send(nextFrame.second);
 				}else{
+					nextFrame.second->Cancel();
 					readyToUpload->send(nextFrame.second);
 					(*dropped)++;
 				}
@@ -283,7 +284,7 @@ void DX11Player::Update(){
 void DX11Player::ChangeStatus(Status code, const std::string & status){
 	if(code!=m_StatusCode){
 		m_StatusCode = code;
-		OutputDebugStringA(status.c_str());
+		//OutputDebugStringA(status.c_str());
 	}
 	m_StatusDesc = status;
 }
@@ -357,7 +358,7 @@ int DX11Player::GetAvgLoadDurationMs() const
 
 void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
 {
-	if(!m_UploaderThreadRunning){
+	if (!IsReady()){
 		std::stringstream str;
 		str << "trying to send load frame  " << nextFrame << " before ready " << std::endl;
 		OutputDebugStringA(str.str().c_str());
@@ -376,7 +377,7 @@ void DX11Player::SetSystemFrames(std::vector<std::string> & frames){
 }
 
 bool DX11Player::IsReady() const{
-	return m_UploaderThreadRunning && (m_StatusCode!=Error);
+	return m_UploaderThreadRunning && (m_StatusCode != Error);
 }
 
 bool DX11Player::GotFirstFrame() const{

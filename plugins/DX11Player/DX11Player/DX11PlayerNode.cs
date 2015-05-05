@@ -203,6 +203,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                         DestroyPlayer(i);
                         FSharedTextureCache[i] = new Dictionary<IntPtr,DX11Resource<DX11Texture2D>>();
                         FGetNextFrame[i] = false;
+                        FIsReady[i] = false;
                     }
                     FPrevNumSpreads = NumSpreads;
                 }
@@ -312,11 +313,13 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
                 {
-                    if (NativeInterface.DX11Player_IsReady(FDX11NativePlayer[i]) && !FIsReady[i])
+                    if (!FIsReady[i] && NativeInterface.DX11Player_IsReady(FDX11NativePlayer[i]))
                     {
                         FIsReady[i] = true;
                     }
+
                     NativeInterface.DX11Player_Update(FDX11NativePlayer[i]);
+
                     if (FGetNextFrame[i] && FFileLoadIn[i].Count()>0)
                     {
                         var renderFrame = (Math.Max(0,FNextFrameRenderIn[i]) % (FFileLoadIn[i].Count()-2));
@@ -442,9 +445,11 @@ namespace VVVV.Nodes.DX11PlayerNode
         internal static extern void DX11Player_SendNextFrameToLoad(IntPtr player, string nextFrame);
 
         [DllImport("DX11PlayerNative.dll", SetLastError = false)]
+        [return: MarshalAs(UnmanagedType.I1)]
         internal static extern bool DX11Player_IsReady(IntPtr player);
 
         [DllImport("DX11PlayerNative.dll", SetLastError = false)]
+        [return: MarshalAs(UnmanagedType.I1)]
         internal static extern bool DX11Player_GotFirstFrame(IntPtr player);
 
         [DllImport("DX11PlayerNative.dll", SetLastError = false)]
