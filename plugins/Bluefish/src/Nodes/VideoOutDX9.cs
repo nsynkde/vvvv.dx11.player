@@ -285,10 +285,6 @@ namespace VVVV.Nodes.Bluefish
                     continue;
 
                 instance.OnPresent();
-                if (this.FInSyncLoop[i])
-                {
-                    instance.WaitSync();
-                }
             }
         }
 

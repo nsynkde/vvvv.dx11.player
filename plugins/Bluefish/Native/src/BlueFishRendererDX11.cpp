@@ -7,6 +7,7 @@ BlueFishRendererDX11::BlueFishRendererDX11(HANDLE tex_handle, EMemoryFormat outF
 	,m_DroppedFrames(0)
 	,m_Stopping(false)
 {
+	m_ThreadPresent.set_works_max_limit(2);
 }
 
 
@@ -33,28 +34,15 @@ void BlueFishRendererDX11::OnPresent()
 	
 	auto playbackDevice = m_PlaybackDevice;
 	auto readTexture = m_ReadTexture;
-	if(m_PlaybackDevice->RingBufferSize()<4){
-		m_ThreadPresent.add_work([playbackDevice,readTexture]{
-			playbackDevice->RenderNext();
-			auto memory = readTexture->ReadBack();
-			if (memory != nullptr)
-			{
-				playbackDevice->Upload((BYTE*)memory);
-			}
-		});
-	}else{
-		m_ThreadPresent.add_work([playbackDevice]{
-			playbackDevice->RenderNext();
-		});
-
-		m_ThreadRender.add_work([playbackDevice,readTexture]{
-			auto memory = readTexture->ReadBack();
-			if (memory != nullptr)
-			{
-				playbackDevice->Upload((BYTE*)memory);
-			}
-		});
-	}
+	m_ThreadPresent.add_work([playbackDevice,readTexture]{
+		playbackDevice->RenderNext();
+		auto memory = readTexture->ReadBack();
+		if (memory != nullptr)
+		{
+			playbackDevice->Upload((BYTE*)memory);
+		}
+		playbackDevice->WaitSync();
+	});
 }
 
 double BlueFishRendererDX11::GetAvgDurationMS()

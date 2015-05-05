@@ -55,6 +55,9 @@ namespace VVVV.Nodes.Bluefish
         [Output("Status SDIOut 3")]
         ISpread<string> FOutStatus3;
 
+        [Input("Sync", DefaultValue = 1)]
+        IDiffSpread<bool> FInSyncLoop;
+
         [Import]
         ILogger FLogger;
 
@@ -97,7 +100,7 @@ namespace VVVV.Nodes.Bluefish
                     {
                         FOutStatusRef[i].SliceCount = 1;
                         FInSDIOutRef[i].SliceCount = 1;
-                        BlueSDIOut inst = new BlueSDIOut((int)FInDevice[0], i);
+                        BlueSDIOut inst = new BlueSDIOut((int)FInDevice[0] + 1, i);
 
                         FInstances[i] = inst;
                         FOutStatusRef[i][0] = "OK";
@@ -121,6 +124,16 @@ namespace VVVV.Nodes.Bluefish
                     FFirstRun = true;
                 }
 			}
+            if (FInSyncLoop.IsChanged)
+            {
+                if(FInSyncLoop[0]){
+                    BlueSDIOutSwapChain.EnableSync((int)FInDevice[0] + 1);
+                }
+                else
+                {
+                    BlueSDIOutSwapChain.DisableSync((int)FInDevice[0] + 1);
+                }
+            }
         }
 
         public void OnImportsSatisfied()
@@ -136,5 +149,13 @@ namespace VVVV.Nodes.Bluefish
 			GC.SuppressFinalize(this);
 		}
 
+        internal class BlueSDIOutSwapChain
+        {
+            [DllImport("BluePlayback.dll", SetLastError = false)]
+            internal static extern void EnableSync(int device);
+
+            [DllImport("BluePlayback.dll", SetLastError = false)]
+            internal static extern void DisableSync(int device);
+        }
 	}
 }

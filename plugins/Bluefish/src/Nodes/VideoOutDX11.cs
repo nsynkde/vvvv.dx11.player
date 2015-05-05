@@ -69,9 +69,6 @@ namespace VVVV.Nodes.Bluefish
         [Input("Num. Bluefish Buffers", DefaultValue = 4, MinValue = 1)]
         IDiffSpread<int> FNumBluefishBuffers;
 
-		[Input("Sync", DefaultValue = 1)]
-		IDiffSpread<bool> FInSyncLoop;
-
 		[Input("Enabled")]
         IDiffSpread<bool> FInEnabled;
 
@@ -248,7 +245,7 @@ namespace VVVV.Nodes.Bluefish
                         }
 
 
-                        BluefishSource inst = new BluefishSource(FInDevice[i], FInOutChannel[i], FInMode[i], FInFormat[i], handle/*sharedTexBuffer.FrontSharedHandle*/, FNumRenderTargetsBuffers[i], FNumReadBackBuffers[i], FNumBluefishBuffers[i], FLogger);
+                        BluefishSource inst = new BluefishSource(FInDevice[i] + 1, FInOutChannel[i], FInMode[i], FInFormat[i], handle/*sharedTexBuffer.FrontSharedHandle*/, FNumRenderTargetsBuffers[i], FNumReadBackBuffers[i], FNumBluefishBuffers[i], FLogger);
 
                         //FSharedTexture.Add(tex);
                         //FSharedTextureBuffer.Add(sharedTexBuffer);
@@ -349,10 +346,6 @@ namespace VVVV.Nodes.Bluefish
                     continue;
 
                 instance.OnPresent();
-                if (this.FInSyncLoop[i])
-                {
-                    instance.WaitSync();
-                }
             }
         }
 

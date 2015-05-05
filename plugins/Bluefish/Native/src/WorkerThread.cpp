@@ -24,6 +24,7 @@ WorkerThread::WorkerThread()
 	,thread(&WorkerThread::thread_loop,this)
 	,one_sec(HighResClock::now())
 	,num_works(0)
+	,works_max_limit(0)
 {
 
 }
@@ -70,8 +71,10 @@ bool WorkerThread::is_running(){
 
 void WorkerThread::add_work(std::function<void()> work){
 	std::lock_guard<std::mutex> lock(mutex);
-	works.push(work);
-	condition.notify_all();
+	if (works_max_limit == 0 || works.size() < works_max_limit){
+		works.push(work);
+		condition.notify_all();
+	}
 }
 
 HighResClock::duration WorkerThread::get_work_avg_duration(){
@@ -97,4 +100,8 @@ void WorkerThread::join(){
 
 std::mutex & WorkerThread::get_mutex(){
 	return mutex;
+}
+
+void WorkerThread::set_works_max_limit(size_t works_max_limit){
+	this->works_max_limit = works_max_limit;
 }

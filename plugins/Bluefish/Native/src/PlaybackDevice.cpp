@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "PlaybackDevice.h"
+#include "BlueFishSwapChain.h"
 #include <sstream>
 
 
@@ -30,8 +31,10 @@ CPlaybackDevice::~CPlaybackDevice()
 	if(m_pSDK)
 	{
 		Stop();
-		if(m_DeviceID != -1)
+		if (m_DeviceID != -1){
 			m_pSDK->device_detach();
+			BlueFishSwapChain::GetSwapChain(m_DeviceID)->UnregisterOutput(this);
+		}
 
 		BlueVelvetDestroy(m_pSDK);
 		m_pSDK = NULL;
@@ -61,6 +64,10 @@ int CPlaybackDevice::Config(INT32 inDevNo, INT32 inChannel,
 	int err = -1;
 	if(m_pSDK)
 	{
+		if (m_DeviceID != -1){
+			BlueFishSwapChain::GetSwapChain(m_DeviceID)->UnregisterOutput(this);
+		}
+		BlueFishSwapChain::GetSwapChain(inDevNo)->RegisterOutput(this);
 		//attach to the card
 		err = m_pSDK->device_attach(inDevNo,0);
 		if(err == 0)
@@ -200,13 +207,8 @@ int CPlaybackDevice::GetMemoryChannel()
 
 void CPlaybackDevice::WaitSync(){
 	unsigned long fieldcount = 0;
-
-	if (!m_pSDK)
-		return;
-
 	m_pSDK->wait_output_video_synch(UPD_FMT_FRAME, fieldcount);
 }
-
 
 void CPlaybackDevice::Upload(BYTE* pBuffer)
 {

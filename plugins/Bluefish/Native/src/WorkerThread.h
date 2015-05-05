@@ -25,11 +25,13 @@ class WorkerThread{
 	HighResClock::duration work_avg_duration;
 	HighResClock::duration work_max_duration;
 	uint64_t num_works;
+	size_t works_max_limit;
 public:
 	WorkerThread();
 	void thread_loop();
 	bool is_running();
 	void add_work(std::function<void()>);
+	void set_works_max_limit(size_t works_max_limit);
 	HighResClock::duration get_work_avg_duration();
 	HighResClock::duration get_work_max_duration();
 	void stop();

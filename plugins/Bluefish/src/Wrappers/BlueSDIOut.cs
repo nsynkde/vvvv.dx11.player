@@ -10,7 +10,7 @@ namespace VVVV.Nodes.Bluefish
     {
         public BlueSDIOut(int device, int sdi_out)
         {
-            pBlueSDIOut = BlueSDIOutNativeInterface.BlueSDIOutCreate(device+1, sdi_out);
+            pBlueSDIOut = BlueSDIOutNativeInterface.BlueSDIOutCreate(device, sdi_out);
             if (pBlueSDIOut == null)
                 throw new Exception("Couldn't attach to device " + device + " SDI out " + sdi_out);
         }

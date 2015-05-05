@@ -19,7 +19,7 @@ namespace VVVV.Nodes.Bluefish
         private IntPtr pBlueRenderer;
         private IntPtr pBluePlayback;
         private ILogger FLogger;
-
+        private int FDeviceNumber;
 		
 		public int Width
 		{
@@ -202,11 +202,11 @@ namespace VVVV.Nodes.Bluefish
 
                 // configure card
                 //int memFormat = (int)BlueFish_h.EMemoryFormat.MEM_FMT_RGBA;
-
+                FDeviceNumber = (int)device;
                 int updateMethod = (int)BlueFish_h.EUpdateMethod.UPD_FMT_FRAME;
                 int err = BluePlaybackNativeInterface.BluePlaybackConfig(
                                                     pBluePlayback,
-                                                    (int)device+1, // Device Number
+                                                    (int)device, // Device Number
                                                     (int)channel, // output channel
                                                     (int)mode, // video mode //VID_FMT_PAL=0
                                                     (int)format, // memory format //MEM_FMT_ARGB_PC=6 //MEM_FMT_BGR=9
@@ -240,14 +240,7 @@ namespace VVVV.Nodes.Bluefish
                 return;
 
             BluePlaybackNativeInterface.BlueRendererOnPresent(pBlueRenderer);
-        }
-
-        public void WaitSync()
-        {
-            if (!FRunning)
-                return;
-
-            BluePlaybackNativeInterface.BluePlaybackWaitSync(pBluePlayback);
+            BluePlaybackNativeInterface.BluePlaybackWaitGlobalSync(FDeviceNumber);
         }
 
         public double AvgDuration
@@ -315,6 +308,9 @@ namespace VVVV.Nodes.Bluefish
 
         [DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackWaitSync(IntPtr pBluePlaybackObject);
+
+        [DllImport("BluePlayback.dll", SetLastError = false)]
+        internal static extern int BluePlaybackWaitGlobalSync(int deviceNum);
 
         /*[DllImport("BluePlayback.dll", SetLastError = false)]
         internal static extern int BluePlaybackUpload(IntPtr pBluePlaybackObject, IntPtr pBuffer);

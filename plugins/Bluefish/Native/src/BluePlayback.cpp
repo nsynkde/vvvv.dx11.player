@@ -8,6 +8,7 @@
 #include "PlaybackDevice.h"
 #include "BlueSDIOut.h"
 #include "BlueFishRendererDX11.h"
+#include "BlueFishSwapChain.h"
 
 #ifdef _MANAGED
 #pragma managed(push, off)
@@ -99,6 +100,12 @@ extern "C"
 			return -1;
 
 		pBluePlayback->WaitSync();
+		return 0;
+	}
+
+	BLUEPLAYBACK_API int BluePlaybackWaitGlobalSync(int deviceNum)
+	{
+		BlueFishSwapChain::GetSwapChain(deviceNum)->WaitSync();
 		return 0;
 	}
 
