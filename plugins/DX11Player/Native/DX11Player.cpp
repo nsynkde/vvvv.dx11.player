@@ -70,11 +70,7 @@ static uint32_t SectorSize(char cDisk)
 }
 
 static DWORD NextMultiple(DWORD in, DWORD multiple){
-	if(in % multiple==0){
-		return in;
-	}else{
-		return in + (multiple - in % multiple);
-	}
+	return max(in / multiple*multiple, multiple);
 }
 
 DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
@@ -94,22 +90,12 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	// reads async from disk to mapped GPU memory
 	// and sends an event to wait on to the waiter thread
 	//OutputDebugString( L"creating upload thread\n" );
-	auto running = &m_UploaderThreadRunning;
-	auto currentFrame = &m_CurrentFrame;
-	auto readyToUpload = &m_ReadyToUpload;
-	auto readyToWait = &m_ReadyToWait;
-	auto readyToRender = &m_ReadyToRender;
-	auto nextFrameChannel = &m_NextFrameChannel;
-	auto self = this;
-	auto systemFrames = &m_SystemFrames;
-	auto systemFramesMutex = &m_SystemFramesMutex;
-	auto dropped = &m_DroppedFrames;
-	m_UploaderThread = std::thread([dropped,systemFrames,systemFramesMutex,running,self,currentFrame,readyToUpload,readyToWait,nextFrameChannel,ringBufferSize,fileForFormat]{
+	m_UploaderThread = std::thread([this, fileForFormat, ringBufferSize]{
 		ImageFormat::FileInfo fileInfo;
 		try{
 			fileInfo = ImageFormat::FormatFor(fileForFormat);
 		}catch(std::exception & e){
-			self->ChangeStatus(Error,e.what());
+			ChangeStatus(Error,e.what());
 			return;
 		}
 
@@ -117,67 +103,67 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		// a multiple of the physical sector size since we are reading 
 		// directly from disk with no buffering
 		if(!PathFileExistsA(fileForFormat.c_str())){
-			self->ChangeStatus(Error,"Cannot find folder");
+			ChangeStatus(Error,"Cannot find format file" + fileForFormat);
 			return;
 		}
 		char buffer[4096] = {0};
 		auto ret = GetFullPathNameA(fileForFormat.c_str(),4096,buffer,nullptr);
 		if(ret==0){
-			self->ChangeStatus(Error,"Cannot recover file for format drive");
+			ChangeStatus(Error,"Cannot recover file for format drive from " + fileForFormat);
 			return;
 		}
 		auto sectorSize = SectorSize(buffer[0]);
 		if(sectorSize<0){
-			self->ChangeStatus(Error,"Cannot retrieve drive sector size");
+			ChangeStatus(Error,"Cannot retrieve drive sector size");
 			return;
 		}
-		auto numbytesdata = NextMultiple((DWORD)fileInfo.bytes_data + fileInfo.data_offset,(DWORD)sectorSize);
+		auto numbytesdata = NextMultiple((DWORD)fileInfo.bytes_data + fileInfo.data_offset, (DWORD)sectorSize);
 
-		self->m_Context = Pool::GetInstance().AquireContext(fileInfo.format);
+		m_Context = Pool::GetInstance().AquireContext(fileInfo.format);
 		//self->m_Context->Clear();
 
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.
 		try{
 			for(auto i=0;i<ringBufferSize;i++){
-				auto frame = self->m_Context->GetFrame();
-				self->m_ReadyToUpload.send(frame);
+				auto frame = m_Context->GetFrame();
+				m_ReadyToUpload.send(frame);
 			}
 		}catch(std::exception & e){
-			self->ChangeStatus(Error,e.what());
+			ChangeStatus(Error,e.what());
 			return;
 		}
 
 		// start the upload loop
-		*running = true;
-		self->ChangeStatus(Ready,"Ready");
+		m_UploaderThreadRunning = true;
+		ChangeStatus(Ready,"Ready");
 		auto nextFrameTime = HighResClock::now();
 		std::shared_ptr<Frame> nextFrame;
-		while(readyToUpload->recv(nextFrame)){
+		while(m_ReadyToUpload.recv(nextFrame)){
 			auto now = HighResClock::now();
 			auto in_system=false;
 			std::set<std::string> s_system;
 			std::string localCurrentFrame;
 			auto dropped_now=0;
 			do{
-				if (!nextFrameChannel->recv(localCurrentFrame)){
-					*running = false;
+				if (!m_NextFrameChannel.recv(localCurrentFrame)){
+					m_UploaderThreadRunning = false;
 					return;
 				}
 				(dropped_now)+=1;
 				s_system.clear();
-				std::lock_guard<std::mutex> lock(*systemFramesMutex);
-				s_system.insert( systemFrames->begin(), systemFrames->end() );
+				std::lock_guard<std::mutex> lock(m_SystemFramesMutex);
+				s_system.insert(m_SystemFrames.begin(), m_SystemFrames.end() );
 			} while (s_system.find(localCurrentFrame) == s_system.end() || !PathFileExistsA(localCurrentFrame.c_str()));
 			dropped_now-=1;
-			*dropped += dropped_now;
-			*currentFrame = localCurrentFrame;
+			m_DroppedFrames += dropped_now;
+			m_CurrentFrame = localCurrentFrame;
 
 			auto offset = (fileInfo.row_pitch+fileInfo.format.row_padding*4)*4-fileInfo.data_offset;
-			if(nextFrame->ReadFile(*currentFrame,offset,numbytesdata,now)){
-				if(!readyToWait->send(make_pair(readyToWait->size()+1,nextFrame)))
+			if(nextFrame->ReadFile(m_CurrentFrame,offset,numbytesdata,now)){
+				if(!m_ReadyToWait.send(make_pair(m_ReadyToWait.size()+1,nextFrame)))
 				{
-					*running = false;
+					m_UploaderThreadRunning = false;
 					break;
 				}
 			}
@@ -188,31 +174,31 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	// and sends the frame num to the rate thread
 	//OutputDebugString( L"creating waiter thread\n" );
 	m_WaiterThreadRunning = true;
-	running = &m_WaiterThreadRunning;
-	auto avgDecodeDuration = &m_AvgDecodeDuration;
-	auto alwaysShowLastFrame = &m_AlwaysShowLastFrame;
-	m_WaiterThread = std::thread([running, readyToWait, readyToRender, readyToUpload, avgDecodeDuration, systemFrames, systemFramesMutex, dropped, alwaysShowLastFrame]{
+	m_WaiterThread = std::thread([this]{
 		std::pair<int,std::shared_ptr<Frame>> nextFrame;
-		while (readyToWait->recv(nextFrame)){
+		while (m_ReadyToWait.recv(nextFrame)){
 			std::set<std::string> s_system;
-			if (!alwaysShowLastFrame){
-				std::lock_guard<std::mutex> lock(*systemFramesMutex);
-				s_system.insert(systemFrames->begin(), systemFrames->end());
+			if (!m_AlwaysShowLastFrame){
+				std::lock_guard<std::mutex> lock(m_SystemFramesMutex);
+				s_system.insert(m_SystemFrames.begin(), m_SystemFrames.end());
 			}
-			if (alwaysShowLastFrame || s_system.find(nextFrame.second->SourcePath()) != s_system.end()){
+			if (m_AlwaysShowLastFrame || s_system.find(nextFrame.second->SourcePath()) != s_system.end()){
+				OutputDebugStringA("waiting frame\n");
 				auto ontime = nextFrame.second->Wait(INFINITE);
 				if (ontime){ // since t=INIFINITE only false if read failed
-					*avgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
-					readyToRender->send(nextFrame.second);
+					m_AvgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
+					m_ReadyToRender.send(nextFrame.second);
 				}else{
 					nextFrame.second->Cancel();
-					readyToUpload->send(nextFrame.second);
-					(*dropped)++;
+					m_ReadyToUpload.send(nextFrame.second);
+					++m_DroppedFrames;
+					OutputDebugStringA("dropping failed frame on wait\n");
 				}
 			}else{
 				nextFrame.second->Cancel();
-				readyToUpload->send(nextFrame.second);
-				(*dropped)++;
+				m_ReadyToUpload.send(nextFrame.second);
+				++m_DroppedFrames;
+				OutputDebugStringA("dropping frame not in system on wait\n");
 			}
 		}
 	});
