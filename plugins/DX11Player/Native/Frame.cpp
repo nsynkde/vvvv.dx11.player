@@ -45,9 +45,9 @@ Frame::~Frame(){
 	renderTexture->Release();
 	if(file!=nullptr){
 		WaitForSingleObject(waitEvent,INFINITE);
-		CloseHandle(waitEvent);
 		CloseHandle(file);
 	}
+	CloseHandle(waitEvent);
 }
 
 void Frame::Cancel(){

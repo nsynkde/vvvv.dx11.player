@@ -183,22 +183,19 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 				s_system.insert(m_SystemFrames.begin(), m_SystemFrames.end());
 			}
 			if (m_AlwaysShowLastFrame || s_system.find(nextFrame.second->SourcePath()) != s_system.end()){
-				OutputDebugStringA("waiting frame\n");
 				auto ontime = nextFrame.second->Wait(INFINITE);
 				if (ontime){ // since t=INIFINITE only false if read failed
 					m_AvgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
 					m_ReadyToRender.send(nextFrame.second);
 				}else{
-					nextFrame.second->Cancel();
+					//nextFrame.second->Cancel();
 					m_ReadyToUpload.send(nextFrame.second);
 					++m_DroppedFrames;
-					OutputDebugStringA("dropping failed frame on wait\n");
 				}
 			}else{
-				nextFrame.second->Cancel();
+				//nextFrame.second->Cancel();
 				m_ReadyToUpload.send(nextFrame.second);
 				++m_DroppedFrames;
-				OutputDebugStringA("dropping frame not in system on wait\n");
 			}
 		}
 	});
