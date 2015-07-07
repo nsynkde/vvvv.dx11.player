@@ -3,6 +3,7 @@
 #include "HighResClock.h"
 #include <memory>
 #include <d3d11.h>
+#include <mutex>
 class Context;
 
 class Frame{

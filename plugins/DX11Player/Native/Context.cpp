@@ -359,7 +359,10 @@ void ReleaseFrame(Frame * frame){
 }
 
 std::shared_ptr<Frame> Context::GetFrame(){
-	std::unique_lock<std::mutex> lock(mutex);
+	return std::shared_ptr<Frame>(new Frame(this));
+
+	// DISABLED Caching of frames
+	/*std::unique_lock<std::mutex> lock(mutex);
 	if(m_Frames.empty()){
 		std::shared_ptr<Frame> frame(new Frame(this), &ReleaseFrame);
 		return frame;
@@ -367,7 +370,7 @@ std::shared_ptr<Frame> Context::GetFrame(){
 		auto frame = m_Frames.back();
 		m_Frames.pop_back();
 		return frame;
-	}
+	}*/
 }
 
 ID3D11DeviceContext * Context::GetDX11Context(){

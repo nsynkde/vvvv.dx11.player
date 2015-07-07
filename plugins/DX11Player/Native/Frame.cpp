@@ -2,6 +2,7 @@
 #include "Frame.h"
 #include "Pool.h"
 #include "Windows.h"
+#include <sstream>
 
 Frame::Frame(Context * context)
 :decodeDuration(0)

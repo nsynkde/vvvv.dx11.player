@@ -139,6 +139,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         private Spread<bool> FGetNextFrame = new Spread<bool>();
         private ISpread<Dictionary<IntPtr, DX11Resource<DX11Texture2D>>> FSharedTextureCache = new Spread<Dictionary<IntPtr, DX11Resource<DX11Texture2D>>>();
         private int FPrevNumSpreads = 0;
+        private bool FRefreshPlayer = false;
         [Import]
         ILogger FLogger;
 
@@ -146,7 +147,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         private bool FRefreshTextures = false;
 
-        private void DestroyPlayer(int i)
+        private void DestroyPlayer(int i, bool cleanCache)
         {
             var nativePlayer = FDX11NativePlayer[i];
             if (nativePlayer != IntPtr.Zero)
@@ -157,13 +158,33 @@ namespace VVVV.Nodes.DX11PlayerNode
                     NativeInterface.DX11Player_Destroy(nativePlayer);
                 });
             }
-            this.FIsReady[i] = false;
-            this.FGotFirstFrameOut[i] = false;
-            this.FTextureOut[i] = new DX11Resource<DX11Texture2D>();
-            this.FPrevFrames[i].SliceCount = this.FFileLoadIn[i].SliceCount;
-            for (int j = 0; j < this.FPrevFrames[i].Count(); j++ )
+            try
             {
-                this.FPrevFrames[i][j] = "";
+                foreach (var tex in FSharedTextureCache[i])
+                {
+                    try
+                    {
+                        if (tex.Value != null)
+                        {
+                            tex.Value.Dispose();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                    }
+                }
+                FSharedTextureCache[i].Clear();
+            }
+            catch (Exception e)
+            {
+            }
+            FIsReady[i] = false;
+            FGotFirstFrameOut[i] = false;
+            FTextureOut[i] = new DX11Resource<DX11Texture2D>();
+            FPrevFrames[i].SliceCount = FFileLoadIn[i].SliceCount;
+            for (int j = 0; j < FPrevFrames[i].Count(); j++ )
+            {
+                FPrevFrames[i][j] = "";
             }
 
         }
@@ -199,8 +220,9 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FContextPoolSize.SliceCount = 1;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
-                        this.FPrevFrames[i] = new Spread<string>();
-                        DestroyPlayer(i);
+                        FPrevFrames[i] = new Spread<string>();
+                        OutputDebugString("Destroying player numspreads changed");
+                        DestroyPlayer(i,false);
                         FSharedTextureCache[i] = new Dictionary<IntPtr,DX11Resource<DX11Texture2D>>();
                         FGetNextFrame[i] = false;
                         FIsReady[i] = false;
@@ -240,14 +262,8 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             if (FFormatFile.IsChanged)
             {
-                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
-                {
-                    if (FDX11NativePlayer[i] != IntPtr.Zero)
-                    {
-                        DestroyPlayer(i);
-                    }
-                    this.FRefreshTextures = true;
-                }
+                FRefreshPlayer = true;
+                OutputDebugString("Destroying player format file changed");
             }
 
             if (FNextFrameRenderIn.IsChanged)
@@ -273,6 +289,19 @@ namespace VVVV.Nodes.DX11PlayerNode
                     }
                 }
 
+            }
+
+            if (FRefreshPlayer)
+            {
+                for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
+                {
+                    if (FDX11NativePlayer[i] != IntPtr.Zero)
+                    {
+                        DestroyPlayer(i,true);
+                    }
+                }
+                FRefreshTextures = true;
+                FRefreshPlayer = false;
             }
 
             FContextPoolSize[0] = NativeInterface.DX11Player_GetContextPoolSize();
@@ -329,7 +358,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                         {
                             if (FSharedTextureCache[i].ContainsKey(handle) && FSharedTextureCache[i][handle].Contains(context))
                             {
-                                this.FTextureOut[i] = FSharedTextureCache[i][handle];
+                                FTextureOut[i] = FSharedTextureCache[i][handle];
                             }
                             else
                             {
@@ -338,14 +367,18 @@ namespace VVVV.Nodes.DX11PlayerNode
                                 DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
                                 if (!FSharedTextureCache[i].ContainsKey(handle))
                                 {
-                                    this.FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
+                                    FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
                                 }
-                                this.FSharedTextureCache[i][handle][context] = resource;
-                                this.FTextureOut[i] = this.FSharedTextureCache[i][handle];
+                                else if (FSharedTextureCache[i][handle].Contains(context))
+                                {
+                                    FSharedTextureCache[i][handle][context].Dispose();
+                                }
+                                FSharedTextureCache[i][handle][context] = resource;
+                                FTextureOut[i] = this.FSharedTextureCache[i][handle];
                             }
-                            this.FSizeOut[i] = new Vector2D(this.FTextureOut[i][context].Width,this.FTextureOut[i][context].Height);
-                            this.FFormatOut[i] = this.FTextureOut[i][context].Format;
-                            this.FGotFirstFrameOut[i] = true;
+                            FSizeOut[i] = new Vector2D(this.FTextureOut[i][context].Width,FTextureOut[i][context].Height);
+                            FFormatOut[i] = FTextureOut[i][context].Format;
+                            FGotFirstFrameOut[i] = true;
                             if (FFileLoadIn[i][renderFrame] == NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]))
                             {
                                 FGetNextFrame[i] = false;
@@ -364,8 +397,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                         }
                         if (FDX11NativePlayer[i] != IntPtr.Zero && FPrevFrames[i].Count() != FFileLoadIn[i].Count())
                         {
-                            DestroyPlayer(i);
-                            this.FRefreshTextures = true;
+                            FRefreshPlayer = true;
+                            OutputDebugString("Destroying player number of files to load has changed");
                         }
                         FPrevFrames[i] = FFileLoadIn[i].Clone();
                     }
@@ -394,13 +427,18 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         public void Dispose()
         {
+            OutputDebugString("Disposing DX11Player plugin");
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
                 {
                     NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
                     FDX11NativePlayer[i] = IntPtr.Zero;
-                    this.FTextureOut[i] = new DX11Resource<DX11Texture2D>();
+                    foreach(var tex in FSharedTextureCache[i]){
+                        tex.Value.Dispose();
+                        FSharedTextureCache[i].Remove(tex.Key);
+                    }
+                    //this.FTextureOut[i].Dispose();
                     this.FIsReady[i] = false;
                     this.FGotFirstFrameOut[i] = false;
                 }
