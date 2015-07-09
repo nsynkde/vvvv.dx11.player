@@ -149,7 +149,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         private void DestroyPlayer(int i, bool cleanCache)
         {
-            var nativePlayer = FDX11NativePlayer[i];
+            /*var nativePlayer = FDX11NativePlayer[i];
             if (nativePlayer != IntPtr.Zero)
             {
                 FDX11NativePlayer[i] = IntPtr.Zero;
@@ -157,7 +157,13 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     NativeInterface.DX11Player_Destroy(nativePlayer);
                 });
+            }*/
+            if (FDX11NativePlayer[i] != IntPtr.Zero)
+            {
+                NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
+                FDX11NativePlayer[i] = IntPtr.Zero;
             }
+
             try
             {
                 foreach (var tex in FSharedTextureCache[i])
