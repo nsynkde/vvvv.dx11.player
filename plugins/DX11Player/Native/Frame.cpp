@@ -104,14 +104,12 @@ void Frame::Unmap(){
 void Frame::Render(){
 	if (context->GetCopyType() == Context::DiskToGPU) {
 		Unmap();
-	}
 
-	context->CopyFrameToOutTexture(this);
+		context->CopyFrameToOutTexture(this);
 
-	if (context->GetCopyType() == Context::DiskToGPU) {
 		Map();
+		readyToPresent = true;
 	}
-	readyToPresent = true;
 }
 
 size_t Frame::GetMappedRowPitch() const{
@@ -149,6 +147,7 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 	if (context->GetCopyType() == Context::DiskToGPU) {
 		ptr = (uint8_t*)mappedBuffer.pData;
 	} else {
+		ramUploadBuffer.assign(ramUploadBuffer.size(), 0);
 		ptr = ramUploadBuffer.data();
 	}
 	if(ptr){
@@ -185,7 +184,10 @@ bool Frame::Wait(DWORD millis){
 		}
 	}*/
 
-	//context->CopyFrameToOutTexture(this);
+	if (success && context->GetCopyType() == Context::DiskToRam) {
+		context->CopyFrameToOutTexture(this);
+		readyToPresent = true;
+	}
 	return success;
 }
 

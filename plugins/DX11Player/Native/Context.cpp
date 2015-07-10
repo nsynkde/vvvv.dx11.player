@@ -357,6 +357,7 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		
 		m_Context->PSSetShaderResources(0,1,&m_ShaderResourceView);	
 	}
+	OutputDebugStringA("Done allocating context\n");
 }
 
 Context::~Context(){
@@ -412,7 +413,7 @@ void Context::CopyFrameToOutTexture(Frame * frame){
 		m_Context->Draw(6, 0);
 		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
 		m_Context->Flush();
-	} else if(m_Copytype==DiskToGPU){
+	} else if(m_Copytype == DiskToGPU){
 		m_Context->CopySubresourceRegion(frame->RenderTexture(),0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
 	} else {
 		//BC format specify pitch in bits?

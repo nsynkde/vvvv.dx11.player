@@ -59,7 +59,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 	if(extension == ".dds"){
 		DirectX::TexMetadata mdata;
 		DirectX::GetMetadataFromDDSFile(imageFile.c_str(),DirectX::DDS_FLAGS_NONE, mdata);
-		format.w = mdata.width;
+		format.w = mdata.width;//mdata.rowPitch * 2;
 		format.out_w = mdata.width;
 		format.h = mdata.height;
 		format.in_format = mdata.format;
@@ -69,6 +69,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		format.bytes_data = mdata.bytesData;
 		format.row_padding = 0;
 		format.pixel_format = DX11_NATIVE;
+		OutputDebugStringA(("width: " + std::to_string(format.w) + " pitch " + std::to_string(format.out_w) + "\n").c_str());
 	}else if(extension == ".tga"){
 		TGA_HEADER header;
 		std::fstream tgafile(imageFile, std::fstream::in | std::fstream::binary);

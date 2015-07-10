@@ -91,6 +91,11 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	// and sends an event to wait on to the waiter thread
 	//OutputDebugString( L"creating upload thread\n" );
 	m_UploaderThread = std::thread([this, fileForFormat, ringBufferSize]{
+		if (!PathFileExistsA(fileForFormat.c_str())) {
+			ChangeStatus(Error, "Cannot find format file" + fileForFormat);
+			return;
+		}
+
 		ImageFormat::Format format;
 		try{
 			format = ImageFormat::FormatFor(fileForFormat);
@@ -102,10 +107,6 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		// Add enough bytes to read the header + data but we need to read
 		// a multiple of the physical sector size since we are reading 
 		// directly from disk with no buffering
-		if(!PathFileExistsA(fileForFormat.c_str())){
-			ChangeStatus(Error,"Cannot find format file" + fileForFormat);
-			return;
-		}
 		char buffer[4096] = {0};
 		auto ret = GetFullPathNameA(fileForFormat.c_str(),4096,buffer,nullptr);
 		if(ret==0){
@@ -171,6 +172,8 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 					m_UploaderThreadRunning = false;
 					break;
 				}
+			} else {
+				m_ReadyToUpload.send(nextFrame);
 			}
 		}
 	});
