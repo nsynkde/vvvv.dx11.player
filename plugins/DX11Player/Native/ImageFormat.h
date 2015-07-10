@@ -13,6 +13,7 @@ public:
 		BGR,
 		CbYCr,
 		RGB,
+		RGBA_PADDED,
 		DX11_NATIVE
 	};
 
@@ -27,16 +28,12 @@ public:
 		bool vflip;
 		bool byteswap;
 		size_t row_padding;
-	};
-
-	struct FileInfo{
-		Format format;
 		size_t row_pitch;
 		size_t data_offset;
 		size_t bytes_data;
 	};
 
-	static FileInfo FormatFor(const std::string & imageFile);
+	static Format FormatFor(const std::string & imageFile);
 private:
 	ImageFormat();
 };

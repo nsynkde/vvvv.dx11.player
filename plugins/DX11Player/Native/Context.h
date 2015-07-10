@@ -10,7 +10,11 @@ class Frame;
 
 class Context{
 public:
-	Context(const ImageFormat::Format & format);
+	enum CopyType {
+		DiskToGPU,
+		DiskToRam
+	};
+	Context(const ImageFormat::Format & format, CopyType copytype);
 	~Context();
 	ImageFormat::Format GetFormat() const;
 	std::shared_ptr<Frame> GetFrame();
@@ -19,6 +23,7 @@ public:
 	HRESULT CreateStagingTexture(ID3D11Texture2D ** texture);
 	HRESULT CreateRenderTexture(ID3D11Texture2D ** texture);
 	void Clear();
+	CopyType GetCopyType() const;
 private:
 	D3D11_TEXTURE2D_DESC m_RenderTextureDescription;
 	ID3D11Device * m_Device;
@@ -33,4 +38,5 @@ private:
 	friend void ReleaseContext(Context * context);
 	friend void ReleaseFrame(Frame * frame);
 	std::mutex mutex;
+	CopyType m_Copytype;
 };

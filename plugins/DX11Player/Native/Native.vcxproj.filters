@@ -199,5 +199,8 @@
     <FxCompile Include="..\Shaders\CbYCr161616_to_RGBA16161616.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\Shaders\RGBA_removePadding.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

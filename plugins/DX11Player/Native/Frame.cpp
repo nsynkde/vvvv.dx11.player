@@ -12,9 +12,19 @@ Frame::Frame(Context * context)
 ,context(context)
 ,mapped(false)
 ,readyToPresent(false){
-	HRESULT hr = context->CreateStagingTexture(&uploadBuffer);
-	if(FAILED(hr)){
-		throw std::exception((std::string("Coudln't create staging texture")).c_str());
+	HRESULT hr;
+	if (context->GetCopyType() == Context::DiskToGPU) {
+		hr = context->CreateStagingTexture(&uploadBuffer);
+		if (FAILED(hr)) {
+			throw std::exception((std::string("Coudln't create staging texture")).c_str());
+		}
+		ZeroMemory(&mappedBuffer, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+		if (Map() != 0) {
+			throw std::exception("Coudln't map frame\n");
+		}
+	} else {
+		ramUploadBuffer.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset);
 	}
 	hr = context->CreateRenderTexture(&renderTexture);
 	if(FAILED(hr)){
@@ -33,16 +43,13 @@ Frame::Frame(Context * context)
 	}
 	pTempResource->Release();
 	ZeroMemory(&overlap,sizeof(OVERLAPPED));
-	ZeroMemory(&mappedBuffer,sizeof(D3D11_MAPPED_SUBRESOURCE));
-	
-	if(Map()!=0){
-		throw std::exception("Coudln't map frame\n");
-	}
 }
 
 Frame::~Frame(){
-	if(mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
-	uploadBuffer->Release();
+	if (context->GetCopyType() == Context::DiskToGPU) {
+		if (mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
+		uploadBuffer->Release();
+	}
 	renderTexture->Release();
 	if(file!=nullptr){
 		WaitForSingleObject(waitEvent,INFINITE);
@@ -95,9 +102,15 @@ void Frame::Unmap(){
 }
 
 void Frame::Render(){
-	Unmap();
+	if (context->GetCopyType() == Context::DiskToGPU) {
+		Unmap();
+	}
+
 	context->CopyFrameToOutTexture(this);
-	Map();
+
+	if (context->GetCopyType() == Context::DiskToGPU) {
+		Map();
+	}
 	readyToPresent = true;
 }
 
@@ -131,7 +144,13 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 	if(file != nullptr){
 		Cancel();
 	}
-	auto ptr = (char*)mappedBuffer.pData;
+
+	uint8_t * ptr;
+	if (context->GetCopyType() == Context::DiskToGPU) {
+		ptr = (uint8_t*)mappedBuffer.pData;
+	} else {
+		ptr = ramUploadBuffer.data();
+	}
 	if(ptr){
 		ptr += offset;
 		file = CreateFileA(path.c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
@@ -139,7 +158,7 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 			ZeroMemory(&overlap,sizeof(OVERLAPPED));
 			overlap.hEvent = waitEvent;
 			DWORD bytesRead=0;
-			::ReadFile(file,ptr,numbytesdata,&bytesRead,&overlap);
+			::ReadFile(file, ptr, numbytesdata, &bytesRead, &overlap);
 			loadTime = now;
 			nextToLoad = path;
 			return true;
@@ -154,9 +173,26 @@ bool Frame::Wait(DWORD millis){
 	decodeDuration = HighResClock::now() - loadTime;
 	CloseHandle(file);
 	file = nullptr;
-	return ret != WAIT_TIMEOUT && ret != WAIT_FAILED;
+	auto success = ret != WAIT_TIMEOUT && ret != WAIT_FAILED;
+	/*if (success && context->GetCopyType() == Context::DiskToRam) {
+		OutputDebugStringA(("Copying " + std::to_string(context->GetFormat().row_pitch) + " x " + std::to_string(context->GetFormat().h) + " to " + std::to_string(mappedBuffer.RowPitch) + "@ " + std::to_string((uint64_t)mappedBuffer.pData) + "\n").c_str());
+		auto src = GetRAMBuffer();
+		auto dst = (uint8_t*)mappedBuffer.pData;
+		for (size_t i = 0; i < context->GetFormat().h; i++) {
+			memcpy(dst, src, context->GetFormat().row_pitch);
+			src += context->GetFormat().row_pitch;
+			dst += mappedBuffer.RowPitch;
+		}
+	}*/
+
+	//context->CopyFrameToOutTexture(this);
+	return success;
 }
 
 HighResClock::duration Frame::DecodeDuration() const{
 	return decodeDuration;
+}
+
+uint8_t * Frame::GetRAMBuffer() {
+	return ramUploadBuffer.data() + context->GetFormat().data_offset;
 }

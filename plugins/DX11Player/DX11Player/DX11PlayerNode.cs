@@ -175,13 +175,13 @@ namespace VVVV.Nodes.DX11PlayerNode
                             tex.Value.Dispose();
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                     }
                 }
                 FSharedTextureCache[i].Clear();
             }
-            catch (Exception e)
+            catch (Exception)
             {
             }
             FIsReady[i] = false;

@@ -275,7 +275,13 @@ void RenderFrame(void)
 	float color[] = {0.0f, 0.0f, 0.0f, 1.0f};
     devcon->ClearRenderTargetView(backbuffer, color);
 	if(player->IsReady()){
-		std::vector<std::string> current_frames( files.begin()+nextToRender, files.begin()+nextToLoad );
+		std::vector<std::string> current_frames;
+		if (nextToRender < nextToLoad) {
+			current_frames.assign(files.begin() + nextToRender, files.begin() + nextToLoad);
+		} else {
+			current_frames.assign(files.begin() + nextToRender, files.end());
+			current_frames.insert(current_frames.end(), files.begin(), files.begin() + nextToLoad);
+		}
 		player->SetSystemFrames(current_frames);
 		if(!wasReady){
 			for(int i=0;i<8;i++){
@@ -316,6 +322,8 @@ void RenderFrame(void)
 	}else{
 		OutputDebugStringA("Player not ready\n");
 	}
+
+	//OutputDebugStringA((files[nextToRender] + "\n").c_str());
 
 	UpdateVerticalLine();
     devcon->PSSetShader(pPSNoTex, 0, 0);
@@ -472,7 +480,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "d:\\TestMaterial\\bbb_4ktga_crop1");
+	tinydir_open(&dir, "D:\\3915x720rgba");
 
 	while (dir.has_next)
 	{

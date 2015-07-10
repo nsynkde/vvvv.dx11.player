@@ -9,24 +9,36 @@
 #include "PSCbYCr888_to_RGBA8888.h"
 #include "PSCbYCr101010_to_R10G10B10A2.h"
 #include "PSCbYCr161616_to_RGBA16161616.h"
+#include "PSRGBA8888_remove_padding.h"
 #include "Frame.h"
 
-Context::Context(const ImageFormat::Format & format)
+Context::Context(const ImageFormat::Format & format, CopyType copytype)
 	:m_Device(nullptr)
 	,m_Context(nullptr)
 	,m_ShaderResourceView(nullptr)
 	,m_BackBuffer(nullptr)
 	,m_RenderTargetView(nullptr)
-	,m_Format(format){
+	,m_CopyTextureIn(nullptr)
+	,m_Format(format)
+	,m_Copytype(copytype){
 
 	// box to copy upload buffer to texture skipping 4 first rows
 	// to skip header
-	m_CopyBox.back = 1;
-	m_CopyBox.bottom = format.h + 4;
-	m_CopyBox.front = 0;
-	m_CopyBox.left = 0;
-	m_CopyBox.right = format.w + format.row_padding;
-	m_CopyBox.top = 4;
+	if (m_Copytype == DiskToGPU) {
+		m_CopyBox.back = 1;
+		m_CopyBox.bottom = format.h + 4;
+		m_CopyBox.front = 0;
+		m_CopyBox.left = 0;
+		m_CopyBox.right = format.w + format.row_padding;
+		m_CopyBox.top = 4;
+	}else{
+		m_CopyBox.back = 1;
+		m_CopyBox.bottom = format.h;
+		m_CopyBox.front = 0;
+		m_CopyBox.left = 0;
+		m_CopyBox.right = format.w + format.row_padding;
+		m_CopyBox.top = 0;
+	}
 
 	HRESULT hr;
 
@@ -62,13 +74,20 @@ Context::Context(const ImageFormat::Format & format)
 	m_RenderTextureDescription.Width = format.out_w;
 	m_RenderTextureDescription.Height = format.h;
 	m_RenderTextureDescription.Format = format.out_format;
-	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
+	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED & ~D3D11_RESOURCE_MISC_TEXTURECUBE;
 
 	// If the input format is not directly supported by DX11
 	// create a shader to process them and output the data
 	// as RGBA
 	if (format.pixel_format != ImageFormat::DX11_NATIVE)
 	{
+		if (m_Copytype != DiskToGPU) {
+			if (format.pixel_format == ImageFormat::RGBA_PADDED) {
+				return;
+			} else {
+				throw std::exception("Copy to ram only supported for native types: DDS or RGBA");
+			}
+		}
 		//OutputDebugStringA("Format not directly supported setting up colorspace conversion shader");
 
 		// create the copy textures, used to copy from the upload
@@ -101,6 +120,11 @@ Context::Context(const ImageFormat::Format & format)
 		case ImageFormat::BGR:
 			pixelShaderSrc = BGR_to_RGBA;
 			sizePixelShaderSrc = sizeof(BGR_to_RGBA);
+			break;
+
+		case ImageFormat::RGBA_PADDED:
+			pixelShaderSrc = PSRGBA8888_remove_padding;
+			sizePixelShaderSrc = sizeof(PSRGBA8888_remove_padding);
 			break;
 
 		case ImageFormat::CbYCr:
@@ -342,8 +366,12 @@ Context::~Context(){
 	if(m_RenderTargetView){
 		m_RenderTargetView->Release();
 	}
-	m_ShaderResourceView->Release();
-	m_CopyTextureIn->Release();
+	if (m_ShaderResourceView) {
+		m_ShaderResourceView->Release();
+	}
+	if (m_CopyTextureIn) {
+		m_CopyTextureIn->Release();
+	}
 	m_Context->Release();
 	m_Device->Release();
 }
@@ -379,13 +407,27 @@ ID3D11DeviceContext * Context::GetDX11Context(){
 
 
 void Context::CopyFrameToOutTexture(Frame * frame){
-	if(m_Format.pixel_format != ImageFormat::DX11_NATIVE){
+	if(m_Format.pixel_format != ImageFormat::DX11_NATIVE && m_Copytype == DiskToGPU){
 		m_Context->CopySubresourceRegion(m_CopyTextureIn,0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
 		m_Context->Draw(6, 0);
 		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
 		m_Context->Flush();
-	} else {
+	} else if(m_Copytype==DiskToGPU){
 		m_Context->CopySubresourceRegion(frame->RenderTexture(),0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
+	} else {
+		//BC format specify pitch in bits?
+		if (m_Format.in_format == DXGI_FORMAT_BC1_UNORM || m_Format.in_format == DXGI_FORMAT_BC1_UNORM_SRGB) {
+			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch) * 4, static_cast<UINT>(m_Format.bytes_data));
+		} else if (m_Format.in_format == DXGI_FORMAT_BC2_UNORM || m_Format.in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+			m_Format.in_format == DXGI_FORMAT_BC3_UNORM || m_Format.in_format == DXGI_FORMAT_BC3_UNORM_SRGB || 
+			m_Format.in_format == DXGI_FORMAT_BC4_UNORM || m_Format.in_format == DXGI_FORMAT_BC4_SNORM || 
+			m_Format.in_format == DXGI_FORMAT_BC5_UNORM || m_Format.in_format == DXGI_FORMAT_BC5_SNORM || 
+			m_Format.in_format == DXGI_FORMAT_BC6H_SF16 || m_Format.in_format == DXGI_FORMAT_BC6H_UF16 ||
+			m_Format.in_format == DXGI_FORMAT_BC7_UNORM || m_Format.in_format == DXGI_FORMAT_BC7_UNORM_SRGB) {
+			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch)*4, static_cast<UINT>(m_Format.bytes_data));
+		} else {
+			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
+		}
 	}
 }
 
@@ -410,7 +452,9 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	textureUploadDescription.MiscFlags = 0;
 	textureUploadDescription.Width = m_Format.w + m_Format.row_padding;
 	textureUploadDescription.Height = m_Format.h; 
-	textureUploadDescription.Height += 4;
+	if (m_Copytype == DiskToGPU) {
+		textureUploadDescription.Height += 4;
+	}
 	textureUploadDescription.Format = m_Format.in_format;
 	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
 }
@@ -418,4 +462,8 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture)
 {
 	return m_Device->CreateTexture2D(&m_RenderTextureDescription,nullptr,texture);
+}
+
+Context::CopyType Context::GetCopyType() const {
+	return m_Copytype;
 }

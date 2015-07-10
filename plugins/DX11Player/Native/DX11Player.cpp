@@ -91,9 +91,9 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	// and sends an event to wait on to the waiter thread
 	//OutputDebugString( L"creating upload thread\n" );
 	m_UploaderThread = std::thread([this, fileForFormat, ringBufferSize]{
-		ImageFormat::FileInfo fileInfo;
+		ImageFormat::Format format;
 		try{
-			fileInfo = ImageFormat::FormatFor(fileForFormat);
+			format = ImageFormat::FormatFor(fileForFormat);
 		}catch(std::exception & e){
 			ChangeStatus(Error,e.what());
 			return;
@@ -117,9 +117,9 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			ChangeStatus(Error,"Cannot retrieve drive sector size");
 			return;
 		}
-		auto numbytesdata = NextMultiple((DWORD)fileInfo.bytes_data + fileInfo.data_offset, (DWORD)sectorSize);
+		auto numbytesdata = NextMultiple((DWORD)format.bytes_data + format.data_offset, (DWORD)sectorSize);
 
-		m_Context = Pool::GetInstance().AquireContext(fileInfo.format);
+		m_Context = std::make_shared<Context>(format, Context::DiskToGPU);//Pool::GetInstance().AquireContext(format);
 		//self->m_Context->Clear();
 
 		// init the ring buffer:
@@ -159,7 +159,12 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			m_DroppedFrames += dropped_now;
 			m_CurrentFrame = localCurrentFrame;
 
-			auto offset = (fileInfo.row_pitch+fileInfo.format.row_padding*4)*4-fileInfo.data_offset;
+			size_t offset;
+			if (m_Context->GetCopyType() == Context::DiskToGPU) {
+				offset = (format.row_pitch + format.row_padding * 4) * 4 - format.data_offset;
+			} else {
+				offset = 0;
+			}
 			if(nextFrame->ReadFile(m_CurrentFrame,offset,numbytesdata,now)){
 				if(!m_ReadyToWait.send(make_pair(m_ReadyToWait.size()+1,nextFrame)))
 				{
@@ -342,9 +347,8 @@ int DX11Player::GetAvgLoadDurationMs() const
 void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
 {
 	if (!IsReady()){
-		std::stringstream str;
-		str << "trying to send load frame  " << nextFrame << " before ready " << std::endl;
-		OutputDebugStringA(str.str().c_str());
+		auto str = "trying to send load frame  " + nextFrame + " before ready\n";
+		OutputDebugStringA(str.c_str());
 		return;
 	}
 	if (m_NextFrameChannel.size() <= m_RingBufferSize){

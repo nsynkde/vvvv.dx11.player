@@ -1,5 +1,5 @@
-<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta33.7.dtd" >
-   <PATCH nodename="C:\Users\arturo\Desktop\test_videoplayer.v4p" scrollx="0" scrolly="-360" systemname="test_videoplayer" filename="C:\Users\arturo\Desktop\test_videoplayer.v4p">
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta33.3.dtd" >
+   <PATCH nodename="C:\DEV\DX11Player\patches\test_videoplayer.v4p" scrollx="0" scrolly="-360" systemname="test_videoplayer" filename="C:\Users\arturo\Desktop\test_videoplayer.v4p">
    <BOUNDS type="Window" left="1590" top="615" width="12360" height="14415">
    </BOUNDS>
    <NODE systemname="Player (DX11.Texture)" filename="%VVVV%\packs\nsynk\nodes\plugins\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="0">
@@ -7,7 +7,7 @@
    </BOUNDS>
    <PIN pinname="texture" visible="1">
    </PIN>
-   <PIN pinname="format file" slicecount="1" values="|..\Documents\testmaterial\FrameNumbers\Comp 1_00009.tga|">
+   <PIN pinname="format file" slicecount="1" visible="1" values="D:\TestMaterialArturo\1940x1080_DXT1_DDSConverter\1940x1080_TGA_24bpp00000.dds">
    </PIN>
    <PIN pinname="load files" visible="1" slicecount="8" values="C:\Users\arturo\Downloads\test_material\2000x1080\00483.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00484.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00485.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00486.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00487.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00488.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00489.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00490.tga">
    </PIN>
@@ -51,7 +51,7 @@
    </PIN>
    <PIN pinname="File Count" visible="1">
    </PIN>
-   <PIN pinname="Mask" slicecount="1" values="*.tga">
+   <PIN pinname="Mask" slicecount="1" values="*">
    </PIN>
    <PIN pinname="Update" slicecount="1" values="0">
    </PIN>
@@ -75,7 +75,7 @@
    </BOUNDS>
    <BOUNDS type="Box" left="10470" top="13845" width="2400" height="1800">
    </BOUNDS>
-   <BOUNDS type="Window" left="10305" top="12855" width="14565" height="7230">
+   <BOUNDS type="Window" left="11715" top="8925" width="14565" height="7230">
    </BOUNDS>
    </NODE>
    <NODE systemname="FrameCounter (Animation)" nodename="FrameCounter (Animation)" componentmode="Hidden" id="6">
@@ -323,7 +323,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="2325" top="570" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="1" visible="1" values="..\Documents\testmaterial\FrameNumbers">
+   <PIN pinname="Input String" slicecount="1" visible="1" values="D:\TestMaterialArturo\1080x720dds">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>
@@ -334,6 +334,8 @@
    <PIN pinname="String Type" slicecount="1" values="Directory">
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="Directory">
+   </PIN>
+   <PIN pinname="Output String" visible="1">
    </PIN>
    </NODE>
    <LINK srcnodeid="27" srcpinname="Output String" dstnodeid="3" dstpinname="Directory">
@@ -504,4 +506,160 @@
    </LINK>
    <LINK srcnodeid="39" srcpinname="Output" dstnodeid="37" dstpinname="X">
    </LINK>
+   <PACK Name="addonpack" Version="33.3.0">
+   </PACK>
+   <NODE systemname="Info (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Info (DX11.Texture 2d)" componentmode="Hidden" id="40">
+   <BOUNDS type="Node" left="6780" top="7830" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Texture In" visible="1">
+   </PIN>
+   <PIN pinname="Width" visible="1">
+   </PIN>
+   <PIN pinname="Height" visible="1">
+   </PIN>
+   <PIN pinname="Array Size" visible="1">
+   </PIN>
+   <PIN pinname="Format" visible="1">
+   </PIN>
+   <PIN pinname="Samples Count" visible="1">
+   </PIN>
+   <PIN pinname="AA Quality" visible="1">
+   </PIN>
+   <PIN pinname="Mip Levels" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="0" srcpinname="texture" dstnodeid="40" dstpinname="Texture In">
+   </LINK>
+   <NODE systemname="GetSlice (String)" nodename="GetSlice (String)" componentmode="Hidden" id="41">
+   <BOUNDS type="Node" left="1350" top="2445" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Input" visible="1" slicecount="1" values="D:\TestMaterialArturo\1940x1080_DXT1_DDSConverter">
+   </PIN>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="41" srcpinname="Output" dstnodeid="0" dstpinname="format file">
+   </LINK>
+   <LINK srcnodeid="3" srcpinname="Filenames" dstnodeid="41" dstpinname="Input">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="42" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="6810" top="8355" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="6810" top="8355" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="Width">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Width" dstnodeid="42" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="43" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="6945" top="8760" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="6945" top="8760" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="Height">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Height" dstnodeid="43" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="44" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="7140" top="9180" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7140" top="9180" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Array Size|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Array Size" dstnodeid="44" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (Enumerations)" componentmode="InABox" id="45" systemname="IOBox (Enumerations)">
+   <BOUNDS type="Box" left="7335" top="9615" width="1590" height="270">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7335" top="9615" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Descriptive Name" slicecount="1" values="Format">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Format" dstnodeid="45" dstpinname="Input Enum">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="46" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="7530" top="10035" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7530" top="10035" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Samples Count|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Samples Count" dstnodeid="46" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="47" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="7710" top="10530" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7710" top="10530" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|AA Quality|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="AA Quality" dstnodeid="47" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="48" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="7920" top="11070" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7920" top="11070" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Mip Levels|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="40" srcpinname="Mip Levels" dstnodeid="48" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="50" systemname="IOBox (String)">
+   <BOUNDS type="Node" left="10170" top="8535" width="585" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="10170" top="8535" width="585" height="270">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="string">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   </NODE>
    </PATCH>

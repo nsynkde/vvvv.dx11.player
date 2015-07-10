@@ -16,6 +16,7 @@ class Frame{
 	HANDLE renderTextureSharedHandle;
 	D3D11_MAPPED_SUBRESOURCE mappedBuffer;
 	ID3D11Texture2D* uploadBuffer;
+	std::vector<uint8_t> ramUploadBuffer;
 	ID3D11Texture2D* renderTexture;
 	Context * context;
 	bool mapped;
@@ -39,5 +40,6 @@ public:
 	HighResClock::duration DecodeDuration() const;
 	size_t GetMappedRowPitch() const;
 	void Cancel();
+	uint8_t * GetRAMBuffer();
 };
 
