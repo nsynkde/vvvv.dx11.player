@@ -82,6 +82,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 
 		format.vflip = !(header.imagedescriptor & 32);
 		auto alphaDepth = header.imagedescriptor & 15;
+		OutputDebugStringA(std::to_string(header.bitsperpixel).c_str());
 		format.out_w = header.width;
 		format.h = header.height;
 		format.data_offset = sizeof(TGA_HEADER) + header.idlength;
@@ -100,8 +101,8 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		str << "bitsperpixel " << (int)header.bitsperpixel << std::endl;
 		str << "imagedescriptor " << (int)header.imagedescriptor << std::endl;
 		OutputDebugStringA(str.str().c_str());*/
-		switch(alphaDepth){
-			case 0:
+		switch(header.bitsperpixel){
+			case 24:
 				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				format.out_format = format.in_format;
 				format.w = header.width*3/4;
@@ -109,22 +110,25 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.row_pitch = header.width * 3;
 				format.data_offset += format.out_w % 2;
 				format.pixel_format = BGR;
+				OutputDebugStringA("\nrgb\n");
 			break;
-			case 8:
+			case 32:
 				format.in_format = DXGI_FORMAT_B8G8R8A8_UNORM;
 				format.out_format = format.in_format;
 				format.w = header.width;
 				format.row_pitch = header.width * 4;
 				format.row_padding = NextMultiple(format.w, 32) - format.w;
 				if (format.row_padding == 0) {
+					OutputDebugStringA("\nnative\n");
 					format.pixel_format = DX11_NATIVE;
 				} else {
+					OutputDebugStringA("\npadded\n");
 					format.pixel_format = RGBA_PADDED;
 				}
 			break;
 			default:{	
 				std::stringstream str;
-				str << "tga format with alpha depth " << alphaDepth << " not suported, only RGB(A) truecolor supported\n";
+				str << "tga format with bitsperpixel " << header.bitsperpixel << " not suported, only RGB(A) truecolor supported\n";
 				throw std::exception(str.str().c_str());
 			}
 		}
@@ -140,7 +144,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		auto dpx_descriptor = header.ImageDescriptor(0);
 		format.byteswap = header.RequiresByteSwap();
 		format.depth = header.BitDepth(0);
-		/*std::stringstream str;
+		std::stringstream str;
 		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
 		str << " signed: " << header.DataSign(0)  << std::endl;
 		str << " colorimetric: " << header.Colorimetric(0)  << std::endl;
@@ -161,8 +165,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		for(int i=0;i<8;i++){
 			str << std::bitset<8>(data[i]) << std::endl;
 		}
-		OutputDebugStringA(str.str().c_str());*/
-		std::stringstream str;
+		OutputDebugStringA(str.str().c_str());
 		switch(dpx_descriptor){
 		case dpx::Descriptor::kAlpha:
 			switch(format.depth){
@@ -210,7 +213,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.out_format = format.in_format;
 				format.row_pitch = format.out_w * 3;
 				format.w = header.pixelsPerLine*3/4;
-				format.row_padding = NextMultiple(format.w,8) - format.w;
+				format.row_padding = NextMultiple(format.w, 32) - format.w;
 				format.pixel_format = RGB;
 				break;
 			case 10:
@@ -219,6 +222,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 					format.out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
 					format.row_pitch = format.out_w * 4;
 					format.w = header.pixelsPerLine;
+					//TODO: padding
 					format.pixel_format = ARGB;
 				}else{
 					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
