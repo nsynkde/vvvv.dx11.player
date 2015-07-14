@@ -67,10 +67,10 @@ Context::Context(const ImageFormat::Format & _format, CopyType copytype)
 	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED & ~D3D11_RESOURCE_MISC_TEXTURECUBE;
 
 	m_Format.row_padding = 0;
-	OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(GetFrame()->GetMappedRowPitch()) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+	auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 
-	if (IsRGBA(m_Format.in_format) && m_Format.pixel_format==ImageFormat::DX11_NATIVE){
-		m_Format.row_padding = (GetFrame()->GetMappedRowPitch() / 4 - m_Format.w);
+	if ((IsRGBA(m_Format.in_format) || IsBGRA(m_Format.in_format)) && m_Format.pixel_format == ImageFormat::DX11_NATIVE){
+		m_Format.row_padding = mapped_pitch / 4 - m_Format.w;
 		if (m_Format.row_padding > 0){
 			m_Format.pixel_format = ImageFormat::RGBA_PADDED;
 		}
@@ -78,6 +78,7 @@ Context::Context(const ImageFormat::Format & _format, CopyType copytype)
 	if (m_Format.pixel_format == ImageFormat::RGB || m_Format.pixel_format == ImageFormat::BGR){
 		m_Format.row_padding = (GetFrame()->GetMappedRowPitch() / 4 - m_Format.w);
 	}
+	OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
 
 
 	// box to copy upload buffer to texture skipping 4 first rows
@@ -440,14 +441,29 @@ void Context::CopyFrameToOutTexture(Frame * frame){
 	} else {
 		//BC format specify pitch in bits?
 		if (m_Format.in_format == DXGI_FORMAT_BC1_UNORM || m_Format.in_format == DXGI_FORMAT_BC1_UNORM_SRGB) {
-			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch) * 4, static_cast<UINT>(m_Format.bytes_data));
+			auto src = frame->GetRAMBuffer();
+			if (m_Format.w != m_Format.row_pitch * 2){
+				m_CopyBox.back = 1;
+				m_CopyBox.front = 0;
+				m_CopyBox.left = 0;
+				m_CopyBox.right = m_Format.w;
+				for (auto i = 0; i < m_Format.h; i++){
+					m_CopyBox.top = i;
+					m_CopyBox.bottom = i + 1;
+					m_Context->UpdateSubresource(frame->RenderTexture(), 0, &m_CopyBox, src, static_cast<UINT>(m_Format.row_pitch) * 4, static_cast<UINT>(m_Format.row_pitch));
+					src += m_Format.w * 2 - 1;
+				}
+			}
+			else {
+				m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch) * 4, static_cast<UINT>(m_Format.bytes_data));
+			}
 		} else if (m_Format.in_format == DXGI_FORMAT_BC2_UNORM || m_Format.in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
 			m_Format.in_format == DXGI_FORMAT_BC3_UNORM || m_Format.in_format == DXGI_FORMAT_BC3_UNORM_SRGB || 
 			m_Format.in_format == DXGI_FORMAT_BC4_UNORM || m_Format.in_format == DXGI_FORMAT_BC4_SNORM || 
 			m_Format.in_format == DXGI_FORMAT_BC5_UNORM || m_Format.in_format == DXGI_FORMAT_BC5_SNORM || 
 			m_Format.in_format == DXGI_FORMAT_BC6H_SF16 || m_Format.in_format == DXGI_FORMAT_BC6H_UF16 ||
 			m_Format.in_format == DXGI_FORMAT_BC7_UNORM || m_Format.in_format == DXGI_FORMAT_BC7_UNORM_SRGB) {
-			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch)*4, static_cast<UINT>(m_Format.bytes_data));
+			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch) * 4, static_cast<UINT>(m_Format.bytes_data));
 		} else {
 			m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
 		}

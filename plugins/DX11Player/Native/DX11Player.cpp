@@ -121,7 +121,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		auto numbytesdata = NextMultiple((DWORD)format.bytes_data + format.data_offset, (DWORD)sectorSize);
 
 		m_Context = std::make_shared<Context>(format, Context::DiskToGPU);//Pool::GetInstance().AquireContext(format);
-		//self->m_Context->Clear();
+		format = m_Context->GetFormat();
 
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.

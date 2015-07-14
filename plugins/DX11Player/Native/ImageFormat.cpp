@@ -59,8 +59,8 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 	if(extension == ".dds"){
 		DirectX::TexMetadata mdata;
 		DirectX::GetMetadataFromDDSFile(imageFile.c_str(),DirectX::DDS_FLAGS_NONE, mdata);
-		format.w = mdata.width;//mdata.rowPitch * 2;
-		format.out_w = mdata.width;
+		format.w = mdata.width;
+		format.out_w = mdata.rowPitch * 2;
 		format.h = mdata.height;
 		format.in_format = mdata.format;
 		format.out_format = format.in_format;
@@ -108,7 +108,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.out_format = format.in_format;
 				format.w = header.width*3/4;
 				format.row_pitch = header.width * 3;
-				format.data_offset -= format.out_w % 2;
+				//format.data_offset -= format.out_w % 2;
 				format.pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;

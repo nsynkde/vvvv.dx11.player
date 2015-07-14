@@ -481,7 +481,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "D:\\TestMaterialArturo\\4097x2160bc1");
+	tinydir_open(&dir, "D:\\TestMaterialArturo\\1937x1080_TGA_24bpp");
 
 	while (dir.has_next)
 	{
