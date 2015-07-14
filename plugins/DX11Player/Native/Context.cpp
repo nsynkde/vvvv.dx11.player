@@ -70,13 +70,13 @@ Context::Context(const ImageFormat::Format & _format, CopyType copytype)
 	auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 
 	if ((IsRGBA(m_Format.in_format) || IsBGRA(m_Format.in_format)) && m_Format.pixel_format == ImageFormat::DX11_NATIVE){
-		m_Format.row_padding = mapped_pitch / 4 - m_Format.w;
+		m_Format.row_padding = mapped_pitch / m_Format.bytes_per_pixel_in - m_Format.w;
 		if (m_Format.row_padding > 0){
 			m_Format.pixel_format = ImageFormat::RGBA_PADDED;
 		}
 	}
 	if (m_Format.pixel_format == ImageFormat::RGB || m_Format.pixel_format == ImageFormat::BGR){
-		m_Format.row_padding = (GetFrame()->GetMappedRowPitch() / 4 - m_Format.w);
+		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
 	}
 	OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
 

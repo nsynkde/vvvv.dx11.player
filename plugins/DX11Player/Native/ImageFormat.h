@@ -31,6 +31,7 @@ public:
 		size_t row_pitch;
 		size_t data_offset;
 		size_t bytes_data;
+		size_t bytes_per_pixel_in;
 	};
 
 	static Format FormatFor(const std::string & imageFile);

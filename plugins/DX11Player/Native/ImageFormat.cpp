@@ -50,7 +50,8 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 	auto cextension = PathFindExtensionA(imageFile.c_str());
 	std::string extension = cextension?cextension:"";
 	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-	ZeroMemory(&format,sizeof(Format));
+	ZeroMemory(&format, sizeof(Format));
+	format.bytes_per_pixel_in = 4;
 
 	// parse first image header and assume all have the same format
 	// TODO: tex format breaks encapsulation. only set m_TexFormat if
@@ -69,6 +70,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		format.bytes_data = mdata.bytesData;
 		format.row_padding = 0;
 		format.pixel_format = DX11_NATIVE;
+		format.bytes_per_pixel_in = 2;
 		OutputDebugStringA(("width: " + std::to_string(format.w) + " pitch " + std::to_string(format.out_w) + "\n").c_str());
 	}else if(extension == ".tga"){
 		TGA_HEADER header;
@@ -104,10 +106,24 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		OutputDebugStringA(str.str().c_str());
 		switch(header.bitsperpixel){
 			case 24:
-				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				format.out_format = format.in_format;
-				format.w = header.width*3/4;
+				format.in_format = DXGI_FORMAT_R8_UNORM;
+				format.out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				format.w = header.width * 3;
 				format.row_pitch = header.width * 3;
+				format.bytes_per_pixel_in = 4;
+				/*switch (header.width * 3 % 4){
+				case 0:
+					break;
+				case 1:
+					format.data_offset += 1;
+					break;
+				case 2:
+					format.data_offset -= 1;
+					break;
+				case 3:
+					format.data_offset -= 3;
+					break;
+				}*/
 				format.pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;
@@ -202,11 +218,11 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		case dpx::Descriptor::kRGB:
 			switch(format.depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				format.out_format = format.in_format;
+				format.in_format = DXGI_FORMAT_R8_UNORM;
+				format.out_format = DXGI_FORMAT_R8G8B8A8_UNORM;;
 				format.row_pitch = format.out_w * 3;
 				format.w = header.pixelsPerLine*3/4;
-				format.pixel_format = RGB;
+				format.pixel_format = BGR;
 				break;
 			case 10:
 				if(header.ImagePacking(0)==1){

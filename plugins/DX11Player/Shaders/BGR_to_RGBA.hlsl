@@ -2,56 +2,18 @@
 Texture2D tex0;
 float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
 {
-	uint x = In.uv.x * OutputWidth;
+	uint x = In.uv.x * InputWidth;
 	uint y = (YOrigin+YCoordinateSign*In.uv.y) * OutputHeight;
-	uint pixelIdx = x + y * OutputWidth;
-	uint begin = pixelIdx % (uint)4;
-	uint offset = pixelIdx / (uint)4;
-	switch (OutputWidth * 3 % 4){
-		case 0:
-		break;
-		case 1:
-			begin += 3;
-		break;
-		case 2:
-			begin += 1;
-		break;
-		case 3:
-			pixelIdx -= 1;
-			begin += 1;
-		break;
-	}
-	begin = begin % 4;
-	pixelIdx = pixelIdx - offset;
+	uint pixelIdx = x + y * InputWidth - 1;
 	uint totalWidth = InputWidth + RowPadding;
-	int in_x = pixelIdx % totalWidth;
-	int in_y = pixelIdx / totalWidth;
-	int prev_x = (pixelIdx-1) % totalWidth;
-	int prev_y = (pixelIdx-1) / totalWidth;
-	int3 uv = int3(in_x,in_y,0);
-	int3 prev_uv = int3(prev_x,prev_y,0);
-	float4 rgba;
-	if(begin==0)
-	{
-		rgba.bgr = tex0.Load(uv).rgb;
-		rgba.a = 1.0;
-	}
-	else if(begin==1)
-	{
-		rgba.b = tex0.Load(prev_uv).a;
-		rgba.gr = tex0.Load(uv).rg;
-		rgba.a = 1.0;
-	}
-	else if(begin==2)
-	{
-		rgba.bg = tex0.Load(prev_uv).ba;
-		rgba.r = tex0.Load(uv).r;
-		rgba.a = 1.0;
-	}
-	else
-	{
-		rgba.bgr = tex0.Load(prev_uv).gba;
-		rgba.a = 1.0;
-	}
-	return rgba;
+	int r_x = pixelIdx % totalWidth;
+	int r_y = pixelIdx / totalWidth;
+	int3 r = int3(r_x, r_y, 0);
+	int g_x = (pixelIdx+1) % totalWidth;
+	int g_y = (pixelIdx+1) / totalWidth;
+	int3 g = int3(g_x, g_y, 0);
+	int b_x = (pixelIdx + 2) % totalWidth;
+	int b_y = (pixelIdx + 2) / totalWidth;
+	int3 b = int3(b_x, b_y, 0);
+	return float4(tex0.Load(r).r, tex0.Load(g).r, tex0.Load(b).r, 1.0).bgra;
 }

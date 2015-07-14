@@ -162,7 +162,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 
 			size_t offset;
 			if (m_Context->GetCopyType() == Context::DiskToGPU) {
-				offset = (format.row_pitch + format.row_padding * 4) * 4 - format.data_offset;
+				offset = nextFrame->GetMappedRowPitch() * 4 - format.data_offset;
 			} else {
 				offset = 0;
 			}
