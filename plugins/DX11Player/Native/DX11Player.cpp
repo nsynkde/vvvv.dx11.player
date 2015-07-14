@@ -85,7 +85,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	,m_StatusDesc("Init")
 	,m_AlwaysShowLastFrame(false)
 {
-	OutputDebugStringA(("Binary build date: \n" + std::string(__DATE__) + std::string(__TIME__)).c_str());
+	OutputDebugStringA(("Binary build date: \n" + std::string(__DATE__) + " " + std::string(__TIME__)).c_str());
 	// uploader thread: initializes the whole pipeline and then
 	// reads async from disk to mapped GPU memory
 	// and sends an event to wait on to the waiter thread
