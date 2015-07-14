@@ -46,6 +46,7 @@ ID3D11Buffer *pVBufferVerticalLine;                // the pointer to the vertex 
 std::shared_ptr<DX11Player> player;
 HighResClock::time_point start;
 std::vector<std::string> files;
+static const int bufferSize = 8;
 
 	// a struct to define a single vertex
 struct Vertex
@@ -261,7 +262,7 @@ ID3D11Texture2D * GetTexture(int framenum){
 // this is the function used to render a single frame
 void RenderFrame(void)
 {
-	static int nextToLoad = 8;
+	static int nextToLoad = bufferSize;
 	static int nextToRender = 0;
 	static auto starttime = HighResClock::now();
 	static auto wasReady = false;
@@ -284,7 +285,7 @@ void RenderFrame(void)
 		}
 		player->SetSystemFrames(current_frames);
 		if(!wasReady){
-			for(int i=0;i<8;i++){
+			for(int i=0;i<bufferSize;i++){
 				player->SendNextFrameToLoad(files[i]);
 			}
 			player->Update();
@@ -320,7 +321,7 @@ void RenderFrame(void)
 			nextToRender %= files.size();
 		}
 	}else{
-		OutputDebugStringA("Player not ready\n");
+		OutputDebugStringA(("Player not ready: " + player->GetStatusMessage() + "\n").c_str());
 	}
 
 	//OutputDebugStringA((files[nextToRender] + "\n").c_str());
@@ -480,7 +481,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "D:\\TestMaterialArturo\\1939x1080_DPX_RGB");
+	tinydir_open(&dir, "D:\\TestMaterialArturo\\4097x2160bc1");
 
 	while (dir.has_next)
 	{
@@ -497,5 +498,5 @@ void InitPipeline()
 
 	tinydir_close(&dir);
 
-	player = std::make_shared<DX11Player>(files[0],8);
+	player = std::make_shared<DX11Player>(files[0], bufferSize);
 }

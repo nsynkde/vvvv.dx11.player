@@ -87,7 +87,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		format.out_w = header.width;
 		format.h = header.height;
 		format.data_offset = sizeof(TGA_HEADER) + header.idlength;
-		/*std::stringstream str;
+		std::stringstream str;
 		str << "TGA " << std::endl;
 		str << "idlength " << (int)header.idlength << std::endl;
 		str << "colourmaptyp e" << (int)header.colourmaptype << std::endl;
@@ -101,15 +101,14 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		str << "height " << (int)header.height << std::endl;
 		str << "bitsperpixel " << (int)header.bitsperpixel << std::endl;
 		str << "imagedescriptor " << (int)header.imagedescriptor << std::endl;
-		OutputDebugStringA(str.str().c_str());*/
+		OutputDebugStringA(str.str().c_str());
 		switch(header.bitsperpixel){
 			case 24:
 				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				format.out_format = format.in_format;
 				format.w = header.width*3/4;
-				format.row_padding = NextMultiple(format.w,32) - format.w;
 				format.row_pitch = header.width * 3;
-				format.data_offset += format.out_w % 2;
+				format.data_offset -= format.out_w % 2;
 				format.pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;
@@ -118,14 +117,8 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.out_format = format.in_format;
 				format.w = header.width;
 				format.row_pitch = header.width * 4;
-				format.row_padding = NextMultiple(format.w, 32) - format.w;
-				if (format.row_padding == 0) {
-					OutputDebugStringA("\nnative\n");
-					format.pixel_format = DX11_NATIVE;
-				} else {
-					OutputDebugStringA("\npadded\n");
-					format.pixel_format = RGBA_PADDED;
-				}
+				format.pixel_format = DX11_NATIVE;
+				OutputDebugStringA("\nrgba\n");
 			break;
 			default:{	
 				std::stringstream str;
@@ -214,7 +207,6 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.out_format = format.in_format;
 				format.row_pitch = format.out_w * 3;
 				format.w = header.pixelsPerLine*3/4;
-				format.row_padding = NextMultiple(format.w, 32) - format.w;
 				format.pixel_format = RGB;
 				break;
 			case 10:
@@ -266,13 +258,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 			}
 			format.w = header.pixelsPerLine;
 			format.out_format = format.in_format;
-			format.row_padding = NextMultiple(format.w, 32) - format.w;
-			if (format.row_padding == 0) {
-				format.pixel_format = DX11_NATIVE;
-			}
-			else {
-				format.pixel_format = RGBA_PADDED;
-			}
+			format.pixel_format = DX11_NATIVE;
 			break;
 		case dpx::Descriptor::kCbYCr:
 			switch(format.depth){

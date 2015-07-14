@@ -12,33 +12,23 @@
 #include "PSRGBA8888_remove_padding.h"
 #include "Frame.h"
 
-Context::Context(const ImageFormat::Format & format, CopyType copytype)
+
+static bool IsRGBA(DXGI_FORMAT format);
+static bool IsRGBA32(DXGI_FORMAT format);
+static bool IsBGRA(DXGI_FORMAT format);
+static bool IsBGRX(DXGI_FORMAT format);
+static bool IsR10G10B10A2(DXGI_FORMAT format);
+
+
+Context::Context(const ImageFormat::Format & _format, CopyType copytype)
 	:m_Device(nullptr)
 	,m_Context(nullptr)
 	,m_ShaderResourceView(nullptr)
 	,m_BackBuffer(nullptr)
 	,m_RenderTargetView(nullptr)
 	,m_CopyTextureIn(nullptr)
-	,m_Format(format)
+	,m_Format(_format)
 	,m_Copytype(copytype){
-
-	// box to copy upload buffer to texture skipping 4 first rows
-	// to skip header
-	if (m_Copytype == DiskToGPU) {
-		m_CopyBox.back = 1;
-		m_CopyBox.bottom = format.h + 4;
-		m_CopyBox.front = 0;
-		m_CopyBox.left = 0;
-		m_CopyBox.right = format.w + format.row_padding;
-		m_CopyBox.top = 4;
-	}else{
-		m_CopyBox.back = 1;
-		m_CopyBox.bottom = format.h;
-		m_CopyBox.front = 0;
-		m_CopyBox.left = 0;
-		m_CopyBox.right = format.w + format.row_padding;
-		m_CopyBox.top = 0;
-	}
 
 	HRESULT hr;
 
@@ -71,18 +61,50 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 	m_RenderTextureDescription.Usage = D3D11_USAGE_DEFAULT;
 	m_RenderTextureDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	m_RenderTextureDescription.CPUAccessFlags = 0;
-	m_RenderTextureDescription.Width = format.out_w;
-	m_RenderTextureDescription.Height = format.h;
-	m_RenderTextureDescription.Format = format.out_format;
+	m_RenderTextureDescription.Width = m_Format.out_w;
+	m_RenderTextureDescription.Height = m_Format.h;
+	m_RenderTextureDescription.Format = m_Format.out_format;
 	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED & ~D3D11_RESOURCE_MISC_TEXTURECUBE;
 
+	m_Format.row_padding = 0;
+	OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(GetFrame()->GetMappedRowPitch()) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+
+	if (IsRGBA(m_Format.in_format) && m_Format.pixel_format==ImageFormat::DX11_NATIVE){
+		m_Format.row_padding = (GetFrame()->GetMappedRowPitch() / 4 - m_Format.w);
+		if (m_Format.row_padding > 0){
+			m_Format.pixel_format = ImageFormat::RGBA_PADDED;
+		}
+	}
+	if (m_Format.pixel_format == ImageFormat::RGB || m_Format.pixel_format == ImageFormat::BGR){
+		m_Format.row_padding = (GetFrame()->GetMappedRowPitch() / 4 - m_Format.w);
+	}
+
+
+	// box to copy upload buffer to texture skipping 4 first rows
+	// to skip header
+	if (m_Copytype == DiskToGPU) {
+		m_CopyBox.back = 1;
+		m_CopyBox.bottom = m_Format.h + 4;
+		m_CopyBox.front = 0;
+		m_CopyBox.left = 0;
+		m_CopyBox.right = m_Format.w + m_Format.row_padding;
+		m_CopyBox.top = 4;
+	}
+	else{
+		m_CopyBox.back = 1;
+		m_CopyBox.bottom = m_Format.h;
+		m_CopyBox.front = 0;
+		m_CopyBox.left = 0;
+		m_CopyBox.right = m_Format.w + m_Format.row_padding;
+		m_CopyBox.top = 0;
+	}
 	// If the input format is not directly supported by DX11
 	// create a shader to process them and output the data
 	// as RGBA
-	if (format.pixel_format != ImageFormat::DX11_NATIVE)
+	if (m_Format.pixel_format != ImageFormat::DX11_NATIVE)
 	{
-		if (m_Copytype != DiskToGPU) {
-			if (format.pixel_format == ImageFormat::RGBA_PADDED) {
+		if (m_Copytype == DiskToRam) {
+			if (m_Format.pixel_format == ImageFormat::RGBA_PADDED) {
 				return;
 			} else {
 				throw std::exception("Copy to ram only supported for native types: DDS or RGBA");
@@ -94,9 +116,9 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		// buffers to pass to the colorspace conversion shader
 		//OutputDebugString( L"creating output textures\n" );
 		D3D11_TEXTURE2D_DESC textureDescriptionCopy = m_RenderTextureDescription;
-		textureDescriptionCopy.Width = format.w + format.row_padding;
-		textureDescriptionCopy.Height = format.h; 
-		textureDescriptionCopy.Format = format.in_format;
+		textureDescriptionCopy.Width = m_Format.w + m_Format.row_padding;
+		textureDescriptionCopy.Height = m_Format.h;
+		textureDescriptionCopy.Format = m_Format.in_format;
 		textureDescriptionCopy.MiscFlags = 0;
 		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn);
 
@@ -106,9 +128,9 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		size_t sizePixelShaderSrc;
 		bool useSampler = true;
 
-		switch(format.pixel_format){
+		switch (m_Format.pixel_format){
 		case ImageFormat::ARGB:
-			if(format.depth == 10){
+			if (m_Format.depth == 10){
 				pixelShaderSrc = A2R10G10B10_to_R10G10B10A2;
 				sizePixelShaderSrc = sizeof(A2R10G10B10_to_R10G10B10A2);
 				useSampler = false;
@@ -128,7 +150,7 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 			break;
 
 		case ImageFormat::CbYCr:
-			switch(format.depth){
+			switch(m_Format.depth){
 			case 8:
 				pixelShaderSrc = PSCbYCr888_to_RGBA8888;
 				sizePixelShaderSrc = sizeof(PSCbYCr888_to_RGBA8888);
@@ -153,7 +175,7 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		}
 
 		// Set the viewport to the size of the image
-		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(format.out_w), float(format.h), 0.0f, 1.0f};
+		D3D11_VIEWPORT viewport = {0.0f, 0.0f, float(m_Format.out_w), float(m_Format.h), 0.0f, 1.0f};
 		m_Context->RSSetViewports(1,&viewport); 
 		//OutputDebugString( L"Set viewport" );
 
@@ -283,15 +305,15 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		};
 
 		PS_CONSTANT_BUFFER constantData;
-		constantData.InputWidth = (float)format.w;
-		constantData.InputHeight = (float)format.h;
-		constantData.OutputWidth = (float)format.out_w;
-		constantData.OutputHeight = (float)format.h;
-		constantData.OnePixel = (float)(1.0 / (float)format.out_w);
-		constantData.YOrigin = (float)(format.vflip?1.0:0.0);
-		constantData.YCoordinateSign = (float)(format.vflip?-1.0:1.0);
-		constantData.RequiresSwap = format.byteswap;
-		constantData.RowPadding = (float)format.row_padding;
+		constantData.InputWidth = (float)m_Format.w;
+		constantData.InputHeight = (float)m_Format.h;
+		constantData.OutputWidth = (float)m_Format.out_w;
+		constantData.OutputHeight = (float)m_Format.h;
+		constantData.OnePixel = (float)(1.0 / (float)m_Format.out_w);
+		constantData.YOrigin = (float)(m_Format.vflip?1.0:0.0);
+		constantData.YCoordinateSign = (float)(m_Format.vflip?-1.0:1.0);
+		constantData.RequiresSwap = m_Format.byteswap;
+		constantData.RowPadding = (float)m_Format.row_padding;
 
 		D3D11_BUFFER_DESC shaderVarsDescription;
 		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -335,9 +357,9 @@ Context::Context(const ImageFormat::Format & format, CopyType copytype)
 		backBufferTexDescription.BindFlags = D3D11_BIND_RENDER_TARGET;
 		backBufferTexDescription.CPUAccessFlags = 0;
 		backBufferTexDescription.MiscFlags = 0;
-		backBufferTexDescription.Width = format.out_w;
-		backBufferTexDescription.Height = format.h;
-		backBufferTexDescription.Format = format.out_format;
+		backBufferTexDescription.Width = m_Format.out_w;
+		backBufferTexDescription.Height = m_Format.h;
+		backBufferTexDescription.Format = m_Format.out_format;
 
 		D3D11_RENDER_TARGET_VIEW_DESC viewDesc;
 		ZeroMemory(&viewDesc,sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
@@ -467,4 +489,58 @@ HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture)
 
 Context::CopyType Context::GetCopyType() const {
 	return m_Copytype;
+}
+
+
+static bool IsRGBA(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+		format == DXGI_FORMAT_R16G16B16A16_SINT ||
+		format == DXGI_FORMAT_R16G16B16A16_SNORM ||
+		format == DXGI_FORMAT_R16G16B16A16_TYPELESS ||
+		format == DXGI_FORMAT_R16G16B16A16_UINT ||
+		format == DXGI_FORMAT_R16G16B16A16_UNORM ||
+		format == DXGI_FORMAT_R32G32B32A32_FLOAT ||
+		format == DXGI_FORMAT_R32G32B32A32_SINT ||
+		format == DXGI_FORMAT_R32G32B32A32_TYPELESS ||
+		format == DXGI_FORMAT_R32G32B32A32_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_TYPELESS ||
+		format == DXGI_FORMAT_R8G8B8A8_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+}
+
+static bool IsRGBA32(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R8G8B8A8_SINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_TYPELESS ||
+		format == DXGI_FORMAT_R8G8B8A8_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+}
+
+static bool IsBGRA(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_B8G8R8A8_TYPELESS ||
+		format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+		format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+}
+
+static bool IsBGRX(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_B8G8R8X8_TYPELESS ||
+		format == DXGI_FORMAT_B8G8R8X8_UNORM ||
+		format == DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+}
+
+static bool IsR10G10B10A2(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM ||
+		format == DXGI_FORMAT_R10G10B10A2_TYPELESS ||
+		format == DXGI_FORMAT_R10G10B10A2_UINT ||
+		format == DXGI_FORMAT_R10G10B10A2_UNORM;
 }
