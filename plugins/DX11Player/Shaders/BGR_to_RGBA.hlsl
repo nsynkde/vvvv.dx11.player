@@ -7,6 +7,21 @@ float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
 	uint pixelIdx = x + y * OutputWidth;
 	uint begin = pixelIdx % (uint)4;
 	uint offset = pixelIdx / (uint)4;
+	switch (OutputWidth * 3 % 4){
+		case 0:
+		break;
+		case 1:
+			begin += 3;
+		break;
+		case 2:
+			begin += 1;
+		break;
+		case 3:
+			pixelIdx -= 1;
+			begin += 1;
+		break;
+	}
+	begin = begin % 4;
 	pixelIdx = pixelIdx - offset;
 	uint totalWidth = InputWidth + RowPadding;
 	int in_x = pixelIdx % totalWidth;
