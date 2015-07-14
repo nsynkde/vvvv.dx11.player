@@ -108,7 +108,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				format.out_format = format.in_format;
 				format.w = header.width*3/4;
 				format.row_pitch = header.width * 3;
-				switch (header.width * 3 % 4){
+				/*switch (header.width * 3 % 4){
 				case 0:
 					break;
 				case 1:
@@ -120,7 +120,7 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				case 3:
 					format.data_offset -= 3;
 					break;
-				}
+				}*/
 				format.pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;
