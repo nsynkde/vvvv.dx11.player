@@ -36,7 +36,23 @@ static DWORD NextMultiple(DWORD in, DWORD multiple){
 	}
 }
 
-ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
+
+ImageFormat::ImageFormat(const std::string & imageFile)
+:w(0)
+,h(0)
+,pixel_format(DX11_NATIVE)
+,in_format(DXGI_FORMAT_UNKNOWN)
+,out_format(DXGI_FORMAT_UNKNOWN)
+,depth(0)
+,out_w(0)
+,vflip(false)
+,byteswap(false)
+,row_padding(0)
+,row_pitch(0)
+,data_offset(0)
+,bytes_data(0)
+,bytes_per_pixel_in(4)
+,copytype(DiskToGpu)
 {	
 	if(!PathFileExistsA(imageFile.c_str())){
 		std::stringstream str;
@@ -44,34 +60,52 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		throw std::exception(str.str().c_str());
 	}
 
-	Format format;
 	// find files extension, 
 	// TODO: remove files with different extension
 	auto cextension = PathFindExtensionA(imageFile.c_str());
 	std::string extension = cextension?cextension:"";
 	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-	ZeroMemory(&format, sizeof(Format));
-	format.bytes_per_pixel_in = 4;
 
 	// parse first image header and assume all have the same format
 	// TODO: tex format breaks encapsulation. only set m_TexFormat if
 	// input format is DX11_NATIVE else the input format depends on 
 	// the shader and the out format is RGBA + depth (keep m_TexOutFormat??)
-	if(extension == ".dds"){
+	if (extension == ".dds"){
 		DirectX::TexMetadata mdata;
-		DirectX::GetMetadataFromDDSFile(imageFile.c_str(),DirectX::DDS_FLAGS_NONE, mdata);
-		format.w = mdata.width;
-		format.out_w = mdata.rowPitch * 2;
-		format.h = mdata.height;
-		format.in_format = mdata.format;
-		format.out_format = format.in_format;
-		format.row_pitch = mdata.rowPitch;
-		format.data_offset = mdata.bytesHeader;
-		format.bytes_data = mdata.bytesData;
-		format.row_padding = 0;
-		format.pixel_format = DX11_NATIVE;
-		format.bytes_per_pixel_in = 2;
-		OutputDebugStringA(("width: " + std::to_string(format.w) + " pitch " + std::to_string(format.out_w) + "\n").c_str());
+		DirectX::GetMetadataFromDDSFile(imageFile.c_str(), DirectX::DDS_FLAGS_NONE, mdata);
+		h = mdata.height;
+		in_format = mdata.format;
+		out_format = in_format;
+		size_t blockSize;
+		if (in_format == DXGI_FORMAT_BC1_UNORM || in_format == DXGI_FORMAT_BC1_UNORM_SRGB ||
+			in_format == DXGI_FORMAT_BC4_UNORM || in_format == DXGI_FORMAT_BC4_SNORM) {
+			blockSize = 8;
+			bytes_per_pixel_in = 2;
+			w = mdata.rowPitch * 2;
+			out_w = mdata.rowPitch * 2;
+		}
+		else if (in_format == DXGI_FORMAT_BC2_UNORM || in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+			in_format == DXGI_FORMAT_BC3_UNORM || in_format == DXGI_FORMAT_BC3_UNORM_SRGB ||
+			in_format == DXGI_FORMAT_BC5_UNORM || in_format == DXGI_FORMAT_BC5_SNORM ||
+			in_format == DXGI_FORMAT_BC6H_SF16 || in_format == DXGI_FORMAT_BC6H_UF16 ||
+			in_format == DXGI_FORMAT_BC7_UNORM || in_format == DXGI_FORMAT_BC7_UNORM_SRGB){
+			blockSize = 16;
+			bytes_per_pixel_in = 4;
+			w = mdata.rowPitch;
+			out_w = mdata.rowPitch;
+		}
+		if (mdata.width > 0)
+		{
+			row_pitch = std::max<size_t>(1, (mdata.width + 3) / 4) * blockSize;
+		}
+		data_offset = mdata.bytesHeader;
+		bytes_data = mdata.bytesData;
+		row_padding = 0;
+		pixel_format = DX11_NATIVE;
+		if (w != mdata.width){
+			copytype = DiskToRam;
+		}
+		OutputDebugStringA(("width: " + std::to_string(w) + " pitch " + std::to_string(out_w) + "\n").c_str());
 	}else if(extension == ".tga"){
 		TGA_HEADER header;
 		std::fstream tgafile(imageFile, std::fstream::in | std::fstream::binary);
@@ -83,12 +117,12 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 			throw std::exception(str.str().c_str());
 		}
 
-		format.vflip = !(header.imagedescriptor & 32);
+		vflip = !(header.imagedescriptor & 32);
 		auto alphaDepth = header.imagedescriptor & 15;
 		OutputDebugStringA(std::to_string(header.bitsperpixel).c_str());
-		format.out_w = header.width;
-		format.h = header.height;
-		format.data_offset = sizeof(TGA_HEADER) + header.idlength;
+		out_w = header.width;
+		h = header.height;
+		data_offset = sizeof(TGA_HEADER) + header.idlength;
 		std::stringstream str;
 		str << "TGA " << std::endl;
 		str << "idlength " << (int)header.idlength << std::endl;
@@ -106,33 +140,20 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		OutputDebugStringA(str.str().c_str());
 		switch(header.bitsperpixel){
 			case 24:
-				format.in_format = DXGI_FORMAT_R8_UNORM;
-				format.out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				format.w = header.width * 3;
-				format.row_pitch = header.width * 3;
-				format.bytes_per_pixel_in = 4;
-				/*switch (header.width * 3 % 4){
-				case 0:
-					break;
-				case 1:
-					format.data_offset += 1;
-					break;
-				case 2:
-					format.data_offset -= 1;
-					break;
-				case 3:
-					format.data_offset -= 3;
-					break;
-				}*/
-				format.pixel_format = BGR;
+				in_format = DXGI_FORMAT_R8_UNORM;
+				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				w = header.width * 3;
+				row_pitch = header.width * 3;
+				bytes_per_pixel_in = 4;
+				pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;
 			case 32:
-				format.in_format = DXGI_FORMAT_B8G8R8A8_UNORM;
-				format.out_format = format.in_format;
-				format.w = header.width;
-				format.row_pitch = header.width * 4;
-				format.pixel_format = DX11_NATIVE;
+				in_format = DXGI_FORMAT_B8G8R8A8_UNORM;
+				out_format = in_format;
+				w = header.width;
+				row_pitch = header.width * 4;
+				pixel_format = DX11_NATIVE;
 				OutputDebugStringA("\nrgba\n");
 			break;
 			default:{	
@@ -141,18 +162,18 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 				throw std::exception(str.str().c_str());
 			}
 		}
-		format.bytes_data = format.row_pitch * header.height;
-		format.depth = 8;
+		bytes_data = row_pitch * header.height;
+		depth = 8;
 	}else if(extension == ".dpx"){
 		dpx::Header header;
 		InStream stream;
 		stream.Open(imageFile.c_str());
 		header.Read(&stream);
-		format.out_w = header.pixelsPerLine;
-		format.h = header.linesPerElement * header.numberOfElements;
+		out_w = header.pixelsPerLine;
+		h = header.linesPerElement * header.numberOfElements;
 		auto dpx_descriptor = header.ImageDescriptor(0);
-		format.byteswap = header.RequiresByteSwap();
-		format.depth = header.BitDepth(0);
+		byteswap = header.RequiresByteSwap();
+		depth = header.BitDepth(0);
 		std::stringstream str;
 		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
 		str << " signed: " << header.DataSign(0)  << std::endl;
@@ -177,130 +198,130 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 		OutputDebugStringA(str.str().c_str());
 		switch(dpx_descriptor){
 		case dpx::Descriptor::kAlpha:
-			switch(format.depth){
+			switch(depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_A8_UNORM;
+				in_format = DXGI_FORMAT_A8_UNORM;
 				break;
 			case 10:
 			default:
 				throw std::exception("Alpha only 10bits not supported");
 				break;
 			}
-			format.pixel_format = DX11_NATIVE;
-			format.row_pitch = format.out_w;
-			format.out_format = format.in_format;
-			format.w = header.pixelsPerLine;
+			pixel_format = DX11_NATIVE;
+			row_pitch = out_w;
+			out_format = in_format;
+			w = header.pixelsPerLine;
 			break;
 		case dpx::Descriptor::kBlue:
 		case dpx::Descriptor::kRed:
 		case dpx::Descriptor::kGreen:
 		case dpx::Descriptor::kLuma:
 		case dpx::Descriptor::kDepth:
-			switch(format.depth){
+			switch(depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_R8_UNORM;
+				in_format = DXGI_FORMAT_R8_UNORM;
 				break;
 			case 10:
 				throw std::exception("One channel only 10bits not supported");
 				break;
 			case 16:
-				format.in_format = DXGI_FORMAT_R16_UNORM;
+				in_format = DXGI_FORMAT_R16_UNORM;
 				break;
 			case 32:
-				format.in_format = DXGI_FORMAT_R32_FLOAT;
+				in_format = DXGI_FORMAT_R32_FLOAT;
 				break;
 			}
-			format.w = header.pixelsPerLine;
-			format.pixel_format = DX11_NATIVE;
-			format.out_format = format.in_format;
-			format.row_pitch = format.out_w;
+			w = header.pixelsPerLine;
+			pixel_format = DX11_NATIVE;
+			out_format = in_format;
+			row_pitch = out_w;
 			break;
 		case dpx::Descriptor::kRGB:
-			switch(format.depth){
+			switch(depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_R8_UNORM;
-				format.out_format = DXGI_FORMAT_R8G8B8A8_UNORM;;
-				format.row_pitch = format.out_w * 3;
-				format.w = header.pixelsPerLine*3/4;
-				format.pixel_format = BGR;
+				in_format = DXGI_FORMAT_R8_UNORM;
+				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;;
+				row_pitch = out_w * 3;
+				w = header.pixelsPerLine*3/4;
+				pixel_format = BGR;
 				break;
 			case 10:
 				if(header.ImagePacking(0)==1){
-					format.in_format = DXGI_FORMAT_R32_UINT;
-					format.out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-					format.row_pitch = format.out_w * 4;
-					format.w = header.pixelsPerLine;
+					in_format = DXGI_FORMAT_R32_UINT;
+					out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+					row_pitch = out_w * 4;
+					w = header.pixelsPerLine;
 					//TODO: padding
-					format.pixel_format = ARGB;
+					pixel_format = ARGB;
 				}else{
 					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
 				}
 				break;
 			case 16:
-				format.in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				format.out_format = format.in_format;
-				format.row_pitch = format.out_w * 3 * 2;
-				format.w = header.pixelsPerLine*3/4;
-				format.pixel_format = RGB;
+				in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				out_format = in_format;
+				row_pitch = out_w * 3 * 2;
+				w = header.pixelsPerLine*3/4;
+				pixel_format = RGB;
 				break;
 			case 32:
-				format.in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				format.out_format = format.in_format;
-				format.row_pitch = format.out_w * 3 * 4;
-				format.w = header.pixelsPerLine*3/4;
-				format.pixel_format = RGB;
+				in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				out_format = in_format;
+				row_pitch = out_w * 3 * 4;
+				w = header.pixelsPerLine*3/4;
+				pixel_format = RGB;
 				break;
 			}
 			break;
 		case dpx::Descriptor::kRGBA:
-			switch(format.depth){
+			switch(depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				format.row_pitch = format.out_w * 4;
+				in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				row_pitch = out_w * 4;
 				break;
 			case 10:
-				format.in_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-				format.row_pitch = format.out_w * 4;
+				in_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+				row_pitch = out_w * 4;
 				break;
 			case 16:
-				format.in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				format.row_pitch = format.out_w * 4 * 2;
+				in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				row_pitch = out_w * 4 * 2;
 				break;
 			case 32:
-				format.in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				format.row_pitch = format.out_w * 4 * 4;
+				in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				row_pitch = out_w * 4 * 4;
 				break;
 			}
-			format.w = header.pixelsPerLine;
-			format.out_format = format.in_format;
-			format.pixel_format = DX11_NATIVE;
+			w = header.pixelsPerLine;
+			out_format = in_format;
+			pixel_format = DX11_NATIVE;
 			break;
 		case dpx::Descriptor::kCbYCr:
-			switch(format.depth){
+			switch(depth){
 			case 8:
-				format.in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				format.out_format = format.in_format;
-				format.row_pitch = format.out_w * 3;
-				format.w = header.pixelsPerLine*3/4;
+				in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				out_format = in_format;
+				row_pitch = out_w * 3;
+				w = header.pixelsPerLine*3/4;
 				break;
 			case 10:
-				format.in_format = DXGI_FORMAT_R32_UINT;
-				format.out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-				format.row_pitch = format.out_w * 4;
-				format.w = header.pixelsPerLine;
+				in_format = DXGI_FORMAT_R32_UINT;
+				out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+				row_pitch = out_w * 4;
+				w = header.pixelsPerLine;
 				break;
 			case 16:
-				format.in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				format.out_format = DXGI_FORMAT_R16G16B16A16_UNORM;
-				format.row_pitch = format.out_w * 3 * 2;
-				format.w = header.pixelsPerLine*3/4;
+				in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				out_format = DXGI_FORMAT_R16G16B16A16_UNORM;
+				row_pitch = out_w * 3 * 2;
+				w = header.pixelsPerLine*3/4;
 				break;
 			default:
 				str << " bitdepth not supported" << std::endl;
 				throw std::exception(str.str().c_str());
 				break;
 			}
-			format.pixel_format = CbYCr;
+			pixel_format = CbYCr;
 			break;
 		case dpx::Descriptor::kCbYACrYA:
 		case dpx::Descriptor::kCbYCrA:
@@ -312,20 +333,87 @@ ImageFormat::Format ImageFormat::FormatFor(const std::string & imageFile)
 			break;
 
 		}
-		format.data_offset = header.imageOffset;
-		format.bytes_data = format.row_pitch * format.h;
+		data_offset = header.imageOffset;
+		bytes_data = row_pitch * h;
 	}else{
 		throw std::exception(("format " + extension + " not suported").c_str());
 	}
 		
 	//size_t numbytesfile = bytes_data + data_offset;
 	/*std::stringstream ss;
-	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << format.out_w << "x" << format.h << " " << format.pixel_format << " with " << bytes_data << " bytes per file and " << data_offset << " data_offset, row_pitch: " << row_pitch << " input tex format " << format.in_format << " and output tex format " << format.out_format << std::endl;
+	ss << "loading " << m_ImageFiles.size() << " images from " << directory << " " << out_w << "x" << h << " " << pixel_format << " with " << bytes_data << " bytes per file and " << data_offset << " data_offset, row_pitch: " << row_pitch << " input tex format " << in_format << " and output tex format " << out_format << std::endl;
 	OutputDebugStringA( ss.str().c_str() ); */
 
-	return format;
 }
 
-bool operator!=(const ImageFormat::Format & format1, const ImageFormat::Format & format2){
+bool operator!=(const ImageFormat & format1, const ImageFormat & format2){
 	return format1.w != format2.w || format1.h != format2.h || format1.pixel_format!=format2.pixel_format || format1.in_format!=format2.in_format || format1.out_format!=format2.out_format || format1.depth!=format2.depth || format1.out_w != format2.out_w || format1.vflip!=format2.vflip || format1.byteswap!=format2.byteswap;
+}
+
+bool ImageFormat::IsRGBA(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+		format == DXGI_FORMAT_R16G16B16A16_SINT ||
+		format == DXGI_FORMAT_R16G16B16A16_SNORM ||
+		format == DXGI_FORMAT_R16G16B16A16_TYPELESS ||
+		format == DXGI_FORMAT_R16G16B16A16_UINT ||
+		format == DXGI_FORMAT_R16G16B16A16_UNORM ||
+		format == DXGI_FORMAT_R32G32B32A32_FLOAT ||
+		format == DXGI_FORMAT_R32G32B32A32_SINT ||
+		format == DXGI_FORMAT_R32G32B32A32_TYPELESS ||
+		format == DXGI_FORMAT_R32G32B32A32_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_TYPELESS ||
+		format == DXGI_FORMAT_R8G8B8A8_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+}
+
+bool ImageFormat::IsRGBA32(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R8G8B8A8_SINT ||
+		format == DXGI_FORMAT_R8G8B8A8_SNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_TYPELESS ||
+		format == DXGI_FORMAT_R8G8B8A8_UINT ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM ||
+		format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+}
+
+bool ImageFormat::IsBGRA(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_B8G8R8A8_TYPELESS ||
+		format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+		format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+}
+
+bool ImageFormat::IsBGRX(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_B8G8R8X8_TYPELESS ||
+		format == DXGI_FORMAT_B8G8R8X8_UNORM ||
+		format == DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+}
+
+bool ImageFormat::IsR10G10B10A2(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM ||
+		format == DXGI_FORMAT_R10G10B10A2_TYPELESS ||
+		format == DXGI_FORMAT_R10G10B10A2_UINT ||
+		format == DXGI_FORMAT_R10G10B10A2_UNORM;
+}
+
+bool ImageFormat::IsBC(DXGI_FORMAT format){
+
+	return format == DXGI_FORMAT_BC1_UNORM || format == DXGI_FORMAT_BC1_UNORM_SRGB ||
+		format == DXGI_FORMAT_BC4_UNORM || format == DXGI_FORMAT_BC4_SNORM ||
+		format == DXGI_FORMAT_BC2_UNORM || format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+		format == DXGI_FORMAT_BC3_UNORM || format == DXGI_FORMAT_BC3_UNORM_SRGB ||
+		format == DXGI_FORMAT_BC5_UNORM || format == DXGI_FORMAT_BC5_SNORM ||
+		format == DXGI_FORMAT_BC6H_SF16 || format == DXGI_FORMAT_BC6H_UF16 ||
+		format == DXGI_FORMAT_BC7_UNORM || format == DXGI_FORMAT_BC7_UNORM_SRGB;
+}
+
+bool ImageFormat::IsBC(){
+	return ImageFormat::IsBC(in_format);
 }

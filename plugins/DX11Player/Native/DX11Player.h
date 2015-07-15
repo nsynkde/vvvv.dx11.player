@@ -15,11 +15,14 @@
 #include <thread>
 #include <d3d11.h>
 #include <map>
-#include "Channel.h"
 #include <memory>
 #include <deque>
-#include "Frame.h"
-#include "Pool.h"
+#include <mutex>
+#include "HighResClock.h"
+#include "Channel.h"
+
+class Context;
+class Frame;
 
 class DX11Player {
 public:

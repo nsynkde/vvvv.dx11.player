@@ -6,7 +6,7 @@
 class ImageFormat
 {
 public:
-	~ImageFormat(void);
+	ImageFormat(const std::string & imageFile);;
 	
 	enum PixelFormat{
 		ARGB,
@@ -17,27 +17,35 @@ public:
 		DX11_NATIVE
 	};
 
-	struct Format{
-		size_t w;
-		size_t h;
-		PixelFormat pixel_format;
-		DXGI_FORMAT in_format;
-		DXGI_FORMAT out_format;
-		size_t depth;
-		size_t out_w;
-		bool vflip;
-		bool byteswap;
-		size_t row_padding;
-		size_t row_pitch;
-		size_t data_offset;
-		size_t bytes_data;
-		size_t bytes_per_pixel_in;
+	enum CopyType {
+		DiskToGpu,
+		DiskToRam
 	};
 
-	static Format FormatFor(const std::string & imageFile);
-private:
-	ImageFormat();
+	size_t w;
+	size_t h;
+	PixelFormat pixel_format;
+	DXGI_FORMAT in_format;
+	DXGI_FORMAT out_format;
+	size_t depth;
+	size_t out_w;
+	bool vflip;
+	bool byteswap;
+	size_t row_padding;
+	size_t row_pitch;
+	size_t data_offset;
+	size_t bytes_data;
+	size_t bytes_per_pixel_in;
+	CopyType copytype;
+
+	static bool IsRGBA(DXGI_FORMAT format);
+	static bool IsRGBA32(DXGI_FORMAT format);
+	static bool IsBGRA(DXGI_FORMAT format);
+	static bool IsBGRX(DXGI_FORMAT format);
+	static bool IsR10G10B10A2(DXGI_FORMAT format);
+	static bool IsBC(DXGI_FORMAT format);
+	bool IsBC();
 };
 
 
-bool operator!=(const ImageFormat::Format & format1, const ImageFormat::Format & format2);
+bool operator!=(const ImageFormat & format1, const ImageFormat & format2);

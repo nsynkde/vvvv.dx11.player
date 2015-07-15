@@ -16,7 +16,7 @@ class Frame{
 	HANDLE renderTextureSharedHandle;
 	D3D11_MAPPED_SUBRESOURCE mappedBuffer;
 	ID3D11Texture2D* uploadBuffer;
-	std::vector<uint8_t> ramUploadBuffer;
+	std::vector<uint8_t> ramUploadBuffer, ramUploadBufferCopy;
 	ID3D11Texture2D* renderTexture;
 	Context * context;
 	bool mapped;
@@ -24,6 +24,7 @@ class Frame{
 	HRESULT Map();
 	void Unmap();
 	friend void ReleaseFrame(Frame * frame);
+	uint8_t * GetRAMBufferCopy();
 
 public:
 	Frame(Context * context);

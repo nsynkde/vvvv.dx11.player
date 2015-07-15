@@ -12,7 +12,7 @@ public:
 
 	static Pool & GetInstance();
 
-	std::shared_ptr<Context> AquireContext(const ImageFormat::Format & format);
+	std::shared_ptr<Context> AquireContext(const std::string & fileForFormat);
 	int Size();
 private:
 	friend void ReleaseContext(Context * context);

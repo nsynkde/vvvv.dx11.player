@@ -481,7 +481,7 @@ void InitPipeline()
 	samplerState->Release();
 
 	tinydir_dir dir;
-	tinydir_open(&dir, "D:\\TestMaterialArturo\\1940x1080_TGA_24bpp");
+	tinydir_open(&dir, "D:\\TestMaterialArturo\\1932x1080_TGA_32bpp");
 
 	while (dir.has_next)
 	{
@@ -498,5 +498,12 @@ void InitPipeline()
 
 	tinydir_close(&dir);
 
-	player = std::make_shared<DX11Player>(files[0], bufferSize);
+	try{
+		player = std::make_shared<DX11Player>(files[0], bufferSize);
+	}
+	catch (std::exception & e){
+		OutputDebugStringA("Couldn't create player\n");
+		OutputDebugStringA(e.what());
+		std::exit(1);
+	}
 }

@@ -13,7 +13,7 @@ Frame::Frame(Context * context)
 ,mapped(false)
 ,readyToPresent(false){
 	HRESULT hr;
-	if (context->GetCopyType() == Context::DiskToGPU) {
+	if (context->GetFormat().copytype == ImageFormat::DiskToGpu) {
 		hr = context->CreateStagingTexture(&uploadBuffer);
 		if (FAILED(hr)) {
 			throw std::exception((std::string("Coudln't create staging texture")).c_str());
@@ -24,7 +24,8 @@ Frame::Frame(Context * context)
 			throw std::exception("Coudln't map frame\n");
 		}
 	} else {
-		ramUploadBuffer.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset);
+		ramUploadBuffer.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset + context->GetFormat().h);
+		ramUploadBufferCopy.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset + context->GetFormat().h);
 	}
 	hr = context->CreateRenderTexture(&renderTexture);
 	if(FAILED(hr)){
@@ -46,10 +47,8 @@ Frame::Frame(Context * context)
 }
 
 Frame::~Frame(){
-	if (context->GetCopyType() == Context::DiskToGPU) {
-		if (mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
-		uploadBuffer->Release();
-	}
+	if (mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
+	if (uploadBuffer) uploadBuffer->Release();
 	renderTexture->Release();
 	if(file!=nullptr){
 		WaitForSingleObject(waitEvent,INFINITE);
@@ -102,7 +101,7 @@ void Frame::Unmap(){
 }
 
 void Frame::Render(){
-	if (context->GetCopyType() == Context::DiskToGPU) {
+	if (context->GetFormat().copytype == ImageFormat::DiskToGpu) {
 		Unmap();
 
 		context->CopyFrameToOutTexture(this);
@@ -144,10 +143,9 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 	}
 
 	uint8_t * ptr;
-	if (context->GetCopyType() == Context::DiskToGPU) {
+	if (context->GetFormat().copytype == ImageFormat::DiskToGpu) {
 		ptr = (uint8_t*)mappedBuffer.pData;
 	} else {
-		ramUploadBuffer.assign(ramUploadBuffer.size(), 0);
 		ptr = ramUploadBuffer.data();
 	}
 	if(ptr){
@@ -169,25 +167,14 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 bool Frame::Wait(DWORD millis){
 	if(file==nullptr) return false;
 	auto ret = WaitForSingleObject(waitEvent,millis);
-	decodeDuration = HighResClock::now() - loadTime;
 	CloseHandle(file);
 	file = nullptr;
 	auto success = ret != WAIT_TIMEOUT && ret != WAIT_FAILED;
-	/*if (success && context->GetCopyType() == Context::DiskToRam) {
-		OutputDebugStringA(("Copying " + std::to_string(context->GetFormat().row_pitch) + " x " + std::to_string(context->GetFormat().h) + " to " + std::to_string(mappedBuffer.RowPitch) + "@ " + std::to_string((uint64_t)mappedBuffer.pData) + "\n").c_str());
-		auto src = GetRAMBuffer();
-		auto dst = (uint8_t*)mappedBuffer.pData;
-		for (size_t i = 0; i < context->GetFormat().h; i++) {
-			memcpy(dst, src, context->GetFormat().row_pitch);
-			src += context->GetFormat().row_pitch;
-			dst += mappedBuffer.RowPitch;
-		}
-	}*/
-
-	if (success && context->GetCopyType() == Context::DiskToRam) {
+	if (success && context->GetFormat().copytype == ImageFormat::DiskToRam) {
 		context->CopyFrameToOutTexture(this);
 		readyToPresent = true;
 	}
+	decodeDuration = HighResClock::now() - loadTime;
 	return success;
 }
 
@@ -197,4 +184,8 @@ HighResClock::duration Frame::DecodeDuration() const{
 
 uint8_t * Frame::GetRAMBuffer() {
 	return ramUploadBuffer.data() + context->GetFormat().data_offset;
+}
+
+uint8_t * Frame::GetRAMBufferCopy() {
+	return ramUploadBufferCopy.data() + context->GetFormat().data_offset;
 }

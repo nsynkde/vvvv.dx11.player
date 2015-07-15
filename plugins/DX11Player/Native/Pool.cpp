@@ -14,7 +14,7 @@ void ReleaseContext(Context * context){
 }
 
 std::shared_ptr<Context> Pool::AquireContext(const ImageFormat::Format & format){
-	return std::shared_ptr<Context>(new Context(format,Context::DiskToGPU));
+	return std::shared_ptr<Context>(new Context(format));
 
 	/*std::unique_lock<std::mutex> lock(mutex);
 	auto context_it = contexts.begin();

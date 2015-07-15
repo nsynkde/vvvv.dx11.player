@@ -10,20 +10,15 @@ class Frame;
 
 class Context{
 public:
-	enum CopyType {
-		DiskToGPU,
-		DiskToRam
-	};
-	Context(const ImageFormat::Format & format, CopyType copytype);
+	Context(const std::string & fileForFormat);
 	~Context();
-	ImageFormat::Format GetFormat() const;
+	ImageFormat GetFormat() const;
 	std::shared_ptr<Frame> GetFrame();
 	ID3D11DeviceContext * GetDX11Context();
 	void CopyFrameToOutTexture(Frame * frame);
 	HRESULT CreateStagingTexture(ID3D11Texture2D ** texture);
 	HRESULT CreateRenderTexture(ID3D11Texture2D ** texture);
 	void Clear();
-	CopyType GetCopyType() const;
 private:
 	D3D11_TEXTURE2D_DESC m_RenderTextureDescription;
 	ID3D11Device * m_Device;
@@ -34,9 +29,8 @@ private:
 	ID3D11RenderTargetView*  m_RenderTargetView;
 	std::vector<std::shared_ptr<Frame>> m_Frames;
 	D3D11_BOX m_CopyBox;
-	ImageFormat::Format m_Format;
+	ImageFormat m_Format;
 	friend void ReleaseContext(Context * context);
 	friend void ReleaseFrame(Frame * frame);
 	std::mutex mutex;
-	CopyType m_Copytype;
 };

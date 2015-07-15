@@ -10,6 +10,8 @@
 #include <Shlwapi.h>
 #include <set>
 #include <iostream>
+#include "Frame.h"
+#include "Context.h"
 
 #pragma comment(lib, "Kernel32.lib")
 
@@ -96,12 +98,19 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			return;
 		}
 
-		ImageFormat::Format format;
 		try{
-			format = ImageFormat::FormatFor(fileForFormat);
+			m_Context = std::make_shared<Context>(fileForFormat);
 		}catch(std::exception & e){
 			ChangeStatus(Error,e.what());
 			return;
+		}
+
+		ImageFormat format = m_Context->GetFormat();
+
+		if (format.copytype == ImageFormat::DiskToGpu){
+			OutputDebugStringA("Uploading textures from disk directly to GPU");
+		}else{
+			OutputDebugStringA("Uploading textures from disk through RAM copy");
 		}
 
 		// Add enough bytes to read the header + data but we need to read
@@ -119,8 +128,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			return;
 		}
 		auto numbytesdata = NextMultiple((DWORD)format.bytes_data + format.data_offset, (DWORD)sectorSize);
-
-		m_Context = std::make_shared<Context>(format, Context::DiskToGPU);//Pool::GetInstance().AquireContext(format);
+;
 		format = m_Context->GetFormat();
 
 		// init the ring buffer:
@@ -161,8 +169,12 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			m_CurrentFrame = localCurrentFrame;
 
 			size_t offset;
-			if (m_Context->GetCopyType() == Context::DiskToGPU) {
-				offset = nextFrame->GetMappedRowPitch() * 4 - format.data_offset;
+			if (m_Context->GetFormat().copytype == ImageFormat::DiskToGpu) {
+				if (m_Context->GetFormat().IsBC()){
+					offset = format.w * format.bytes_per_pixel_in - format.data_offset;
+				} else {
+					offset = nextFrame->GetMappedRowPitch() * 4 - format.data_offset;
+				}
 			} else {
 				offset = 0;
 			}
@@ -491,10 +503,6 @@ extern "C"{
 		strcpy(pszReturn, str.c_str());
 		// Return pszReturn.
 		return pszReturn;
-	}
-
-	NATIVE_API int DX11Player_GetContextPoolSize(){
-		return Pool::GetInstance().Size();
 	}
 
 	NATIVE_API void DX11Player_SetSystemFrames(DX11HANDLE player, char**frames, int numframes){

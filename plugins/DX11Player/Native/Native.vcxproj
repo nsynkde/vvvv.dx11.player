@@ -170,7 +170,6 @@
     <ClInclude Include="libdpx\ReaderInternal.h" />
     <ClInclude Include="libdpx\RunLengthEncoding.h" />
     <ClInclude Include="libdpx\WriterInternal.h" />
-    <ClInclude Include="Pool.h" />
     <ClInclude Include="PSCbYCr101010_to_R10G10B10A2.h" />
     <ClInclude Include="PSCbYCr888_to_RGBA8888.h" />
     <ClInclude Include="RGB_to_RGBA.h" />
@@ -310,7 +309,6 @@
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="Pool.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

@@ -128,9 +128,6 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Output("render frame")]
         public ISpread<string> FRenderFrameOut;
 
-        [Output("context pool size")]
-        public ISpread<int> FContextPoolSize;
-
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
         private Spread<bool> FIsReady = new Spread<bool>();
         private WorkerThread FWorkerThread = new WorkerThread();
@@ -223,7 +220,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FRenderFrameOut.SliceCount = NumSpreads;
                     FSizeOut.SliceCount = NumSpreads;
                     FFormatOut.SliceCount = NumSpreads;
-                    FContextPoolSize.SliceCount = 1;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         FPrevFrames[i] = new Spread<string>();
@@ -309,8 +305,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                 FRefreshTextures = true;
                 FRefreshPlayer = false;
             }
-
-            FContextPoolSize[0] = NativeInterface.DX11Player_GetContextPoolSize();
 
         }
 
@@ -495,9 +489,6 @@ namespace VVVV.Nodes.DX11PlayerNode
         [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         [return: MarshalAs(UnmanagedType.I1)]
         internal static extern bool DX11Player_GotFirstFrame(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetContextPoolSize();
 
         [DllImport("DX11PlayerNative.dll", SetLastError = false)]
         internal static extern int DX11Player_GetStatus(IntPtr player);
