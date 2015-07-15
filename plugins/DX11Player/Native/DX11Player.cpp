@@ -71,6 +71,16 @@ static uint32_t SectorSize(char cDisk)
 	return diskAlignment.BytesPerLogicalSector;
 }
 
+
+/*static DWORD NextMultiple(DWORD in, DWORD multiple){
+	if (in % multiple != 0){
+		return in + (multiple - in % multiple);
+	}
+	else{
+		return in;
+	}
+}*/
+
 static DWORD NextMultiple(DWORD in, DWORD multiple){
 	return max(in / multiple*multiple, multiple);
 }
@@ -108,9 +118,9 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		ImageFormat format = m_Context->GetFormat();
 
 		if (format.copytype == ImageFormat::DiskToGpu){
-			OutputDebugStringA("Uploading textures from disk directly to GPU");
+			OutputDebugStringA("Uploading textures from disk directly to GPU\n");
 		}else{
-			OutputDebugStringA("Uploading textures from disk through RAM copy");
+			OutputDebugStringA("Uploading textures from disk through RAM copy\n");
 		}
 
 		// Add enough bytes to read the header + data but we need to read
@@ -122,12 +132,9 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			ChangeStatus(Error,"Cannot recover file for format drive from " + fileForFormat);
 			return;
 		}
-		auto sectorSize = SectorSize(buffer[0]);
-		if(sectorSize<0){
-			ChangeStatus(Error,"Cannot retrieve drive sector size");
-			return;
-		}
-		auto numbytesdata = NextMultiple((DWORD)format.bytes_data + format.data_offset, (DWORD)sectorSize);
+
+		auto numbytesdata = (DWORD)format.bytes_data + format.data_offset;
+		OutputDebugStringA(("Num bytes to read from file:" + std::to_string(numbytesdata) + "\n").c_str())
 ;
 		format = m_Context->GetFormat();
 

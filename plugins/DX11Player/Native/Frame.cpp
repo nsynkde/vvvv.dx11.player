@@ -4,6 +4,16 @@
 #include "Windows.h"
 #include <sstream>
 
+
+static DWORD NextMultiple(DWORD in, DWORD multiple){
+	if (in % multiple != 0){
+		return in + (multiple - in % multiple);
+	}
+	else{
+		return in;
+	}
+}
+
 Frame::Frame(Context * context)
 :decodeDuration(0)
 ,waitEvent(CreateEventW(0,false,false,0))
@@ -150,9 +160,50 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 	}
 	if(ptr){
 		ptr += offset;
-		file = CreateFileA(path.c_str(),GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
+		file = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
 		if (file != INVALID_HANDLE_VALUE) {
+			FILE_ALIGNMENT_INFO fileinfo;
+			ZeroMemory(&fileinfo, sizeof(FILE_ALIGNMENT_INFO));
+			DWORD alignment = 1;
+			if (GetFileInformationByHandleEx(file, FileAlignmentInfo, &fileinfo, sizeof(FILE_ALIGNMENT_INFO))){
+				switch (fileinfo.AlignmentRequirement){
+				case 0x00000000:
+					alignment = 1;
+					break;
+				case 0x00000001:
+					alignment = 2;
+					break;
+				case 0x00000003:
+					alignment = 4;
+					break;
+				case 0x00000007:
+					alignment = 8;
+					break;
+				case 0x0000000f:
+					alignment = 16;
+					break;
+				case 0x0000001f:
+					alignment = 32;
+					break;
+				case 0x0000003f:
+					alignment = 64;
+					break;
+				case 0x0000007f:
+					alignment = 128;
+					break;
+				case 0x000000ff:
+					alignment = 256;
+					break;
+				case 0x000001ff:
+					alignment = 512;
+					break;
+				}
+			} else {
+				alignment = 512;
+			}
+			numbytesdata = NextMultiple(numbytesdata, alignment);
 			ZeroMemory(&overlap,sizeof(OVERLAPPED));
+			//overlap.Offset = context->GetFormat().data_offset;
 			overlap.hEvent = waitEvent;
 			DWORD bytesRead=0;
 			::ReadFile(file, ptr, numbytesdata, &bytesRead, &overlap);

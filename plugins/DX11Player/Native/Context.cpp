@@ -456,11 +456,6 @@ void Context::CopyFrameToOutTexture(Frame * frame){
 	}
 }
 
-void Context::Clear(){
-	const FLOAT BLACK[4] = {0.0f,0.0f,0.0f,0.0f};
-	m_Context->ClearRenderTargetView(m_RenderTargetView,BLACK);
-}
-
 HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	// - create the upload buffers, we upload directly to these from the disk
 	// using 4 more rows than the original image to avoid the header. BC formats
@@ -478,7 +473,7 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	textureUploadDescription.Width = m_Format.w + m_Format.row_padding;
 	textureUploadDescription.Height = m_Format.h; 
 	if (m_Format.copytype == ImageFormat::DiskToGpu) {
-		textureUploadDescription.Height += 4;
+		textureUploadDescription.Height += 8;
 	}
 	textureUploadDescription.Format = m_Format.in_format;
 	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);

@@ -83,8 +83,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 			bytes_per_pixel_in = 2;
 			w = mdata.rowPitch * 2;
 			out_w = mdata.rowPitch * 2;
-		}
-		else if (in_format == DXGI_FORMAT_BC2_UNORM || in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+		}else if (in_format == DXGI_FORMAT_BC2_UNORM || in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
 			in_format == DXGI_FORMAT_BC3_UNORM || in_format == DXGI_FORMAT_BC3_UNORM_SRGB ||
 			in_format == DXGI_FORMAT_BC5_UNORM || in_format == DXGI_FORMAT_BC5_SNORM ||
 			in_format == DXGI_FORMAT_BC6H_SF16 || in_format == DXGI_FORMAT_BC6H_UF16 ||
@@ -96,7 +95,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		}
 		if (mdata.width > 0)
 		{
-			row_pitch = std::max<size_t>(1, (mdata.width + 3) / 4) * blockSize;
+			row_pitch = std::max<size_t>(1, (mdata.width + 3) / 4) * blockSize; 
 		}
 		data_offset = mdata.bytesHeader;
 		bytes_data = mdata.bytesData;
@@ -105,7 +104,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		if (w != mdata.width){
 			copytype = DiskToRam;
 		}
-		OutputDebugStringA(("width: " + std::to_string(w) + " pitch " + std::to_string(out_w) + "\n").c_str());
+		OutputDebugStringA(("width: " + std::to_string(mdata.width) + " pitch " + std::to_string(mdata.rowPitch) + "\n").c_str());
 	}else if(extension == ".tga"){
 		TGA_HEADER header;
 		std::fstream tgafile(imageFile, std::fstream::in | std::fstream::binary);
