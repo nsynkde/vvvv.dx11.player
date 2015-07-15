@@ -139,12 +139,21 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		OutputDebugStringA(str.str().c_str());
 		switch(header.bitsperpixel){
 			case 24:
-				in_format = DXGI_FORMAT_R8_UNORM;
-				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				w = header.width * 3;
-				row_pitch = header.width * 3;
+				if (w * 3 % 4){
+					in_format = DXGI_FORMAT_R8_UNORM;
+					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					w = header.width * 3;
+					row_pitch = header.width * 3;
+					pixel_format = BGR;
+				} else {
+					in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					w = header.width * 3 /4;
+					row_pitch = header.width * 3;
+					pixel_format = RGB;
+					byteswap = true;
+				}
 				bytes_per_pixel_in = 4;
-				pixel_format = BGR;
 				OutputDebugStringA("\nrgb\n");
 			break;
 			case 32:
@@ -238,11 +247,20 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		case dpx::Descriptor::kRGB:
 			switch(depth){
 			case 8:
-				in_format = DXGI_FORMAT_R8_UNORM;
-				out_format = DXGI_FORMAT_B8G8R8A8_UNORM;
-				row_pitch = out_w * 3;
-				w = header.pixelsPerLine*3/4;
-				pixel_format = BGR;
+				if (w * 3 % 4){
+					in_format = DXGI_FORMAT_R8_UNORM;
+					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					w = header.pixelsPerLine * 3;
+					row_pitch = header.pixelsPerLine * 3;
+					pixel_format = BGR;
+					byteswap = true;
+				} else {
+					in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					w = header.pixelsPerLine *3/4;
+					row_pitch = header.pixelsPerLine * 3;
+					pixel_format = RGB;
+				}
 				break;
 			case 10:
 				if(header.ImagePacking(0)==1){

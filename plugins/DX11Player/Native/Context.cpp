@@ -60,7 +60,6 @@ Context::Context(const std::string & fileForFormat)
 	m_RenderTextureDescription.Format = m_Format.out_format;
 	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED & ~D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-
 	if ((ImageFormat::IsRGBA(m_Format.in_format) || ImageFormat::IsBGRA(m_Format.in_format)) && m_Format.pixel_format == ImageFormat::DX11_NATIVE){
 		m_Format.row_padding = 0;
 		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
@@ -69,12 +68,28 @@ Context::Context(const std::string & fileForFormat)
 			m_Format.pixel_format = ImageFormat::RGBA_PADDED;
 		}
 		OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-	}else if (m_Format.pixel_format == ImageFormat::RGB || m_Format.pixel_format == ImageFormat::BGR){
+	}else if (m_Format.pixel_format == ImageFormat::BGR){
 		m_Format.row_padding = 0;
-		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
-		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
-		OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-	}else if (m_Format.pixel_format == ImageFormat::ARGB){
+		try{
+			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
+			m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
+			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+		}
+		catch (std::exception & e){
+			throw std::exception((std::string("Error calculating texture padding:\n\t") + e.what() + "\n").c_str());
+		}
+	}else if (m_Format.pixel_format == ImageFormat::RGB){
+		m_Format.row_padding = 0;
+		try{
+			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
+			m_Format.row_padding = mapped_pitch / m_Format.bytes_per_pixel_in - m_Format.w;
+			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+		}
+		catch (std::exception & e){
+			throw std::exception((std::string("Error calculating texture padding:\n\t") + e.what() + "\n").c_str());
+		}
+	}
+	else if (m_Format.pixel_format == ImageFormat::ARGB){
 		m_Format.row_padding = 0;
 		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch) / m_Format.bytes_per_pixel_in;
@@ -138,7 +153,10 @@ Context::Context(const std::string & fileForFormat)
 		textureDescriptionCopy.Height = m_Format.h;
 		textureDescriptionCopy.Format = m_Format.in_format;
 		textureDescriptionCopy.MiscFlags = 0;
-		hr = m_Device->CreateTexture2D(&textureDescriptionCopy,nullptr,&m_CopyTextureIn);
+		hr = m_Device->CreateTexture2D(&textureDescriptionCopy, nullptr, &m_CopyTextureIn);
+		if (FAILED(hr)){
+			throw std::exception("Coudln't create copy texture\n");
+		}
 
 		// figure out the conversion shaders from the 
 		// image sequence input format and depth
@@ -162,6 +180,12 @@ Context::Context(const std::string & fileForFormat)
 			sizePixelShaderSrc = sizeof(BGR_to_RGBA);
 			break;
 
+
+		case ImageFormat::RGB:
+			pixelShaderSrc = RGB_to_RGBA;
+			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+			break;
+
 		case ImageFormat::RGBA_PADDED:
 			pixelShaderSrc = PSRGBA8888_remove_padding;
 			sizePixelShaderSrc = sizeof(PSRGBA8888_remove_padding);
@@ -183,12 +207,6 @@ Context::Context(const std::string & fileForFormat)
 				sizePixelShaderSrc = sizeof(PSCbYCr161616_to_RGBA16161616);
 				break;
 			}
-			break;
-			
-
-		case ImageFormat::RGB:
-			pixelShaderSrc = RGB_to_RGBA;
-			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
 			break;
 		}
 
