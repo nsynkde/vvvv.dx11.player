@@ -74,7 +74,14 @@ Context::Context(const std::string & fileForFormat)
 		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
 		OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-	}else if (m_Format.IsBC()){
+	}
+	else if (m_Format.pixel_format == ImageFormat::ARGB){
+		m_Format.row_padding = 0;
+		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
+		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch) / m_Format.bytes_per_pixel_in;
+		OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+	}
+	else if (m_Format.IsBC()){
 		try{
 			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 			if (mapped_pitch != m_Format.row_pitch){

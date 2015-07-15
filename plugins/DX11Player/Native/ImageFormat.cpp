@@ -239,7 +239,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 			switch(depth){
 			case 8:
 				in_format = DXGI_FORMAT_R8_UNORM;
-				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;;
+				out_format = DXGI_FORMAT_B8G8R8A8_UNORM;
 				row_pitch = out_w * 3;
 				w = header.pixelsPerLine*3/4;
 				pixel_format = BGR;
