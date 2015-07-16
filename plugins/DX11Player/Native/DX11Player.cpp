@@ -324,6 +324,7 @@ HANDLE DX11Player::GetSharedHandle(const std::string & nextFrame){
 	if(next==m_WaitingToPresent.end()){
 		next = m_WaitingToPresent.begin();
 		m_NextRenderFrame = next->second->SourcePath();
+		OutputDebugStringA((nextFrame + " not found returning " + m_NextRenderFrame + "\n").c_str());
 	}else{
 		m_NextRenderFrame = nextFrame;
 	}

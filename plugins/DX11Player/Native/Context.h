@@ -17,7 +17,7 @@ public:
 	ID3D11DeviceContext * GetDX11Context();
 	void CopyFrameToOutTexture(Frame * frame);
 	HRESULT CreateStagingTexture(ID3D11Texture2D ** texture);
-	HRESULT CreateRenderTexture(ID3D11Texture2D ** texture);
+	HRESULT CreateRenderTexture(ID3D11Texture2D ** texture, uint8_t *initialData=nullptr);
 private:
 	D3D11_TEXTURE2D_DESC m_RenderTextureDescription;
 	ID3D11Device * m_Device;

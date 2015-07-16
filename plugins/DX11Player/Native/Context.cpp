@@ -29,12 +29,22 @@ Context::Context(const std::string & fileForFormat)
 	// create a dx11 device
 	///OutputDebugString( L"creating device\n" );
 	D3D_FEATURE_LEVEL level;
+	// Define the ordering of feature levels that Direct3D attempts to create.
+	D3D_FEATURE_LEVEL featureLevels[] =
+	{
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_10_1,
+		D3D_FEATURE_LEVEL_10_0,
+		D3D_FEATURE_LEVEL_9_3,
+		D3D_FEATURE_LEVEL_9_1
+	};
 	hr = D3D11CreateDevice(nullptr,
 		D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
-		D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_SINGLETHREADED,
-		nullptr,
-		0,
+		D3D11_CREATE_DEVICE_SINGLETHREADED /*| D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG*/,
+		featureLevels,
+		ARRAYSIZE(featureLevels),
 		D3D11_SDK_VERSION,
 		&m_Device,&level,
 		&m_Context);
@@ -58,7 +68,7 @@ Context::Context(const std::string & fileForFormat)
 	m_RenderTextureDescription.Width = m_Format.out_w;
 	m_RenderTextureDescription.Height = m_Format.h;
 	m_RenderTextureDescription.Format = m_Format.out_format;
-	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED & ~D3D11_RESOURCE_MISC_TEXTURECUBE;
+	m_RenderTextureDescription.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
 	if ((ImageFormat::IsRGBA(m_Format.in_format) || ImageFormat::IsBGRA(m_Format.in_format)) && m_Format.pixel_format == ImageFormat::DX11_NATIVE){
 		m_Format.row_padding = 0;
@@ -94,7 +104,9 @@ Context::Context(const std::string & fileForFormat)
 		auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 		m_Format.row_padding = (mapped_pitch - m_Format.row_pitch) / m_Format.bytes_per_pixel_in;
 		OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-	}else if (m_Format.IsBC()){
+	}
+	else if (m_Format.IsBC()){
+		//m_Format.copytype = ImageFormat::DiskToRam;
 		try{
 			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 			if (mapped_pitch != m_Format.row_pitch){
@@ -106,7 +118,8 @@ Context::Context(const std::string & fileForFormat)
 			OutputDebugStringA("\n");
 			m_Format.copytype = ImageFormat::DiskToRam;
 			bool found = false;
-			while (!found){
+			int i = 0;
+			while (!found && i<10){
 				m_Format.w++;
 				m_Format.out_w = m_Format.w;
 				m_RenderTextureDescription.Width = m_Format.out_w;
@@ -114,7 +127,7 @@ Context::Context(const std::string & fileForFormat)
 					auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 					found = true;
 				}
-				catch (...){}
+				catch (...){ i++; }
 			}
 			OutputDebugStringA(("Reallocated texture to legal width: " + std::to_string(m_Format.w) + "\n").c_str());
 		}
@@ -471,11 +484,13 @@ void Context::CopyFrameToOutTexture(Frame * frame){
 		m_Context->Draw(6, 0);
 		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
 		m_Context->Flush();
-	} else if (m_Format.copytype == ImageFormat::DiskToGpu){
+	} else if (m_Format.copytype == ImageFormat::DiskToGpu){ 
+		//OutputDebugStringA(("copying " + frame->SourcePath() + " to render texture\n").c_str());
 		m_Context->CopySubresourceRegion(frame->RenderTexture(),0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
-	} else {
-		auto src = frame->GetRAMBuffer();
-		m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, src, static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
+	}
+	else {
+		//m_Context->CopyResource(frame->RenderTexture(), frame->UploadBuffer());
+		m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
 	}
 }
 
@@ -502,7 +517,15 @@ HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
 	return m_Device->CreateTexture2D(&textureUploadDescription,nullptr,texture);
 }
 
-HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture)
+HRESULT Context::CreateRenderTexture(ID3D11Texture2D ** texture, uint8_t *initialData)
 {
-	return m_Device->CreateTexture2D(&m_RenderTextureDescription, nullptr, texture);
+	if (initialData){
+		D3D11_SUBRESOURCE_DATA data;
+		data.pSysMem = initialData;
+		data.SysMemPitch = m_Format.row_pitch;
+		data.SysMemSlicePitch = m_Format.bytes_data;
+		return m_Device->CreateTexture2D(&m_RenderTextureDescription, &data, texture);
+	}else{
+		return m_Device->CreateTexture2D(&m_RenderTextureDescription, nullptr, texture);
+	}
 }

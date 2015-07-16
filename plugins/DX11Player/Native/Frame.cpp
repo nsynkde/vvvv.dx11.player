@@ -30,12 +30,11 @@ Frame::Frame(Context * context)
 		}
 		ZeroMemory(&mappedBuffer, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-		if (Map() != 0) {
+		if (FAILED(Map())) {
 			throw std::exception("Coudln't map frame\n");
 		}
 	} else {
 		ramUploadBuffer.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset + context->GetFormat().h);
-		ramUploadBufferCopy.resize(context->GetFormat().bytes_data + context->GetFormat().data_offset + context->GetFormat().h);
 	}
 	hr = context->CreateRenderTexture(&renderTexture);
 	if(FAILED(hr)){
@@ -57,7 +56,7 @@ Frame::Frame(Context * context)
 }
 
 Frame::~Frame(){
-	if (mapped) context->GetDX11Context()->Unmap(uploadBuffer, 0);
+	Unmap();
 	if (uploadBuffer) uploadBuffer->Release();
 	renderTexture->Release();
 	if(file!=nullptr){
@@ -99,24 +98,29 @@ bool Frame::IsReadyToPresent(){
 }
 
 HRESULT Frame::Map(){
-	if(mapped) return 0;
+	if (mapped) return 0;
+	//OutputDebugStringA(("Mapping " + nextToLoad + "\n").c_str());
 	mapped = true;
-	return context->GetDX11Context()->Map(uploadBuffer,0,D3D11_MAP_WRITE,0,&mappedBuffer);
+	return context->GetDX11Context()->Map(uploadBuffer, 0, D3D11_MAP_WRITE, 0, &mappedBuffer);
 }
 
 void Frame::Unmap(){
-	if(!mapped) return;
+	if (!mapped) return;
+	//OutputDebugStringA(("Unmapping " + nextToLoad + "\n").c_str());
 	mapped = false;
 	context->GetDX11Context()->Unmap(uploadBuffer, 0);
 }
 
 void Frame::Render(){
 	if (context->GetFormat().copytype == ImageFormat::DiskToGpu) {
+		//OutputDebugStringA(("Rendering " + nextToLoad + "\n").c_str());
 		Unmap();
 
 		context->CopyFrameToOutTexture(this);
 
-		Map();
+		if (FAILED(Map())){
+			OutputDebugStringA(("Failed to map " + nextToLoad + "\n").c_str());
+		}
 		readyToPresent = true;
 	}
 }
@@ -160,6 +164,7 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 	}
 	if(ptr){
 		ptr += offset;
+		//OutputDebugStringA(("Opening " + path + "\n").c_str());
 		file = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,NULL);
 		if (file != INVALID_HANDLE_VALUE) {
 			FILE_ALIGNMENT_INFO fileinfo;
@@ -202,10 +207,12 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 				alignment = 512;
 			}
 			numbytesdata = NextMultiple(numbytesdata, alignment);
+			//ptr = (uint8_t*)NextMultiple((DWORD)ptr, alignment);
 			ZeroMemory(&overlap,sizeof(OVERLAPPED));
 			//overlap.Offset = context->GetFormat().data_offset;
 			overlap.hEvent = waitEvent;
 			DWORD bytesRead=0;
+			//OutputDebugStringA(("Reading " + std::to_string(numbytesdata) + " from " + path + "\n").c_str());
 			::ReadFile(file, ptr, numbytesdata, &bytesRead, &overlap);
 			loadTime = now;
 			nextToLoad = path;
@@ -216,11 +223,18 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 }
 
 bool Frame::Wait(DWORD millis){
-	if(file==nullptr) return false;
+	if (file == nullptr) return false;
+	//OutputDebugStringA(("Waiting " + nextToLoad + "\n").c_str());
 	auto ret = WaitForSingleObject(waitEvent,millis);
 	CloseHandle(file);
 	file = nullptr;
 	auto success = ret != WAIT_TIMEOUT && ret != WAIT_FAILED;
+	if (success){
+		//OutputDebugStringA(("Waited " + nextToLoad + "\n").c_str());
+	}
+	else{
+		//OutputDebugStringA(("Waiting failed for" + nextToLoad + "\n").c_str());
+	}
 	if (success && context->GetFormat().copytype == ImageFormat::DiskToRam) {
 		context->CopyFrameToOutTexture(this);
 		readyToPresent = true;
@@ -235,8 +249,4 @@ HighResClock::duration Frame::DecodeDuration() const{
 
 uint8_t * Frame::GetRAMBuffer() {
 	return ramUploadBuffer.data() + context->GetFormat().data_offset;
-}
-
-uint8_t * Frame::GetRAMBufferCopy() {
-	return ramUploadBufferCopy.data() + context->GetFormat().data_offset;
 }

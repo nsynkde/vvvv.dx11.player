@@ -16,7 +16,7 @@ class Frame{
 	HANDLE renderTextureSharedHandle;
 	D3D11_MAPPED_SUBRESOURCE mappedBuffer;
 	ID3D11Texture2D* uploadBuffer;
-	std::vector<uint8_t> ramUploadBuffer, ramUploadBufferCopy;
+	std::vector<uint8_t> ramUploadBuffer;
 	ID3D11Texture2D* renderTexture;
 	Context * context;
 	bool mapped;
