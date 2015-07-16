@@ -196,5 +196,8 @@
     <FxCompile Include="..\Shaders\RGBA_removePadding.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\Shaders\Noop.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

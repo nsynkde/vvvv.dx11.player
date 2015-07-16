@@ -73,25 +73,26 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 	if (extension == ".dds"){
 		DirectX::TexMetadata mdata;
 		DirectX::GetMetadataFromDDSFile(imageFile.c_str(), DirectX::DDS_FLAGS_NONE, mdata);
-		h = mdata.height;
 		in_format = mdata.format;
-		out_format = in_format;
+		out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		size_t blockSize;
 		if (in_format == DXGI_FORMAT_BC1_UNORM || in_format == DXGI_FORMAT_BC1_UNORM_SRGB ||
 			in_format == DXGI_FORMAT_BC4_UNORM || in_format == DXGI_FORMAT_BC4_SNORM) {
+			h = NextMultiple(mdata.height, 4);
+			w = NextMultiple(mdata.width, 4);
 			blockSize = 8;
 			bytes_per_pixel_in = 2;
-			w = mdata.rowPitch * 2;
-			out_w = mdata.rowPitch * 2;
+			out_w = w;
 		}else if (in_format == DXGI_FORMAT_BC2_UNORM || in_format == DXGI_FORMAT_BC2_UNORM_SRGB ||
 			in_format == DXGI_FORMAT_BC3_UNORM || in_format == DXGI_FORMAT_BC3_UNORM_SRGB ||
 			in_format == DXGI_FORMAT_BC5_UNORM || in_format == DXGI_FORMAT_BC5_SNORM ||
 			in_format == DXGI_FORMAT_BC6H_SF16 || in_format == DXGI_FORMAT_BC6H_UF16 ||
 			in_format == DXGI_FORMAT_BC7_UNORM || in_format == DXGI_FORMAT_BC7_UNORM_SRGB){
+			h = NextMultiple(mdata.height, 4);
+			w = NextMultiple(mdata.width, 4);
 			blockSize = 16;
 			bytes_per_pixel_in = 4;
-			w = mdata.rowPitch;
-			out_w = mdata.rowPitch;
+			out_w = w;
 		}
 		if (mdata.width > 0)
 		{
