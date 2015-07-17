@@ -38,7 +38,8 @@ float4 PSRGB888_to_RGBA8888(psInput In):SV_Target
 		rgba.rgb = tex0.Load(prev_uv).gba;
 		rgba.a = 1.0;
 	}
-	if (RequiresSwap){
+
+	if (RequiresSwap>0.5){
 		return rgba.bgra;
 	}else{
 		return rgba;

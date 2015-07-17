@@ -53,6 +53,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 ,bytes_data(0)
 ,bytes_per_pixel_in(4)
 ,copytype(DiskToGpu)
+, remainder(0)
 {	
 	if(!PathFileExistsA(imageFile.c_str())){
 		std::stringstream str;
@@ -140,12 +141,13 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		OutputDebugStringA(str.str().c_str());
 		switch(header.bitsperpixel){
 			case 24:
-				if (w * 3 % 4){
+				if (header.width * 3 % 4){
 					in_format = DXGI_FORMAT_R8_UNORM;
 					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					w = header.width * 3;
 					row_pitch = header.width * 3;
 					pixel_format = BGR;
+					byteswap = true;
 				} else {
 					in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -178,10 +180,10 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		InStream stream;
 		stream.Open(imageFile.c_str());
 		header.Read(&stream);
-		out_w = header.pixelsPerLine;
-		h = header.linesPerElement * header.numberOfElements;
+		out_w = header.Width();
+		h = header.Height();
 		auto dpx_descriptor = header.ImageDescriptor(0);
-		byteswap = header.RequiresByteSwap();
+		byteswap = header.DatumSwap(0);
 		depth = header.BitDepth(0);
 		std::stringstream str;
 		str << "dpx with " << header.numberOfElements << " elements and format " << dpx_descriptor << " " << (int)header.BitDepth(0) << "bits packed with " << header.ImagePacking(0) << std::endl;
@@ -196,6 +198,13 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		str << " black " << header.BlackLevel() << std::endl;
 		str << " black gain " << header.BlackGain() << std::endl;
 		str << " gamma " << header.Gamma() << std::endl;
+		str << " width " << header.Width() << std::endl;
+		str << " height " << header.Height() << std::endl;
+		str << " xOffset " << header.xOffset << std::endl;
+		str << " xOriginalSize " << header.xOriginalSize << std::endl;
+		str << " xScannedSize " << header.xScannedSize << std::endl;
+		str << " sign " << header.DataSign(0) << std::endl;
+		
 		str << " first 8 bytes: "  << std::endl;
 		uint64_t buffer;
 		dpx::ElementReadStream element(&stream);
@@ -219,7 +228,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 			pixel_format = DX11_NATIVE;
 			row_pitch = out_w;
 			out_format = in_format;
-			w = header.pixelsPerLine;
+			w = header.Width();
 			break;
 		case dpx::Descriptor::kBlue:
 		case dpx::Descriptor::kRed:
@@ -240,7 +249,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 				in_format = DXGI_FORMAT_R32_FLOAT;
 				break;
 			}
-			w = header.pixelsPerLine;
+			w = header.Width();
 			pixel_format = DX11_NATIVE;
 			out_format = in_format;
 			row_pitch = out_w;
@@ -248,19 +257,23 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		case dpx::Descriptor::kRGB:
 			switch(depth){
 			case 8:
-				if (w * 3 % 4){
+				if (header.Width() * 3 % 4){
+					OutputDebugStringA(("8bit dpx rgb on r8 " + std::to_string(header.Width()) + "\n").c_str());
 					in_format = DXGI_FORMAT_R8_UNORM;
 					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					w = header.pixelsPerLine * 3;
-					row_pitch = header.pixelsPerLine * 3;
+					remainder = header.Width() % 4;
+					w = header.Width() * 3 + remainder;
+					row_pitch = header.Width() * 3 + remainder;
 					pixel_format = BGR;
-					byteswap = true;
+					byteswap = !byteswap;
 				} else {
+					OutputDebugStringA("8bit dpx rgb on rgba8\n");
 					in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					w = header.pixelsPerLine *3/4;
-					row_pitch = header.pixelsPerLine * 3;
+					w = header.Width() * 3 / 4;
+					row_pitch = header.Width() * 3;
 					pixel_format = RGB;
+					byteswap = !byteswap;
 				}
 				break;
 			case 10:
@@ -268,8 +281,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 					in_format = DXGI_FORMAT_R32_UINT;
 					out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
 					row_pitch = out_w * 4;
-					w = header.pixelsPerLine;
-					//TODO: padding
+					w = header.Width();
 					pixel_format = ARGB;
 				}else{
 					throw std::exception("RGB 10bits without packing to 10/10/10/2 not supported");
@@ -279,15 +291,24 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 				in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
 				out_format = in_format;
 				row_pitch = out_w * 3 * 2;
-				w = header.pixelsPerLine*3/4;
+				w = header.Width() * 3 / 4;
 				pixel_format = RGB;
+				byteswap = !byteswap;
 				break;
 			case 32:
-				in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-				out_format = in_format;
-				row_pitch = out_w * 3 * 4;
-				w = header.pixelsPerLine*3/4;
-				pixel_format = RGB;
+				if (header.Width() * 3 * 4 % 32){
+					in_format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+					out_format = in_format;
+					row_pitch = out_w * 3 * 4;
+					w = header.Width() * 3 / 4;
+					pixel_format = RGB;
+				} else {
+					in_format = DXGI_FORMAT_R32G32B32_FLOAT;
+					out_format = in_format;
+					row_pitch = out_w * 3 * 4;
+					w = header.Width();
+					pixel_format = DX11_NATIVE;
+				}
 				break;
 			}
 			break;
@@ -310,7 +331,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 				row_pitch = out_w * 4 * 4;
 				break;
 			}
-			w = header.pixelsPerLine;
+			w = header.Width();
 			out_format = in_format;
 			pixel_format = DX11_NATIVE;
 			break;
@@ -320,19 +341,19 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 				in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				out_format = in_format;
 				row_pitch = out_w * 3;
-				w = header.pixelsPerLine*3/4;
+				w = header.Width() * 3 / 4;
 				break;
 			case 10:
 				in_format = DXGI_FORMAT_R32_UINT;
 				out_format = DXGI_FORMAT_R10G10B10A2_UNORM;
 				row_pitch = out_w * 4;
-				w = header.pixelsPerLine;
+				w = header.Width();
 				break;
 			case 16:
 				in_format = DXGI_FORMAT_R16G16B16A16_UNORM;
 				out_format = DXGI_FORMAT_R16G16B16A16_UNORM;
 				row_pitch = out_w * 3 * 2;
-				w = header.pixelsPerLine*3/4;
+				w = header.Width() * 3 / 4;
 				break;
 			default:
 				str << " bitdepth not supported" << std::endl;
@@ -351,7 +372,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 			break;
 
 		}
-		data_offset = header.imageOffset;
+		data_offset = header.DataOffset(0);
 		bytes_data = row_pitch * h;
 	}else{
 		throw std::exception(("format " + extension + " not suported").c_str());

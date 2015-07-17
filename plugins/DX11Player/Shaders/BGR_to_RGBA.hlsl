@@ -2,7 +2,7 @@
 Texture2D tex0;
 float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
 {
-	uint x = In.uv.x * InputWidth;
+	uint x = In.uv.x * (InputWidth-Remainder);
 	uint y = (YOrigin+YCoordinateSign*In.uv.y) * OutputHeight;
 	uint pixelIdx = x + y * InputWidth - 1;
 	uint totalWidth = InputWidth + RowPadding;
@@ -15,5 +15,10 @@ float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
 	int b_x = (pixelIdx + 2) % totalWidth;
 	int b_y = (pixelIdx + 2) / totalWidth;
 	int3 b = int3(b_x, b_y, 0);
-	return float4(tex0.Load(r).r, tex0.Load(g).r, tex0.Load(b).r, 1.0).bgra;
+
+	if (RequiresSwap > 0.5){
+		return float4(tex0.Load(r).r, tex0.Load(g).r, tex0.Load(b).r, 1.0).bgra;
+	}else{
+		return float4(tex0.Load(r).r, tex0.Load(g).r, tex0.Load(b).r, 1.0);
+	}
 }

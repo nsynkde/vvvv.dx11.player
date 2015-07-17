@@ -37,6 +37,7 @@ public:
 	size_t bytes_data;
 	size_t bytes_per_pixel_in;
 	CopyType copytype;
+	size_t remainder;
 
 	static bool IsRGBA(DXGI_FORMAT format);
 	static bool IsRGBA32(DXGI_FORMAT format);

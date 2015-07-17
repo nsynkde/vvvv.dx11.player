@@ -18,8 +18,9 @@ cbuffer controls:register(b0){
 	float OnePixelX = 1.0/1920.0;
 	float YOrigin = 0.0;
 	float YCoordinateSign = 1.0;
-	bool RequiresSwap = false;
+	float RequiresSwap = 1.0;
 	float RowPadding;
+	uint Remainder;
 	//float3x3 YUV2RGBTransform <string uiname="rgb2yuv matrix";>;
 	
 };

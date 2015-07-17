@@ -94,32 +94,20 @@ Context::Context(const std::string & fileForFormat)
 			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
 		}else if (m_Format.pixel_format == ImageFormat::BGR){
 			m_Format.row_padding = 0;
-			try{
-				auto mapped_pitch = GetFrame()->GetMappedRowPitch();
-				m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
-				OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-			}
-			catch (std::exception & e){
-				throw std::exception((std::string("Error calculating texture padding:\n\t") + e.what() + "\n").c_str());
-			}
+			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
+			m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
+			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
 		}else if (m_Format.pixel_format == ImageFormat::RGB){
 			m_Format.row_padding = 0;
-			try{
-				auto mapped_pitch = GetFrame()->GetMappedRowPitch();
-				m_Format.row_padding = mapped_pitch / m_Format.bytes_per_pixel_in - m_Format.w;
-				OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-			}
-			catch (std::exception & e){
-				throw std::exception((std::string("Error calculating texture padding:\n\t") + e.what() + "\n").c_str());
-			}
-		}
-		else if (m_Format.pixel_format == ImageFormat::ARGB){
+			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
+			m_Format.row_padding = mapped_pitch / m_Format.bytes_per_pixel_in - m_Format.w;
+			OutputDebugStringA(("Image w = " + std::to_string(m_Format.w) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
+		}else if (m_Format.pixel_format == ImageFormat::ARGB){
 			m_Format.row_padding = 0;
 			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 			m_Format.row_padding = (mapped_pitch - m_Format.row_pitch) / m_Format.bytes_per_pixel_in;
 			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-		}
-		else if (m_Format.IsBC()){
+		}else if (m_Format.IsBC()){
 			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 			if (mapped_pitch != m_Format.row_pitch){
 				m_Format.copytype = ImageFormat::DiskToRam;
@@ -350,8 +338,9 @@ Context::Context(const std::string & fileForFormat)
 			float OnePixel;
 			float YOrigin;
 			float YCoordinateSign;
-			bool RequiresSwap;
+			float RequiresSwap;
 			float RowPadding;
+			uint32_t Remainder;
 		};
 
 		PS_CONSTANT_BUFFER constantData;
@@ -362,8 +351,9 @@ Context::Context(const std::string & fileForFormat)
 		constantData.OnePixel = (float)(1.0 / (float)m_Format.out_w);
 		constantData.YOrigin = (float)(m_Format.vflip?1.0:0.0);
 		constantData.YCoordinateSign = (float)(m_Format.vflip?-1.0:1.0);
-		constantData.RequiresSwap = m_Format.byteswap;
+		constantData.RequiresSwap = m_Format.byteswap?1.0:0.0;
 		constantData.RowPadding = (float)m_Format.row_padding;
+		constantData.Remainder = (float)m_Format.remainder;
 
 		D3D11_BUFFER_DESC shaderVarsDescription;
 		shaderVarsDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
