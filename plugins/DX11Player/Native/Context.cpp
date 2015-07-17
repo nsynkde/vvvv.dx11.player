@@ -4,7 +4,7 @@
 #include <DirectXMath.h>
 #include "VShader.h"
 #include "RGB_to_RGBA.h"
-#include "BGR_to_RGBA.h"
+#include "RGB_R8_to_RGBA.h"
 #include "A2R10G10B10_to_R10G10B10A2.h"
 #include "PSCbYCr888_to_RGBA8888.h"
 #include "PSCbYCr101010_to_R10G10B10A2.h"
@@ -92,7 +92,7 @@ Context::Context(const std::string & fileForFormat)
 				m_Format.pixel_format = ImageFormat::RGBA_PADDED;
 			}
 			OutputDebugStringA(("Image pitch = " + std::to_string(m_Format.row_pitch) + " GPU pitch = " + std::to_string(mapped_pitch) + " = " + std::to_string(m_Format.row_padding) + "\n").c_str());
-		}else if (m_Format.pixel_format == ImageFormat::BGR){
+		}else if (m_Format.pixel_format == ImageFormat::RGB && m_Format.in_format == DXGI_FORMAT_R8_UNORM){
 			m_Format.row_padding = 0;
 			auto mapped_pitch = GetFrame()->GetMappedRowPitch();
 			m_Format.row_padding = (mapped_pitch - m_Format.row_pitch);
@@ -171,16 +171,15 @@ Context::Context(const std::string & fileForFormat)
 				throw std::exception("ARGB conversion only supported for 10bits");
 			}
 			break;
-			
-		case ImageFormat::BGR:
-			pixelShaderSrc = BGR_to_RGBA;
-			sizePixelShaderSrc = sizeof(BGR_to_RGBA);
-			break;
-
 
 		case ImageFormat::RGB:
-			pixelShaderSrc = RGB_to_RGBA;
-			sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+			if (m_Format.in_format == DXGI_FORMAT_R8_UNORM){
+				pixelShaderSrc = RGB_R8_to_RGBA;
+				sizePixelShaderSrc = sizeof(RGB_R8_to_RGBA);
+			} else {
+				pixelShaderSrc = RGB_to_RGBA;
+				sizePixelShaderSrc = sizeof(RGB_to_RGBA);
+			}
 			break;
 
 		case ImageFormat::RGBA_PADDED:

@@ -10,10 +10,9 @@ public:
 	
 	enum PixelFormat{
 		ARGB,
-		BGR,
-		CbYCr,
 		RGB,
 		RGBA_PADDED,
+		CbYCr,
 		DX11_NATIVE
 	};
 

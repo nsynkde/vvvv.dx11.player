@@ -178,9 +178,6 @@
     <FxCompile Include="..\Shaders\VShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="..\Shaders\BGR_to_RGBA.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="..\Shaders\A2R10G10B10_to_R10G10B10A2.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -197,6 +194,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Shaders\Noop.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\RGB_R8_to_RGBA.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

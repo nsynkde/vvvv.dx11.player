@@ -1,6 +1,6 @@
 #include "HeadersPixelS.hlsl"
 Texture2D tex0;
-float4 PSBGR888_to_RGBA8888(psInput In):SV_Target
+float4 main(psInput In):SV_Target
 {
 	uint x = In.uv.x * (InputWidth-Remainder);
 	uint y = (YOrigin+YCoordinateSign*In.uv.y) * OutputHeight;

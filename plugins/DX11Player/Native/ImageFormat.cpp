@@ -146,7 +146,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 					out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					w = header.width * 3;
 					row_pitch = header.width * 3;
-					pixel_format = BGR;
+					pixel_format = RGB;
 					byteswap = true;
 				} else {
 					in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -264,7 +264,7 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 					remainder = header.Width() % 4;
 					w = header.Width() * 3 + remainder;
 					row_pitch = header.Width() * 3 + remainder;
-					pixel_format = BGR;
+					pixel_format = RGB;
 					byteswap = !byteswap;
 				} else {
 					OutputDebugStringA("8bit dpx rgb on rgba8\n");
