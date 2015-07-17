@@ -1,1 +1,9 @@
 packages
+plugins/DX11Player/Native/A2R10G10B10_to_R10G10B10A2.h
+plugins/DX11Player/Native/Noop.h
+plugins/DX11Player/Native/PSCbYCr101010_to_R10G10B10A2.h
+plugins/DX11Player/Native/PSCbYCr161616_to_RGBA16161616.h
+plugins/DX11Player/Native/PSCbYCr888_to_RGBA8888.h
+plugins/DX11Player/Native/PSRGBA8888_remove_padding.h
+plugins/DX11Player/Native/RGB_R8_to_RGBA.h
+plugins/DX11Player/Native/RGB_to_RGBA.h
