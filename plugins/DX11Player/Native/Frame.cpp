@@ -169,8 +169,9 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 		if (file != INVALID_HANDLE_VALUE) {
 			FILE_ALIGNMENT_INFO fileinfo;
 			ZeroMemory(&fileinfo, sizeof(FILE_ALIGNMENT_INFO));
-			DWORD alignment = 1;
-			if (GetFileInformationByHandleEx(file, FileAlignmentInfo, &fileinfo, sizeof(FILE_ALIGNMENT_INFO))){
+			DWORD alignment = 512;
+			//TODO: this seems to crash on some machines and it´s only available in windows 8:
+			/*if (GetFileInformationByHandleEx(file, FileAlignmentInfo, &fileinfo, sizeof(FILE_ALIGNMENT_INFO))){
 				switch (fileinfo.AlignmentRequirement){
 				case 0x00000000:
 					alignment = 1;
@@ -202,10 +203,10 @@ bool Frame::ReadFile(const std::string & path, size_t offset, DWORD numbytesdata
 				case 0x000001ff:
 					alignment = 512;
 					break;
-				}
+				};
 			} else {
 				alignment = 512;
-			}
+			}*/
 			numbytesdata = NextMultiple(numbytesdata, alignment);
 			//ptr = (uint8_t*)NextMultiple((DWORD)ptr, alignment);
 			ZeroMemory(&overlap,sizeof(OVERLAPPED));
