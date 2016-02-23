@@ -389,6 +389,10 @@ bool operator!=(const ImageFormat & format1, const ImageFormat & format2){
 	return format1.w != format2.w || format1.h != format2.h || format1.pixel_format!=format2.pixel_format || format1.in_format!=format2.in_format || format1.out_format!=format2.out_format || format1.depth!=format2.depth || format1.out_w != format2.out_w || format1.vflip!=format2.vflip || format1.byteswap!=format2.byteswap;
 }
 
+bool operator==(const ImageFormat & format1, const ImageFormat & format2) {
+	return !(format1 != format2);
+}
+
 bool ImageFormat::IsRGBA(DXGI_FORMAT format)
 {
 	return format == DXGI_FORMAT_R16G16B16A16_FLOAT ||

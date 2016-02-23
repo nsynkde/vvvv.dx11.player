@@ -49,3 +49,4 @@ public:
 
 
 bool operator!=(const ImageFormat & format1, const ImageFormat & format2);
+bool operator==(const ImageFormat & format1, const ImageFormat & format2);

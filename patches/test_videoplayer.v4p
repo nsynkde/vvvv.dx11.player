@@ -1,47 +1,7 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv45beta33.3.dtd" >
-   <PATCH nodename="C:\DEV\DX11Player\patches\test_videoplayer.v4p" scrollx="0" scrolly="-360" systemname="test_videoplayer" filename="C:\Users\arturo\Desktop\test_videoplayer.v4p">
+   <PATCH nodename="C:\Users\arturo\Code\dx11player\patches\test_videoplayer.v4p" scrollx="0" scrolly="0" systemname="test_videoplayer" filename="C:\Users\arturo\Desktop\test_videoplayer.v4p">
    <BOUNDS type="Window" left="1590" top="615" width="12360" height="14415">
    </BOUNDS>
-   <NODE systemname="Player (DX11.Texture)" filename="%VVVV%\packs\nsynk\nodes\plugins\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="0">
-   <BOUNDS type="Node" left="1620" top="3990" width="100" height="100">
-   </BOUNDS>
-   <PIN pinname="texture" visible="1">
-   </PIN>
-   <PIN pinname="format file" slicecount="1" visible="1" values="D:\TestMaterialArturo\1940x1080_DXT1_DDSConverter\1940x1080_TGA_24bpp00000.dds">
-   </PIN>
-   <PIN pinname="load files" visible="1" slicecount="8" values="C:\Users\arturo\Downloads\test_material\2000x1080\00483.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00484.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00485.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00486.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00487.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00488.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00489.tga,C:\Users\arturo\Downloads\test_material\2000x1080\00490.tga">
-   </PIN>
-   <PIN pinname="sizeXY" visible="1">
-   </PIN>
-   <PIN pinname="tex format" visible="1">
-   </PIN>
-   <PIN pinname="upload buffer size" visible="1">
-   </PIN>
-   <PIN pinname="wait buffer size" visible="1">
-   </PIN>
-   <PIN pinname="render buffer size" visible="1">
-   </PIN>
-   <PIN pinname="present buffer size" visible="1">
-   </PIN>
-   <PIN pinname="dropped frames" visible="1">
-   </PIN>
-   <PIN pinname="avg load duration ms" visible="1">
-   </PIN>
-   <PIN pinname="is ready" visible="1">
-   </PIN>
-   <PIN pinname="load frame" visible="1">
-   </PIN>
-   <PIN pinname="render frame" visible="1">
-   </PIN>
-   <PIN pinname="context pool size" visible="1">
-   </PIN>
-   <PIN pinname="always show last frame" slicecount="1" values="0">
-   </PIN>
-   <PIN pinname="frame render idx" slicecount="1" visible="1" values="0">
-   </PIN>
-   <PIN pinname="status" visible="1">
-   </PIN>
-   </NODE>
    <NODE systemname="Dir (File)" nodename="Dir (File)" componentmode="Hidden" id="3">
    <BOUNDS type="Node" left="2145" top="1050" width="100" height="100">
    </BOUNDS>
@@ -75,7 +35,7 @@
    </BOUNDS>
    <BOUNDS type="Box" left="10470" top="13845" width="2400" height="1800">
    </BOUNDS>
-   <BOUNDS type="Window" left="11715" top="8925" width="14565" height="7230">
+   <BOUNDS type="Window" left="14895" top="12720" width="14565" height="7230">
    </BOUNDS>
    </NODE>
    <NODE systemname="FrameCounter (Animation)" nodename="FrameCounter (Animation)" componentmode="Hidden" id="6">
@@ -101,13 +61,11 @@
    </PIN>
    <PIN pinname="Rows" slicecount="1" values="2">
    </PIN>
-   <PIN pinname="Y Input Value" slicecount="2" values=",">
+   <PIN pinname="Y Input Value" slicecount="2" values="0,0">
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="sizeXY">
    </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="sizeXY" dstnodeid="8" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="10" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="2280" top="7530" width="795" height="240">
    </BOUNDS>
@@ -121,9 +79,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|upload buffer size|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="upload buffer size" dstnodeid="10" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="11" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="2445" top="8235" width="795" height="240">
    </BOUNDS>
@@ -137,9 +95,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|wait buffer size|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="wait buffer size" dstnodeid="11" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="12" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="2655" top="8940" width="795" height="240">
    </BOUNDS>
@@ -153,9 +111,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|render buffer size|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="render buffer size" dstnodeid="12" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="13" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="2775" top="9630" width="795" height="240">
    </BOUNDS>
@@ -169,9 +127,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|present buffer size|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="present buffer size" dstnodeid="13" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="14" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="2985" top="10365" width="795" height="240">
    </BOUNDS>
@@ -185,9 +143,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|dropped frames|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="dropped frames" dstnodeid="14" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="15" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="3210" top="11115" width="795" height="240">
    </BOUNDS>
@@ -201,9 +159,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|avg load duration ms|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="avg load duration ms" dstnodeid="15" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="16" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="3435" top="11925" width="480" height="480">
    </BOUNDS>
@@ -219,9 +177,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|is ready|">
    </PIN>
+   <PIN pinname="Y Input Value" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="is ready" dstnodeid="16" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="17" systemname="IOBox (String)">
    <BOUNDS type="Box" left="3705" top="12570" width="4815" height="240">
    </BOUNDS>
@@ -235,9 +193,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|load frame|">
    </PIN>
+   <PIN pinname="Input String" slicecount="1" values="||">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="load frame" dstnodeid="17" dstpinname="Input String">
-   </LINK>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="18" systemname="IOBox (String)">
    <BOUNDS type="Box" left="4020" top="13095" width="5295" height="240">
    </BOUNDS>
@@ -251,9 +209,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|render frame|">
    </PIN>
+   <PIN pinname="Input String" slicecount="1" values="||">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="render frame" dstnodeid="18" dstpinname="Input String">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="19" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="4500" top="8505" width="795" height="240">
    </BOUNDS>
@@ -268,8 +226,6 @@
    <PIN pinname="Descriptive Name" slicecount="1" values="|context pool size|">
    </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="context pool size" dstnodeid="19" dstpinname="Y Input Value">
-   </LINK>
    <NODE systemname="Divide (Value)" nodename="Divide (Value)" componentmode="Hidden" id="23">
    <BOUNDS type="Node" left="3135" top="1740" width="100" height="100">
    </BOUNDS>
@@ -316,14 +272,12 @@
    <PIN pinname="Descriptive Name" slicecount="1" values="|frame render idx|">
    </PIN>
    </NODE>
-   <LINK srcnodeid="26" srcpinname="Y Output Value" dstnodeid="0" dstpinname="frame render idx">
-   </LINK>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="27" systemname="IOBox (String)">
    <BOUNDS type="Box" left="2325" top="570" width="3735" height="240">
    </BOUNDS>
    <BOUNDS type="Node" left="2325" top="570" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="1" visible="1" values="D:\TestMaterialArturo\1080x720dds">
+   <PIN pinname="Input String" slicecount="1" visible="1" values="..\..\bigbuckbunny">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>
@@ -341,7 +295,7 @@
    <LINK srcnodeid="27" srcpinname="Output String" dstnodeid="3" dstpinname="Directory">
    </LINK>
    <NODE systemname="MainLoop (VVVV)" nodename="MainLoop (VVVV)" componentmode="Hidden" id="-6">
-   <BOUNDS type="Node" left="10284" top="9612" width="100" height="100">
+   <BOUNDS type="Node" left="10059" top="12447" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Maximum forground fps" visible="1">
    </PIN>
@@ -373,7 +327,7 @@
    </BOUNDS>
    <BOUNDS type="Box" left="6600" top="7050" width="6000" height="4500">
    </BOUNDS>
-   <BOUNDS type="Window" left="14655" top="2355" width="12405" height="9585">
+   <BOUNDS type="Window" left="10680" top="8130" width="12405" height="9585">
    </BOUNDS>
    <PIN pinname="Layers" visible="1" slicecount="1" values="||">
    </PIN>
@@ -430,8 +384,6 @@
    </NODE>
    <LINK srcnodeid="33" srcpinname="Layer" dstnodeid="32" dstpinname="Layer 2">
    </LINK>
-   <LINK srcnodeid="4" srcpinname="Output" dstnodeid="0" dstpinname="load files">
-   </LINK>
    <LINK srcnodeid="30" srcpinname="Layer" dstnodeid="32" dstpinname="Layer 1">
    </LINK>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="34" systemname="IOBox (String)">
@@ -445,11 +397,9 @@
    </PIN>
    <PIN pinname="Maximum Characters" slicecount="1" values="-1">
    </PIN>
+   <PIN pinname="Input String" slicecount="1" values="|Not set|">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="status" dstnodeid="34" dstpinname="Input String">
-   </LINK>
-   <LINK srcnodeid="0" srcpinname="texture" dstnodeid="30" dstpinname="Texture">
-   </LINK>
    <NODE systemname="Quad (DX11.Layer)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Quad (DX11.Layer)" componentmode="Hidden" id="35">
    <BOUNDS type="Node" left="9252" top="5508" width="100" height="100">
    </BOUNDS>
@@ -511,7 +461,7 @@
    <NODE systemname="Info (DX11.Texture 2d)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Info (DX11.Texture 2d)" componentmode="Hidden" id="40">
    <BOUNDS type="Node" left="6780" top="7830" width="100" height="100">
    </BOUNDS>
-   <PIN pinname="Texture In" visible="1">
+   <PIN pinname="Texture In" visible="1" slicecount="1" values="||">
    </PIN>
    <PIN pinname="Width" visible="1">
    </PIN>
@@ -528,8 +478,6 @@
    <PIN pinname="Mip Levels" visible="1">
    </PIN>
    </NODE>
-   <LINK srcnodeid="0" srcpinname="texture" dstnodeid="40" dstpinname="Texture In">
-   </LINK>
    <NODE systemname="GetSlice (String)" nodename="GetSlice (String)" componentmode="Hidden" id="41">
    <BOUNDS type="Node" left="1350" top="2445" width="100" height="100">
    </BOUNDS>
@@ -538,8 +486,6 @@
    <PIN pinname="Output" visible="1">
    </PIN>
    </NODE>
-   <LINK srcnodeid="41" srcpinname="Output" dstnodeid="0" dstpinname="format file">
-   </LINK>
    <LINK srcnodeid="3" srcpinname="Filenames" dstnodeid="41" dstpinname="Input">
    </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="42" systemname="IOBox (Value Advanced)">
@@ -648,18 +594,88 @@
    </NODE>
    <LINK srcnodeid="40" srcpinname="Mip Levels" dstnodeid="48" dstpinname="Y Input Value">
    </LINK>
-   <NODE nodename="IOBox (String)" componentmode="InABox" id="50" systemname="IOBox (String)">
-   <BOUNDS type="Node" left="10170" top="8535" width="585" height="270">
+   <NODE id="0" systemname="Player (DX11.Texture)" filename="%VVVV%\packs\nsink\dx11player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" hiddenwhenlocked="0" managers="">
+   <BOUNDS type="Node" left="1620" top="3990" width="100" height="100">
    </BOUNDS>
-   <BOUNDS type="Box" left="10170" top="8535" width="585" height="270">
+   <PIN pinname="texture" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="format file" visible="1" pintype="Input">
+   </PIN>
+   <PIN pinname="load files" visible="1" pintype="Input">
+   </PIN>
+   <PIN pinname="sizeXY" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="tex format" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="upload buffer size" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="wait buffer size" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="render buffer size" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="present buffer size" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="dropped frames" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="avg load duration ms" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="is ready" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="load frame" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="render frame" visible="1" pintype="Output">
+   </PIN>
+   <PIN pinname="context pool size" visible="1">
+   </PIN>
+   <PIN pinname="always show last frame" slicecount="1" pintype="Input" visible="1" values="0">
+   </PIN>
+   <PIN pinname="frame render idx" visible="1" pintype="Input">
+   </PIN>
+   <PIN pinname="status" visible="1" pintype="Output">
+   </PIN>
+   <BOUNDS type="Box" left="0" top="0" width="2400" height="1800">
    </BOUNDS>
-   <PIN pinname="Input String" visible="0" slicecount="1" values="string">
+   <BOUNDS type="Window" left="0" top="0" width="6000" height="4500">
+   </BOUNDS>
+   <PIN pinname="Descriptive Name" pintype="Configuration" slicecount="1" values="||">
    </PIN>
-   <PIN pinname="Output String" visible="0">
+   <PIN pinname="load files Bin Size" pintype="Input" visible="1" slicecount="1" values="-1">
    </PIN>
-   <PIN pinname="Show Grid" slicecount="1" values="0">
+   <PIN pinname="Window Handle" pintype="Output">
    </PIN>
-   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   <PIN pinname="ID" pintype="Output" visible="-1">
    </PIN>
    </NODE>
+   <LINK srcnodeid="41" srcpinname="Output" dstnodeid="0" dstpinname="format file">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="texture" dstnodeid="40" dstpinname="Texture In">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="texture" dstnodeid="30" dstpinname="Texture">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="status" dstnodeid="34" dstpinname="Input String">
+   </LINK>
+   <LINK srcnodeid="4" srcpinname="Output" dstnodeid="0" dstpinname="load files">
+   </LINK>
+   <LINK srcnodeid="26" srcpinname="Y Output Value" dstnodeid="0" dstpinname="frame render idx">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="render frame" dstnodeid="18" dstpinname="Input String">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="load frame" dstnodeid="17" dstpinname="Input String">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="is ready" dstnodeid="16" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="avg load duration ms" dstnodeid="15" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="dropped frames" dstnodeid="14" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="present buffer size" dstnodeid="13" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="render buffer size" dstnodeid="12" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="wait buffer size" dstnodeid="11" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="upload buffer size" dstnodeid="10" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="0" srcpinname="sizeXY" dstnodeid="8" dstpinname="Y Input Value">
+   </LINK>
    </PATCH>

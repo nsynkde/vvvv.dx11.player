@@ -129,6 +129,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         public ISpread<string> FRenderFrameOut;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
+        private Spread<string> FPrevFormatFile = new Spread<string>();
         private Spread<bool> FIsReady = new Spread<bool>();
         private WorkerThread FWorkerThread = new WorkerThread();
         private Spread<ISpread<string>> FPrevFrames = new Spread<ISpread<string>>();
@@ -220,6 +221,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FRenderFrameOut.SliceCount = NumSpreads;
                     FSizeOut.SliceCount = NumSpreads;
                     FFormatOut.SliceCount = NumSpreads;
+                    FPrevFormatFile.SliceCount = NumSpreads;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         FPrevFrames[i] = new Spread<string>();
@@ -264,8 +266,22 @@ namespace VVVV.Nodes.DX11PlayerNode
 
             if (FFormatFile.IsChanged)
             {
-                FRefreshPlayer = true;
-                OutputDebugString("Destroying player format file changed");
+                for(int i=0;i< FPrevFormatFile.Count(); i++)
+                {
+                    if(FPrevFormatFile[i]!="" && FPrevFormatFile[i] != null && !NativeInterface.DX11Player_IsSameFormat(FFormatFile[i], FPrevFormatFile[i]))
+                    {
+                        FRefreshPlayer = true;
+                    }
+                    FPrevFormatFile[i] = FFormatFile[i];
+                }
+                if (FRefreshPlayer)
+                {
+                    OutputDebugString("Destroying player format file changed");
+                }
+                else
+                {
+                    OutputDebugString("File format changed but format is the same, won't reallocate");
+                }
             }
 
             if (FNextFrameRenderIn.IsChanged)
@@ -510,6 +526,10 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         [DllImport("DX11PlayerNative.dll")]
         internal static extern void DX11Player_SetAlwaysShowLastFrame(IntPtr player, bool always);
+
+
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        internal static extern bool DX11Player_IsSameFormat(string formatFile1, string formatFile2);
     }
 
 }
