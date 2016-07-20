@@ -197,6 +197,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                 FPrevFrames[i][j] = "";
             }
 
+            FRefreshTextures = true;
+            FRefreshPlayer = false;
         }
 
         public void Evaluate(int spreadMax)
@@ -270,25 +272,41 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FStatusOut[i] = "Not set";
                 }
             }
-
-            if (FFormatFile.IsChanged)
+            
+            if(FPrevFormatFile.Count() == 0)
             {
-                for(int i=0;i< FPrevFormatFile.Count(); i++)
+                FPrevFormatFile.SliceCount = FFormatFile.Count();
+            }
+            
+            for (int i=0; i<FFormatFile.Count(); i++)
+            {
+                if (FFormatFile[i] != FPrevFormatFile[i])
                 {
-                    if(FPrevFormatFile[i]!="" && FPrevFormatFile[i] != null && !NativeInterface.DX11Player_IsSameFormat(FFormatFile[i], FPrevFormatFile[i]))
+                    if (FFormatFile[i] != null &&
+                        ((FPrevFormatFile[i] == "" || FPrevFormatFile[i] == null) || !NativeInterface.DX11Player_IsSameFormat(FFormatFile[i], FPrevFormatFile[i])))
                     {
+                        OutputDebugString("Destroying player format file changed");
+                        OutputDebugString("Previous " + FPrevFormatFile[i]);
+                        OutputDebugString("Current " + FFormatFile[i]);
                         FRefreshPlayer = true;
+                    }
+                    else
+                    {
+                        OutputDebugString("File format changed but format is the same, won't reallocate");
+                        OutputDebugString("Previous " + FPrevFormatFile[i]);
+                        OutputDebugString("Current " + FFormatFile[i]);
                     }
                     FPrevFormatFile[i] = FFormatFile[i];
                 }
-                if (FRefreshPlayer)
+            }
+
+            if (FFormatFile.Count() == 0)
+            {
+                for (int i = 0; i < FPrevFormatFile.Count(); i++)
                 {
-                    OutputDebugString("Destroying player format file changed");
+                    FPrevFormatFile[i] = null;
                 }
-                else
-                {
-                    OutputDebugString("File format changed but format is the same, won't reallocate");
-                }
+                FPrevFormatFile.SliceCount = 0;
             }
 
             if (FAlwaysShowLastIn.IsChanged)
@@ -316,13 +334,8 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                 {
-                    if (FDX11NativePlayer[i] != IntPtr.Zero)
-                    {
-                        DestroyPlayer(i);
-                    }
+                    DestroyPlayer(i);
                 }
-                FRefreshTextures = true;
-                FRefreshPlayer = false;
             }
 
         }

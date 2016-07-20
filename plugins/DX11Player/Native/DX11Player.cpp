@@ -529,8 +529,13 @@ extern "C"{
 
 
 	NATIVE_API bool DX11Player_IsSameFormat(const char * formatFile1, const char *  formatFile2) {
-		ImageFormat format1(formatFile1);
-		ImageFormat format2(formatFile2);
-		return format1 == format2;
+		try {
+			ImageFormat format1(formatFile1);
+			ImageFormat format2(formatFile2);
+			return format1 == format2;
+		}
+		catch (...) {
+			return false;
+		}
 	}
 }
