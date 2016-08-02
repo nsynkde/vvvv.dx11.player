@@ -1,10 +1,11 @@
-*.exe
-
 bin/
 Bin/
 *.xml
 *.cmd
 *.png.v4tn/
+
+*.exe
+!.paket.bootstrapper.exe
 
 # Packages #
 ############

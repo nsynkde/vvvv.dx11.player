@@ -1,0 +1,9 @@
+source https://api.nuget.org/v3/index.json
+
+nuget Microsoft.CSharp
+nuget SlimDX
+nuget System.ComponentModel.Composition
+nuget VVVV.System.ComponentModel.Composition.CodePlex
+nuget System.Reactive.Linq
+nuget System.Reactive.PlatformServices
+nuget VVVV.DX11.Core

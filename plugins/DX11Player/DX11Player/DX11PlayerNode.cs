@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Runtime.InteropServices;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using VVVV.Core.Logging;
 using VVVV.Utils.VMath;
 using System.Reflection;
@@ -17,7 +15,6 @@ using VVVV.PluginInterfaces.V1;
 using SlimDX.Direct3D11;
 using SlimDX.DXGI;
 using VVVV.DX11;
-using VVVV.Nodes;
 
 namespace VVVV.Nodes.DX11PlayerNode
 {
