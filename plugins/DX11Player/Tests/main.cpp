@@ -119,7 +119,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
-	
+
 	/*for(int i=0;i<7;i++){
 		player->SendNextFrameToLoad(files[i]);
 	}*/
@@ -222,7 +222,7 @@ void InitD3D(HWND hWnd)
 	start = HighResClock::now();
 }
 
-void UpdateVerticalLine(){	
+void UpdateVerticalLine(){
 	auto now = HighResClock::now();
 	float x = fmod(std::chrono::duration_cast<std::chrono::microseconds>(now-start).count()*0.5/1000000.0,1.0)*2.0f-1.0f;
 	Vertex verticalLine[] = {
@@ -296,7 +296,7 @@ void RenderFrame(void)
 		}else{
 			// devcon->Flush();
 			// draw the vertex buffer to the back buffer
-    
+
 			auto tex = GetTexture(nextToRender);
 			if(tex!=nullptr){
 				ID3D11ShaderResourceView * shaderResourceView;
@@ -370,7 +370,7 @@ void InitGraphics()
 	vertexBufferDescription.MiscFlags = 0;
 	vertexBufferDescription.StructureByteStride = 0;
 	vertexBufferDescription.Usage = D3D11_USAGE_DEFAULT;
-		
+
 	Vertex quad[] = {
 		Vertex(DirectX::XMFLOAT4(-1.0f, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(0.0f, 0.0f)),
 		Vertex(DirectX::XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(1.0f, 0.0f)),
@@ -385,11 +385,11 @@ void InitGraphics()
 	bufferData.pSysMem = quad;
 	bufferData.SysMemPitch = 0;
 	bufferData.SysMemSlicePitch = 0;
-		
+
 	HRESULT hr = dev->CreateBuffer(&vertexBufferDescription,&bufferData,&pVBuffer);
 
-	
-		
+
+
 	Vertex verticalLine[] = {
 		Vertex(DirectX::XMFLOAT4(-1.0f, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(0.0f, 0.0f)),
 		Vertex(DirectX::XMFLOAT4(-0.9f, 1.0f, 0.5f, 1.0f),DirectX::XMFLOAT2(1.0f, 0.0f)),
@@ -435,30 +435,30 @@ void InitPipeline()
 	if(FAILED(hr)){
 		throw std::exception("Coudln't create pixel shader\n");
 	}
-	
+
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
-		{"POSITION",0,DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}, 
+		{"POSITION",0,DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT, 0, sizeof(DirectX::XMFLOAT4), D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
-	
+
 	ID3D11InputLayout * vertexLayout;
 	hr = dev->CreateInputLayout(layout, 2, VShader, sizeof(VShader), &vertexLayout);
 	if(FAILED(hr)){
 		throw std::exception("Coudln't create input layout\n");
 		//std::cout << "Coudln't create input layout" << std::endl;
-		
+
 	}
 	OutputDebugString( "Created vertex layout\n" );
 
 	devcon->IASetInputLayout(vertexLayout);
 	OutputDebugString( "Set vertex layout\n" );
 	vertexLayout->Release();
-	
+
 
     // set the shader objects
     devcon->VSSetShader(pVS, 0, 0);
     devcon->PSSetShader(pPS, 0, 0);
-	
+
 	D3D11_SAMPLER_DESC samplerDesc;
 	ZeroMemory(&samplerDesc,sizeof(D3D11_SAMPLER_DESC));
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
@@ -482,7 +482,7 @@ void InitPipeline()
 
 	tinydir_dir dir;
 	tinydir_open(&dir, "D:\\TestMaterialArturo\\1933x1080_DPX_RGB8");
-		
+
 	while (dir.has_next)
 	{
 		tinydir_file file;

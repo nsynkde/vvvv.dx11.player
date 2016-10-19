@@ -125,6 +125,9 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Output("render frame")]
         public ISpread<string> FRenderFrameOut;
 
+        [Output("got requested frame")]
+        public ISpread<bool> FGotRequestedFrameOut;
+
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
         private Spread<string> FPrevFormatFile = new Spread<string>();
         private Spread<int> FPrevRenderFrameIdxCount = new Spread<int>();
@@ -228,6 +231,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     FPrevFormatFile.SliceCount = NumSpreads;
                     FPrevFrameRendered.SliceCount = NumSpreads;
                     FPrevRenderFrameIdxCount.SliceCount = NumSpreads;
+                    FGotFirstFrameOut.SliceCount = NumSpreads;
                     for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         FPrevFrames[i] = new Spread<string>();
@@ -258,8 +262,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FPresentSizeOut[i] = NativeInterface.DX11Player_GetPresentBufferSize(FDX11NativePlayer[i]);
                         FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
                         FAvgLoadDurationMsOut[i] = (int)(((double)FAvgLoadDurationMsOut[i]) * 0.9 + ((double)NativeInterface.DX11Player_GetAvgLoadDurationMs(FDX11NativePlayer[i])) * 0.1);
-                        FLoadFrameOut[i] = NativeInterface.DX11Player_GetCurrentLoadFrame(FDX11NativePlayer[i]);
-                        FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
                     }
 
                     FStatusOut[i] = NativeInterface.DX11Player_GetStatusMessage(FDX11NativePlayer[i]);
@@ -376,19 +378,21 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FIsReady[i] = true;
                     }
 
+                    string nextFile = "";
                     if (FFileLoadIn[i].Count() > 0)
                     {
                         for(int j=0;j<FNextFrameRenderIn[i].Count();j++) {
                             var nextFrameRenderIdx = FNextFrameRenderIn[i][j];
                             var prevFrameRender = FPrevFrameRendered[i][j];
                             var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FFileLoadIn[i].Count());
-                            var nextFile = FFileLoadIn[i][renderFrame];
+                            nextFile = FFileLoadIn[i][renderFrame];
                             if (prevFrameRender != nextFile)
                             {
                                 var handle = NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i], nextFile);
                                 if (handle != IntPtr.Zero)
                                 {
-                                    if (FSharedTextureCache[i].ContainsKey(handle) && FSharedTextureCache[i][handle].Contains(context))
+                                    if (FSharedTextureCache[i].ContainsKey(handle) &&
+                                        FSharedTextureCache[i][handle].Contains(context))
                                     {
                                         FTextureOut[i][j] = FSharedTextureCache[i][handle];
                                     }
@@ -408,7 +412,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                                         FSharedTextureCache[i][handle][context] = resource;
                                         FTextureOut[i][j] = this.FSharedTextureCache[i][handle];
                                     }
-                                    FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width, FTextureOut[i][j][context].Height);
+                                    FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width,
+                                        FTextureOut[i][j][context].Height);
                                     FFormatOut[i] = FTextureOut[i][j][context].Format;
                                     FGotFirstFrameOut[i] = true;
                                     FPrevFrameRendered[i][j] = nextFile;
@@ -417,6 +422,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                         }
                     }
 
+                    FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
+                    FGotRequestedFrameOut[i] = nextFile == FRenderFrameOut[i];
                     NativeInterface.DX11Player_Update(FDX11NativePlayer[i]);
 
                     if (this.FIsReady[i])
@@ -433,6 +440,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                             OutputDebugString("Destroying player number of files to load has changed");
                         }
                         FPrevFrames[i] = FFileLoadIn[i].Clone();
+                        FLoadFrameOut[i] = NativeInterface.DX11Player_GetCurrentLoadFrame(FDX11NativePlayer[i]);
                     }
                 }
             }
