@@ -25,8 +25,8 @@ namespace VVVV.Nodes.DX11PlayerNode
         FirstFrame,
         Error = -1
     };
-    [PluginInfo(Name = "Player", Category = "DX11.Texture")]
-    public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceProvider, IDisposable
+    [PluginInfo(Name = "Player", Category = "DX11.Texture", Author = "NSYNK GmbH")]
+    public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceHost, IDisposable
     {
         
 
@@ -339,7 +339,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         }
 
-        public void Update(IPluginIO pin, DX11RenderContext context)
+        public void Update(DX11RenderContext context)
         {
             if (FRefreshTextures)
             {
@@ -446,7 +446,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
         }
 
-        public void Destroy(IPluginIO pin, DX11RenderContext context, bool force)
+        public void Destroy(DX11RenderContext context, bool force)
         {
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
