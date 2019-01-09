@@ -17,3 +17,7 @@ Build with configuration `Release` and copy `build\Release\nsynk` into your
 - FeralTic.dll
 - VVV.DX11.Core.dll
 - VVV.DX11.Lib.dll
+
+### Example
+1. Extract `data\bick_buck_bunny.7z` to `data\bick_buck_bunny`
+2. Open `patches/nsynk.player.example.v4p`
