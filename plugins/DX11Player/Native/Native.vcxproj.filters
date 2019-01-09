@@ -21,7 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
     <Text Include="..\Shaders\HeadersPixelS.hlsl">
       <Filter>Shaders</Filter>
     </Text>

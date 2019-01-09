@@ -73,6 +73,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.lib</TargetExt>
+    <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -80,7 +81,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.dll</TargetExt>
-    <OutDir>$(SolutionDir)bin\$(Configuration)\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\nsynk\vvvv.nodes.player\$(Platform)\</OutDir>
     <TargetName>DX11PlayerNative</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -147,9 +148,6 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blockingconcurrentqueue.h" />
     <ClInclude Include="Channel.h" />
@@ -459,9 +457,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ObjectFileOutput>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
