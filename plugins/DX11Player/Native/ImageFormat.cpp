@@ -107,7 +107,8 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 			copytype = DiskToRam;
 		}
 		OutputDebugStringA(("width: " + std::to_string(mdata.width) + " pitch " + std::to_string(mdata.rowPitch) + "\n").c_str());
-	}else if(extension == ".tga"){
+	}
+	else if(extension == ".tga"){
 		TGA_HEADER header;
 		std::fstream tgafile(imageFile, std::fstream::in | std::fstream::binary);
 		tgafile.read((char*)&header, sizeof(TGA_HEADER));
@@ -175,7 +176,8 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		}
 		bytes_data = row_pitch * header.height;
 		depth = 8;
-	}else if(extension == ".dpx"){
+	}
+	else if(extension == ".dpx"){
 		dpx::Header header;
 		InStream stream;
 		stream.Open(imageFile.c_str());
@@ -374,7 +376,8 @@ ImageFormat::ImageFormat(const std::string & imageFile)
 		}
 		data_offset = header.DataOffset(0);
 		bytes_data = row_pitch * h;
-	}else{
+	}
+	else{
 		throw std::exception(("format " + extension + " not suported").c_str());
 	}
 		
