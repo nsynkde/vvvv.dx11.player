@@ -43,7 +43,7 @@
    </PIN>
    <PIN pinname="String Type" slicecount="1" values="Directory">
    </PIN>
-   <PIN pinname="Descriptive Name" slicecount="1" values="Directory">
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Input Directory|">
    </PIN>
    </NODE>
    <LINK srcnodeid="13" srcpinname="Output String" dstnodeid="15" dstpinname="Directory">
@@ -54,6 +54,8 @@
    <PIN pinname="Input" visible="1">
    </PIN>
    <PIN pinname="First Slice" visible="1">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="||">
    </PIN>
    </NODE>
    <NODE systemname="GetSpread (String)" nodename="GetSpread (String)" componentmode="Hidden" id="11">
@@ -108,28 +110,10 @@
    </LINK>
    <LINK srcnodeid="15" srcpinname="Filenames" dstnodeid="12" dstpinname="Input">
    </LINK>
-   <NODE systemname="Player (DX11.Texture)" filename="%VVVV%\packs\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="7">
-   <BOUNDS type="Node" left="5335" top="5575" width="100" height="100">
-   </BOUNDS>
-   <PIN pinname="dropped frames" visible="1">
-   </PIN>
-   <PIN pinname="texture" visible="1">
-   </PIN>
-   <PIN pinname="got requested frame" visible="1">
-   </PIN>
-   <PIN pinname="sizeXY" visible="1">
-   </PIN>
-   <PIN pinname="format file" visible="1" slicecount="1" values="..\..\Downloads\BBB-360-png\tga\big_buck_bunny_00001.tga">
-   </PIN>
-   <PIN pinname="always show last frame" slicecount="1" values="0">
-   </PIN>
-   </NODE>
-   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="7" dstpinname="load files">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="6" systemname="IOBox (Value Advanced)">
-   <BOUNDS type="Box" left="6735" top="6845" width="800" height="240">
+   <BOUNDS type="Box" left="6765" top="6785" width="800" height="240">
    </BOUNDS>
-   <BOUNDS type="Node" left="6735" top="6845" width="0" height="0">
+   <BOUNDS type="Node" left="6765" top="6785" width="0" height="0">
    </BOUNDS>
    <PIN pinname="Units" slicecount="1" values="||">
    </PIN>
@@ -137,15 +121,15 @@
    </PIN>
    <PIN pinname="Value Type" slicecount="1" values="Integer">
    </PIN>
-   <PIN pinname="Descriptive Name" slicecount="1" values="|dropped frames|">
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Number of dropped frames|">
+   </PIN>
+   <PIN pinname="Y Input Value" visible="1" slicecount="1" values="0">
    </PIN>
    </NODE>
-   <LINK srcnodeid="7" srcpinname="dropped frames" dstnodeid="6" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="5" systemname="IOBox (Value Advanced)">
-   <BOUNDS type="Box" left="7515" top="6135" width="300" height="240">
+   <BOUNDS type="Box" left="7530" top="6195" width="300" height="240">
    </BOUNDS>
-   <BOUNDS type="Node" left="7515" top="6135" width="0" height="0">
+   <BOUNDS type="Node" left="7530" top="6195" width="0" height="0">
    </BOUNDS>
    <PIN pinname="Units" slicecount="1" values="||">
    </PIN>
@@ -157,9 +141,9 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|got requested frame|">
    </PIN>
+   <PIN pinname="Y Input Value" visible="1" slicecount="1" values="0">
+   </PIN>
    </NODE>
-   <LINK srcnodeid="7" srcpinname="got requested frame" dstnodeid="5" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="4" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="5815" top="6115" width="800" height="480">
    </BOUNDS>
@@ -173,11 +157,11 @@
    </PIN>
    <PIN pinname="Rows" slicecount="1" values="2">
    </PIN>
-   <PIN pinname="Descriptive Name" slicecount="1" values="sizeXY">
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Texture resolution|">
+   </PIN>
+   <PIN pinname="Y Input Value" visible="1" slicecount="1" values="0">
    </PIN>
    </NODE>
-   <LINK srcnodeid="7" srcpinname="sizeXY" dstnodeid="4" dstpinname="Y Input Value">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="2" systemname="IOBox (Value Advanced)">
    <BOUNDS type="Box" left="7175" top="4420" width="1110" height="240">
    </BOUNDS>
@@ -235,11 +219,9 @@
    </BOUNDS>
    <PIN pinname="Layer" visible="1">
    </PIN>
-   <PIN pinname="Texture" visible="1">
+   <PIN pinname="Texture" visible="1" slicecount="1" values="||">
    </PIN>
    </NODE>
-   <LINK srcnodeid="7" srcpinname="texture" dstnodeid="22" dstpinname="Texture">
-   </LINK>
    <LINK srcnodeid="22" srcpinname="Layer" dstnodeid="19" dstpinname="Layer 1">
    </LINK>
    <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="23">
@@ -256,6 +238,34 @@
    <PIN pinname="String Type" slicecount="1" values="MultiLine">
    </PIN>
    </NODE>
-   <LINK srcnodeid="12" srcpinname="First Slice" dstnodeid="7" dstpinname="format file">
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\Release\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="24">
+   <BOUNDS type="Node" left="5355" top="5505" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="5355" top="5505" width="3000" height="3000">
+   </BOUNDS>
+   <PIN pinname="Format file" visible="1">
+   </PIN>
+   <PIN pinname="Load files" visible="1">
+   </PIN>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="ResolutionXY" visible="1">
+   </PIN>
+   <PIN pinname="Got requested frame" visible="1">
+   </PIN>
+   <PIN pinname="Number of dropped frames" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="12" srcpinname="First Slice" dstnodeid="24" dstpinname="Format file">
+   </LINK>
+   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="24" dstpinname="Load files">
+   </LINK>
+   <LINK srcnodeid="24" srcpinname="Texture" dstnodeid="22" dstpinname="Texture">
+   </LINK>
+   <LINK srcnodeid="24" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="24" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="24" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
    </LINK>
    </PATCH>
