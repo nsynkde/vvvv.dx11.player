@@ -25,11 +25,11 @@ namespace VVVV.Nodes.DX11PlayerNode
         FirstFrame,
         Error = -1
     };
-    [PluginInfo(Name = "Player", Category = "DX11.Texture", Author = "NSYNK GmbH")]
+    [PluginInfo(Name     = "Player",
+                Category = "DX11.Texture",
+                Author   = "NSYNK GmbH")]
     public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceHost, IDisposable
     {
-        
-
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
 
@@ -52,7 +52,10 @@ namespace VVVV.Nodes.DX11PlayerNode
                 UriBuilder uri = new UriBuilder(codeBase);
                 string path = Uri.UnescapeDataString(uri.Path);
                 string pluginfolder = Path.GetDirectoryName(path);
-                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_USER_DIRS | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_SYSTEM32);
+                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR |
+                                         LOAD_LIBRARY_SEARCH_USER_DIRS |
+                                         LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
+                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
                 AddDllDirectory(pluginfolder);
                 IntPtr check64 = (IntPtr)0;
                 if (System.Runtime.InteropServices.Marshal.SizeOf(check64) == sizeof(Int64))
@@ -74,58 +77,58 @@ namespace VVVV.Nodes.DX11PlayerNode
         }
 
 #pragma warning disable 0649
-        [Input("format file", StringType = StringType.Filename)]
+        [Input("Format file", StringType = StringType.Filename)]
         public IDiffSpread<string> FFormatFile;
 
-        [Input("load files")]
+        [Input("Load files")]
         public IDiffSpread<ISpread<string>> FFileLoadIn;
 
-        [Input("frame render idx")]
+        [Input("Frame render index")]
         public IDiffSpread<ISpread<int>> FNextFrameRenderIn;
 
-        [Input("always show last frame")]
+        [Input("Always show last frame")]
         public IDiffSpread<bool> FAlwaysShowLastIn;
 
-        [Output("status")]
+        [Output("Status")]
         public ISpread<string> FStatusOut;
 
-        [Output("texture")]
+        [Output("Texture")]
         public ISpread<ISpread<DX11Resource<DX11Texture2D>>> FTextureOut;
 
-        [Output("size")]
+        [Output("Resolution")]
         public ISpread<Vector2D> FSizeOut;
 
-        [Output("tex format")]
+        [Output("Texture format")]
         public ISpread<Format> FFormatOut;
 
-        [Output("upload buffer size")]
+        [Output("Upload buffer size")]
         public ISpread<int> FUploadSizeOut;
 
-        [Output("wait buffer size")]
+        [Output("Wait buffer size")]
         public ISpread<int> FWaitSizeOut;
 
-        [Output("render buffer size")]
+        [Output("Render buffer size")]
         public ISpread<int> FRenderSizeOut;
 
-        [Output("present buffer size")]
+        [Output("Present buffer size")]
         public ISpread<int> FPresentSizeOut;
 
-        [Output("dropped frames")]
+        [Output("Number of dropped frames")]
         public ISpread<int> FDroppedFramesOut;
 
-        [Output("avg load duration ms")]
+        [Output("Average load duration ms")]
         public ISpread<int> FAvgLoadDurationMsOut;
 
-        [Output("is ready")]
+        [Output("Ready state")]
         public ISpread<bool> FGotFirstFrameOut;
 
-        [Output("load frame")]
+        [Output("Load frame")]
         public ISpread<string> FLoadFrameOut;
 
-        [Output("render frame")]
+        [Output("Render frame")]
         public ISpread<string> FRenderFrameOut;
 
-        [Output("got requested frame")]
+        [Output("Got requested frame")]
         public ISpread<bool> FGotRequestedFrameOut;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
