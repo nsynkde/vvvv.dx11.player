@@ -80,6 +80,9 @@ namespace VVVV.Nodes.DX11PlayerNode
         [Input("Format file", StringType = StringType.Filename)]
         public IDiffSpread<string> FFormatFile;
 
+        [Input("Enabled")]
+        public IDiffSpread<bool> FEnabled;
+
         [Input("Load files")]
         public IDiffSpread<ISpread<string>> FFileLoadIn;
 
@@ -480,9 +483,11 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
                     FDX11NativePlayer[i] = IntPtr.Zero;
-                    foreach(var tex in FSharedTextureCache[i]){
-                        tex.Value.Dispose();
-                        FSharedTextureCache[i].Remove(tex.Key);
+                    for(int t = 0; t < FSharedTextureCache[i].Count; t++)
+                    {
+                        KeyValuePair<IntPtr, DX11Resource<DX11Texture2D>> texture = FSharedTextureCache[i].ElementAt(t);
+                        texture.Value.Dispose();
+                        FSharedTextureCache[i].Remove(texture.Key);
                     }
                     //this.FTextureOut[i].Dispose();
                     this.FIsReady[i] = false;
