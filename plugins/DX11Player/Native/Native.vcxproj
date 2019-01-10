@@ -73,7 +73,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.lib</TargetExt>
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)</OutDir>
+    <OutDir>$(SolutionDir)build\nsynk\vvvv.player\$(Platform)</OutDir>
+    <TargetName>DX11PlayerNative</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -81,7 +82,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.dll</TargetExt>
-    <OutDir>$(SolutionDir)build\$(Configuration)\nsynk\vvvv.nodes.player\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\nsynk\vvvv.player\$(Platform)\</OutDir>
     <TargetName>DX11PlayerNative</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
