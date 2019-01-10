@@ -456,7 +456,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         {
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
-                foreach (var handle in this.FSharedTextureCache[i])
+                foreach (var handle in this.FSharedTextureCache[i].ToList())
                 {
                     if (handle.Value.Contains(context))
                     {
@@ -483,13 +483,11 @@ namespace VVVV.Nodes.DX11PlayerNode
                 {
                     NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
                     FDX11NativePlayer[i] = IntPtr.Zero;
-                    for(int t = 0; t < FSharedTextureCache[i].Count; t++)
+                    foreach(var texture in FSharedTextureCache[i].ToList())
                     {
-                        KeyValuePair<IntPtr, DX11Resource<DX11Texture2D>> texture = FSharedTextureCache[i].ElementAt(t);
                         texture.Value.Dispose();
                         FSharedTextureCache[i].Remove(texture.Key);
                     }
-                    //this.FTextureOut[i].Dispose();
                     this.FIsReady[i] = false;
                     this.FGotFirstFrameOut[i] = false;
                 }
