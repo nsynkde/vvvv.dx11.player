@@ -8,6 +8,10 @@ Supports image sequence streaming from disk to GPU. Supported file formats are:
 ### Building
 Open `DX11Player.sln` from `plugins/DX11Player` and build the solution file.
 
+### Debugging
+For debugging the example patch, build the `Native` project with `Release`
+configuration first, then run the `DX11Player` project in Debug mode.
+
 ### Installation
 Build with configuration `Release` and copy `build\Release\nsynk` into your
 `%VVVV%/packs` directory.
