@@ -28,7 +28,6 @@ namespace VVVV.Nodes.DX11PlayerNode
     [PluginInfo(Name     = "Player",
                 Category = "DX11.Texture",
                 Author   = "NSYNK GmbH")]
-    public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceHost, IDisposable
     public class DX11PlayerNode : 
         IPluginEvaluate, 
         IDX11ResourceHost, 
@@ -78,15 +77,11 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 OutputDebugString("Error adding dll search path" + e.StackTrace);
             }
-
         }
 
 #pragma warning disable 0649
         [Input("Format file", StringType = StringType.Filename)]
         public IDiffSpread<string> FFormatFile;
-
-        [Input("Enabled")]
-        public IDiffSpread<bool> FEnabled;
 
         [Input("Load files")]
         public IDiffSpread<ISpread<string>> FFileLoadIn;
@@ -189,14 +184,22 @@ namespace VVVV.Nodes.DX11PlayerNode
                             tex.Value.Dispose();
                         }
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        FLogger.Log(LogType.Error, "Exception: ", e.Message);
                     }
                 }
                 FSharedTextureCache[i].Clear();
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                FLogger.Log(LogType.Error, "Exception", e.Message);
+            }
+
+            if (FDX11NativePlayer[i] != IntPtr.Zero)
+            {
+                NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
+                FDX11NativePlayer[i] = IntPtr.Zero;
             }
 
             FIsReady[i] = false;
@@ -219,7 +222,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                 var NumSpreads = Math.Max(FFormatFile.SliceCount, 1);
                 if (FPrevNumSpreads != NumSpreads)
                 {
-                    FLogger.Log(LogType.Message, "setting spreads to " + NumSpreads);
+                    FLogger.Log(LogType.Message, "Evaluate: Setting spreads to " + NumSpreads);
                     FRefreshTextures = true;
                     FDX11NativePlayer.SliceCount = NumSpreads;
                     FStatusOut.SliceCount = NumSpreads;
@@ -247,7 +250,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                     {
                         FPrevFrames[i] = new Spread<string>();
                         FPrevFrameRendered[i] = new Spread<string>();
-                        OutputDebugString("Destroying player numspreads changed");
+                        OutputDebugString("Evaluate: Destroying player - number of spreads changed");
                         DestroyPlayer(i);
                         FSharedTextureCache[i] = new Dictionary<IntPtr,DX11Resource<DX11Texture2D>>();
                         FIsReady[i] = false;
@@ -260,7 +263,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                 FLogger.Log(LogType.Error, e.StackTrace);
                 throw e;
             }
-            
+
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
@@ -274,12 +277,11 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
                         FAvgLoadDurationMsOut[i] = (int)(((double)FAvgLoadDurationMsOut[i]) * 0.9 + ((double)NativeInterface.DX11Player_GetAvgLoadDurationMs(FDX11NativePlayer[i])) * 0.1);
                     }
-
                     FStatusOut[i] = NativeInterface.DX11Player_GetStatusMessage(FDX11NativePlayer[i]);
                 }
                 else
                 {
-                    FStatusOut[i] = "Not set";
+                    //FStatusOut[i] = "Not set";
                 }
             }
             
@@ -392,7 +394,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                     string nextFile = "";
                     if (FFileLoadIn[i].Count() > 0)
                     {
-                        for(int j=0;j<FNextFrameRenderIn[i].Count();j++) {
+                        for(int j=0; j < FNextFrameRenderIn[i].Count(); j++)
+                        {
                             var nextFrameRenderIdx = FNextFrameRenderIn[i][j];
                             var prevFrameRender = FPrevFrameRendered[i][j];
                             var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FFileLoadIn[i].Count());
@@ -481,7 +484,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         public void Dispose()
         {
-            OutputDebugString("Disposing DX11Player plugin");
+            OutputDebugString("Dispose: Disposing DX11Player plugin");
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
@@ -580,7 +583,6 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         [DllImport("DX11PlayerNative.dll")]
         internal static extern void DX11Player_SetAlwaysShowLastFrame(IntPtr player, bool always);
-
 
         [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
         internal static extern bool DX11Player_IsSameFormat(string formatFile1, string formatFile2);
