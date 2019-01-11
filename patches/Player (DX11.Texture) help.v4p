@@ -1,0 +1,287 @@
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50beta38.1.dtd" >
+   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p" scrollx="435" scrolly="0" systemname="player (help)" filename="C:\nsynk-system\vvvv-packs\nodes\plugins\dx11-player\player (help).v4p">
+   <BOUNDS type="Window" left="23070" top="6435" width="11610" height="10260">
+   </BOUNDS>
+   <NODE systemname="Dir (File)" filename="" nodename="Dir (File)" componentmode="Hidden" id="2">
+   <BOUNDS type="Node" left="5165" top="1720" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Mask" visible="1">
+   </PIN>
+   <PIN pinname="Directory" visible="1">
+   </PIN>
+   <PIN pinname="Filenames" visible="1">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="3" systemname="IOBox (String)">
+   <BOUNDS type="Box" left="5005" top="1160" width="300" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="5005" top="1160" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Input String" slicecount="1" visible="1" values="*.*">
+   </PIN>
+   <PIN pinname="Default" slicecount="1" values="*.*">
+   </PIN>
+   <PIN pinname="File Mask" slicecount="1" values="*.*">
+   </PIN>
+   <PIN pinname="Maximum Characters" slicecount="1" values="-1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="3" srcpinname="Output String" dstnodeid="2" dstpinname="Mask">
+   </LINK>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="4" systemname="IOBox (String)">
+   <BOUNDS type="Box" left="5325" top="700" width="800" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="5325" top="700" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Input String" slicecount="1" visible="1" values="..\data\bick_buck_bunny">
+   </PIN>
+   <PIN pinname="Default" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="File Mask" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Maximum Characters" slicecount="1" values="-1">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="Directory">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="Directory">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="4" srcpinname="Output String" dstnodeid="2" dstpinname="Directory">
+   </LINK>
+   <NODE systemname="CAR (String)" nodename="CAR (String)" componentmode="Hidden" id="5">
+   <BOUNDS type="Node" left="4695" top="2475" width="465" height="270">
+   </BOUNDS>
+   <PIN pinname="Input" visible="1">
+   </PIN>
+   <PIN pinname="First Slice" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="GetSpread (String)" nodename="GetSpread (String)" componentmode="Hidden" id="6">
+   <BOUNDS type="Node" left="4830" top="3670" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Input" visible="1">
+   </PIN>
+   <PIN pinname="Count" slicecount="1" visible="1" values="8">
+   </PIN>
+   <PIN pinname="Offset" visible="1">
+   </PIN>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="2" srcpinname="Filenames" dstnodeid="6" dstpinname="Input" linkstyle="Bezier">
+   <LINKPOINT x="5175" y="2835">
+   </LINKPOINT>
+   <LINKPOINT x="4860" y="2835">
+   </LINKPOINT>
+   </LINK>
+   <NODE systemname="LFO (Animation)" nodename="LFO (Animation)" componentmode="Hidden" id="7">
+   <BOUNDS type="Node" left="5045" top="3110" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Period" visible="1">
+   </PIN>
+   <PIN pinname="Cycles" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Divide (Value)" nodename="Divide (Value)" componentmode="Hidden" id="8">
+   <BOUNDS type="Node" left="6845" top="2250" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Input 2" visible="1">
+   </PIN>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="9" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="7040" top="1020" width="800" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="7040" top="1020" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="20">
+   </PIN>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="fps">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="9" srcpinname="Y Output Value" dstnodeid="8" dstpinname="Input 2">
+   </LINK>
+   <LINK srcnodeid="8" srcpinname="Output" dstnodeid="7" dstpinname="Period">
+   </LINK>
+   <LINK srcnodeid="7" srcpinname="Cycles" dstnodeid="6" dstpinname="Offset">
+   </LINK>
+   <LINK srcnodeid="2" srcpinname="Filenames" dstnodeid="5" dstpinname="Input">
+   </LINK>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="16" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="5805" top="5370" width="800" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="5805" top="5370" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|dropped frames|">
+   </PIN>
+   <PIN pinname="Y Input Value" visible="1">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="17" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="6585" top="4660" width="300" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="6585" top="4660" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Boolean">
+   </PIN>
+   <PIN pinname="Behavior" slicecount="1" values="Toggle">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|got requested frame|">
+   </PIN>
+   <PIN pinname="Y Input Value" visible="1">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="18" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="4855" top="4640" width="800" height="480">
+   </BOUNDS>
+   <BOUNDS type="Node" left="4855" top="4640" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Vector Size" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="Rows" slicecount="1" values="2">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="sizeXY">
+   </PIN>
+   <PIN pinname="Y Input Value" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Preview (DX11.Texture)" filename="%VVVV%\packs\dx11\nodes\plugins\VVVV.DX11.Nodes.dll" nodename="Preview (DX11.Texture)" componentmode="InABox" id="19">
+   <BOUNDS type="Node" left="1395" top="5980" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="1395" top="5980" width="4000" height="3000">
+   </BOUNDS>
+   <BOUNDS type="Window" left="19010" top="17560" width="4220" height="3560">
+   </BOUNDS>
+   <PIN pinname="Texture In" visible="1" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Enabled" slicecount="1" values="0">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="20" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="5975" top="3350" width="300" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="5975" top="3350" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="8">
+   </PIN>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="Count">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="20" srcpinname="Y Output Value" dstnodeid="6" dstpinname="Count">
+   </LINK>
+   <PACK Name="addonpack" Version="38.1.0">
+   </PACK>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="21">
+   <BOUNDS type="Node" left="995" top="610" width="970" height="230">
+   </BOUNDS>
+   <BOUNDS type="Box" left="995" top="610" width="2160" height="560">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="Player.DX11">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Rows" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="17">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="22">
+   <BOUNDS type="Node" left="1055" top="1140" width="1070" height="230">
+   </BOUNDS>
+   <BOUNDS type="Box" left="1055" top="1140" width="1070" height="230">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|NSYNK GmbH|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   </NODE>
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="13">
+   <BOUNDS type="Node" left="4395" top="4095" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="dropped frames" visible="1">
+   </PIN>
+   <PIN pinname="texture" visible="1">
+   </PIN>
+   <PIN pinname="got requested frame" visible="1">
+   </PIN>
+   <PIN pinname="sizeXY" visible="1">
+   </PIN>
+   <PIN pinname="Load files" visible="1">
+   </PIN>
+   <PIN pinname="Format file" visible="1">
+   </PIN>
+   <PIN pinname="Texture" visible="1">
+   </PIN>
+   <PIN pinname="Got requested frame" visible="1">
+   </PIN>
+   <PIN pinname="Number of dropped frames" visible="1">
+   </PIN>
+   <PIN pinname="ResolutionXY" visible="1">
+   </PIN>
+   <BOUNDS type="Box" left="4395" top="4095">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="5" srcpinname="First Slice" dstnodeid="13" dstpinname="format file">
+   </LINK>
+   <LINK srcnodeid="6" srcpinname="Output" dstnodeid="13" dstpinname="load files">
+   </LINK>
+   <LINK srcnodeid="6" srcpinname="Output" dstnodeid="13" dstpinname="Load files">
+   </LINK>
+   <LINK srcnodeid="5" srcpinname="First Slice" dstnodeid="13" dstpinname="Format file">
+   </LINK>
+   <LINK srcnodeid="13" srcpinname="Texture" dstnodeid="19" dstpinname="Texture In">
+   </LINK>
+   <LINK srcnodeid="13" srcpinname="Got requested frame" dstnodeid="17" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="13" srcpinname="Number of dropped frames" dstnodeid="16" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="13" srcpinname="ResolutionXY" dstnodeid="18" dstpinname="Y Input Value">
+   </LINK>
+   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="24">
+   <BOUNDS type="Node" left="1140" top="1950" width="1995" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="1140" top="1950" width="2805" height="1035">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;- .TGA&cr;&lf;- .DPX up to 10bit per channel&cr;&lf;- BC1, BC3, BC5, BC6, BC7 als .DDS|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   </NODE>
+   </PATCH>
