@@ -29,6 +29,11 @@ namespace VVVV.Nodes.DX11PlayerNode
                 Category = "DX11.Texture",
                 Author   = "NSYNK GmbH")]
     public class DX11PlayerNode : IPluginEvaluate, IDX11ResourceHost, IDisposable
+    public class DX11PlayerNode : 
+        IPluginEvaluate, 
+        IDX11ResourceHost, 
+        IDisposable,
+        IPartImportsSatisfiedNotification
     {
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
@@ -493,11 +498,27 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
             }
         }
+
+        public void OnImportsSatisfied()
+        {
+            // Check existance of DX11NativePlayer.dll
+            try
+            {
+                NativeInterface.DX11Player_Available();
+            }
+            catch (System.DllNotFoundException e) {
+                FLogger.Log(LogType.Error, e.Message);
+                FStatusOut[0] = e.Message;
+            }
+        }
     }
 
 
     internal class NativeInterface
     {
+        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
+        internal static extern bool DX11Player_Available();
+
         [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
         internal static extern IntPtr DX11Player_Create(string formatFile, int ringBufferSize);
 

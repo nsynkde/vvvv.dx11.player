@@ -85,6 +85,8 @@ static DWORD NextMultiple(DWORD in, DWORD multiple){
 	return max(in / multiple*multiple, multiple);
 }
 
+DX11Player::DX11Player() {}
+
 DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	:m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
@@ -406,14 +408,21 @@ void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame){
 
 extern "C"{
 	typedef void * DX11HANDLE;
+	
+	NATIVE_API bool DX11Player_Available()
+	{
+		return new DX11Player();
+	}
+
 	NATIVE_API DX11HANDLE DX11Player_Create(const char * fileForFormat, int ringBufferSize)
 	{
-		return new DX11Player(fileForFormat,ringBufferSize);
+		return new DX11Player(fileForFormat, ringBufferSize);
 	}
 
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player)
 	{
-		delete static_cast<DX11Player*>(player);
+		auto ptr = static_cast<DX11Player*>(player);
+		delete ptr;
 	}
 
 	NATIVE_API void DX11Player_Update(DX11HANDLE player)
