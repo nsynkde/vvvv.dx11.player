@@ -33,7 +33,8 @@ namespace VVVV.Nodes.DX11PlayerNode
     public class DX11PlayerNode : 
         IPluginEvaluate, 
         IDX11ResourceHost, 
-        IDisposable
+        IDisposable,
+        IPartImportsSatisfiedNotification
     {
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
@@ -135,6 +136,9 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         [Output("Got requested frame")]
         public ISpread<bool> FGotRequestedFrameOut;
+
+        [Output("Version", Visibility = PinVisibility.Hidden, IsSingle = true)]
+        public ISpread<string> FVersion;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
         private Spread<string> FPrevFormatFile = new Spread<string>();
@@ -514,6 +518,15 @@ namespace VVVV.Nodes.DX11PlayerNode
                     this.FGotFirstFrameOut[i] = false;
                 }
             }
+        }
+
+        public void OnImportsSatisfied()
+        {
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            AssemblyInformationalVersionAttribute version = (AssemblyInformationalVersionAttribute) assembly
+                .GetCustomAttribute(typeof(AssemblyInformationalVersionAttribute));
+            var versionString = version.InformationalVersion;
+            FVersion[0] = versionString;
         }
     }
 

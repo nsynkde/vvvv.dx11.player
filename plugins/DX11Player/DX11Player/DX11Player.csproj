@@ -33,6 +33,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="DX11PlayerNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -897,6 +900,6 @@
   <Import Project="packages\VVVV.PluginInterfaces.38.1.0\build\net46\VVVV.PluginInterfaces.targets" Condition="Exists('packages\VVVV.PluginInterfaces.38.1.0\build\net46\VVVV.PluginInterfaces.targets')" />
   <Import Project="packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets" Condition="Exists('packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets')" />
   <PropertyGroup>
-    <PreBuildEvent>"C:\Program Files\Git\bin\git.exe" describe --long &gt; "$(ProjectDir)\version.txt"</PreBuildEvent>
+    <PreBuildEvent>$(SolutionDir)gitcommit.sh</PreBuildEvent>
   </PropertyGroup>
 </Project>
