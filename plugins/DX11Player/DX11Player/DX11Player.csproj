@@ -36,7 +36,6 @@
   <ItemGroup>
     <Compile Include="DX11PlayerNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="WorkerThread.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FeralTic, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
@@ -897,4 +896,7 @@
   </Target>
   <Import Project="packages\VVVV.PluginInterfaces.38.1.0\build\net46\VVVV.PluginInterfaces.targets" Condition="Exists('packages\VVVV.PluginInterfaces.38.1.0\build\net46\VVVV.PluginInterfaces.targets')" />
   <Import Project="packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets" Condition="Exists('packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets')" />
+  <PropertyGroup>
+    <PreBuildEvent>"C:\Program Files\Git\bin\git.exe" describe --long &gt; "$(ProjectDir)\version.txt"</PreBuildEvent>
+  </PropertyGroup>
 </Project>

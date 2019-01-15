@@ -139,7 +139,6 @@ namespace VVVV.Nodes.DX11PlayerNode
         private Spread<int> FPrevRenderFrameIdxCount = new Spread<int>();
         private Spread<ISpread<string>> FPrevFrameRendered = new Spread<ISpread<string>>();
         private Spread<bool> FIsReady = new Spread<bool>();
-        private WorkerThread FWorkerThread = new WorkerThread();
         private Spread<ISpread<string>> FPrevFrames = new Spread<ISpread<string>>();
         private Spread<int> FPrevRenderFrames = new Spread<int>();
         private ISpread<Dictionary<IntPtr, DX11Resource<DX11Texture2D>>> FSharedTextureCache = new Spread<Dictionary<IntPtr, DX11Resource<DX11Texture2D>>>();
