@@ -37,6 +37,7 @@ public:
 	DX11Player(const std::string & fileForFormat, size_t ring_buffer_size);
 	~DX11Player();
 	void Update();
+  void Cleanup();
 	HANDLE GetSharedHandle(const std::string & nextFrame);
 	int GetUploadBufferSize() const;
 	int GetWaitBufferSize() const;

@@ -230,7 +230,11 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	});
 }
 
-DX11Player::~DX11Player(){
+DX11Player::~DX11Player() {
+  Cleanup();
+}
+
+void DX11Player::Cleanup() {
 	m_WaiterThreadRunning = false;
 	m_UploaderThreadRunning = false;
 	m_ReadyToUpload.close();
@@ -296,7 +300,7 @@ void DX11Player::Update(){
 void DX11Player::ChangeStatus(Status code, const std::string & status){
 	if(code!=m_StatusCode){
 		m_StatusCode = code;
-		//OutputDebugStringA(status.c_str());
+		OutputDebugStringA(status.c_str());
 	}
 	m_StatusDesc = status;
 }
@@ -323,7 +327,7 @@ HANDLE DX11Player::GetSharedHandle(const std::string & nextFrame){
 		return nullptr;
 	}	
 	auto next = m_WaitingToPresent.find(nextFrame);
-	if(next==m_WaitingToPresent.end()){
+	if(next==m_WaitingToPresent.end()) {
 		if (m_AlwaysShowLastFrame) {
 			next = m_WaitingToPresent.begin();
 			m_NextRenderFrame = next->second->SourcePath();
@@ -376,32 +380,36 @@ int DX11Player::GetAvgLoadDurationMs() const
 
 void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
 {
-	if (!IsReady()){
+	if (!IsReady()) {
 		auto str = "trying to send load frame  " + nextFrame + " before ready\n";
 		OutputDebugStringA(str.c_str());
 		return;
 	}
-	if (m_NextFrameChannel.size() <= m_RingBufferSize){
+	if (m_NextFrameChannel.size() <= m_RingBufferSize) {
 		m_NextFrameChannel.send(nextFrame);
-	}else{
+	} else {
 		m_DroppedFrames++;
 	}
 }
 
-void DX11Player::SetSystemFrames(std::vector<std::string> & frames){
+void DX11Player::SetSystemFrames(std::vector<std::string> & frames)
+{
 	std::lock_guard<std::mutex> lock(m_SystemFramesMutex);
 	std::swap(frames,m_SystemFrames);
 }
 
-bool DX11Player::IsReady() const{
+bool DX11Player::IsReady() const
+{
 	return m_UploaderThreadRunning && (m_StatusCode != Error);
 }
 
-bool DX11Player::GotFirstFrame() const{
+bool DX11Player::GotFirstFrame() const
+{
 	return m_GotFirstFrame && m_StatusCode!=Error;
 }
 
-void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame){
+void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame)
+{
 	m_AlwaysShowLastFrame = alwaysShowLastFrame;
 }
 
@@ -414,7 +422,7 @@ extern "C"{
 		return new DX11Player();
 	}
 
-	NATIVE_API DX11HANDLE DX11Player_Create(const char * fileForFormat, int ringBufferSize)
+	NATIVE_API DX11HANDLE DX11Player_Create(const char *fileForFormat, int ringBufferSize)
 	{
 		return new DX11Player(fileForFormat, ringBufferSize);
 	}
