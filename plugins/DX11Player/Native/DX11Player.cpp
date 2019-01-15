@@ -85,8 +85,6 @@ static DWORD NextMultiple(DWORD in, DWORD multiple){
 	return max(in / multiple*multiple, multiple);
 }
 
-DX11Player::DX11Player() {}
-
 DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	:m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
@@ -136,8 +134,7 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 		}
 
 		auto numbytesdata = (DWORD)format.bytes_data + format.data_offset;
-		OutputDebugStringA(("Num bytes to read from file:" + std::to_string(numbytesdata) + "\n").c_str())
-;
+		OutputDebugStringA(("Num bytes to read from file:" + std::to_string(numbytesdata) + "\n").c_str());
 		format = m_Context->GetFormat();
 
 		// init the ring buffer:
@@ -294,7 +291,6 @@ void DX11Player::Update(){
 			m_ReadyToUpload.send(lastFrame);
 		}
 	}
-
 }
 
 void DX11Player::ChangeStatus(Status code, const std::string & status){
@@ -414,14 +410,9 @@ void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame)
 }
 
 
-extern "C"{
+extern "C" {
 	typedef void * DX11HANDLE;
 	
-	NATIVE_API bool DX11Player_Available()
-	{
-		return new DX11Player();
-	}
-
 	NATIVE_API DX11HANDLE DX11Player_Create(const char *fileForFormat, int ringBufferSize)
 	{
 		return new DX11Player(fileForFormat, ringBufferSize);
@@ -429,8 +420,18 @@ extern "C"{
 
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player)
 	{
-		auto ptr = static_cast<DX11Player*>(player);
-		delete ptr;
+		// Catching exceptions here should be evaluated further
+		try {
+			if (player) {
+				auto ptr = static_cast<DX11Player*>(player);
+				ptr->Cleanup();
+        // FIX: explicitly delete the pointer object lead to crashes
+				//delete ptr; 
+			}
+		}
+		catch (const std::exception& e) {
+			OutputDebugStringA(e.what());
+		}
 	}
 
 	NATIVE_API void DX11Player_Update(DX11HANDLE player)
@@ -553,6 +554,7 @@ extern "C"{
 		}
 		catch (...) {
 			return false;
+
 		}
 	}
 }

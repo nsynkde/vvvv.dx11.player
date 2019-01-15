@@ -33,7 +33,6 @@ public:
 		Error = -1
 	};
 
-	DX11Player();
 	DX11Player(const std::string & fileForFormat, size_t ring_buffer_size);
 	~DX11Player();
 	void Update();

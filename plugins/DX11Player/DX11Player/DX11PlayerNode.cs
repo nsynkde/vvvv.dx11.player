@@ -25,14 +25,15 @@ namespace VVVV.Nodes.DX11PlayerNode
         FirstFrame,
         Error = -1
     };
+
     [PluginInfo(Name     = "Player",
                 Category = "DX11.Texture",
                 Author   = "NSYNK GmbH")]
+
     public class DX11PlayerNode : 
         IPluginEvaluate, 
         IDX11ResourceHost, 
-        IDisposable,
-        IPartImportsSatisfiedNotification
+        IDisposable
     {
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
@@ -44,9 +45,9 @@ namespace VVVV.Nodes.DX11PlayerNode
         private static extern bool SetDefaultDllDirectories(UInt32 DirectoryFlags);
 
         const UInt32 LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200;
-        const UInt32 LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400;
-        const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
-        const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800;
+        const UInt32 LOAD_LIBRARY_SEARCH_USER_DIRS       = 0x00000400;
+        const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS    = 0x00001000;
+        const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32        = 0x00000800;
 
         static DX11PlayerNode()
         {
@@ -61,7 +62,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                                          LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
                                          LOAD_LIBRARY_SEARCH_SYSTEM32);
                 AddDllDirectory(pluginfolder);
-                IntPtr check64 = (IntPtr)0;
+                IntPtr check64 = (IntPtr) 0;
+
                 if (System.Runtime.InteropServices.Marshal.SizeOf(check64) == sizeof(Int64))
                 {
                     pluginfolder = pluginfolder + "\\" + "x64\\";
@@ -171,7 +173,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                 NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
                 FDX11NativePlayer[i] = IntPtr.Zero;
             }
-
             try
             {
                 foreach (var tex in FSharedTextureCache[i])
@@ -194,7 +195,6 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 FLogger.Log(LogType.Error, "Exception", e.Message);
             }
-
             if (FDX11NativePlayer[i] != IntPtr.Zero)
             {
                 NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
@@ -259,8 +259,8 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
             catch (Exception e)
             {
-                FLogger.Log(LogType.Error, e.StackTrace);
-                throw e;
+                FLogger.Log(LogType.Error, e.ToString());
+                //throw e;
             }
 
             for (int i = 0; i < FDX11NativePlayer.SliceCount; i++)
@@ -395,49 +395,63 @@ namespace VVVV.Nodes.DX11PlayerNode
                     {
                         for(int j=0; j < FNextFrameRenderIn[i].Count(); j++)
                         {
-                            var nextFrameRenderIdx = FNextFrameRenderIn[i][j];
-                            var prevFrameRender = FPrevFrameRendered[i][j];
-                            var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FFileLoadIn[i].Count());
-                            nextFile = FFileLoadIn[i][renderFrame];
-                            if (prevFrameRender != nextFile)
+                            try
                             {
-                                var handle = NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i], nextFile);
-                                if (handle != IntPtr.Zero)
+                                var nextFrameRenderIdx = FNextFrameRenderIn[i][j];
+                                var prevFrameRender = FPrevFrameRendered[i][j];
+                                var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FFileLoadIn[i].Count());
+                                nextFile = FFileLoadIn[i][renderFrame];
+                                if (prevFrameRender != nextFile)
                                 {
-                                    if (FSharedTextureCache[i].ContainsKey(handle) &&
-                                        FSharedTextureCache[i][handle].Contains(context))
+                                    var handle = NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i], nextFile);
+                                    if (handle != IntPtr.Zero)
                                     {
-                                        FTextureOut[i][j] = FSharedTextureCache[i][handle];
-                                    }
-                                    else
-                                    {
-                                        Texture2D tex = context.Device.OpenSharedResource<Texture2D>(handle);
-                                        ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
-                                        DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
-                                        if (!FSharedTextureCache[i].ContainsKey(handle))
+                                        if (FSharedTextureCache[i].ContainsKey(handle) &&
+                                            FSharedTextureCache[i][handle].Contains(context))
                                         {
-                                            FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
+                                            FTextureOut[i][j] = FSharedTextureCache[i][handle];
                                         }
-                                        else if (FSharedTextureCache[i][handle].Contains(context))
+                                        else
                                         {
-                                            FSharedTextureCache[i][handle][context].Dispose();
+                                            Texture2D tex = context.Device.OpenSharedResource<Texture2D>(handle);
+                                            ShaderResourceView srv = new ShaderResourceView(context.Device, tex);
+                                            DX11Texture2D resource = DX11Texture2D.FromTextureAndSRV(context, tex, srv);
+                                            if (!FSharedTextureCache[i].ContainsKey(handle))
+                                            {
+                                                FSharedTextureCache[i][handle] = new DX11Resource<DX11Texture2D>();
+                                            }
+                                            else if (FSharedTextureCache[i][handle].Contains(context))
+                                            {
+                                                FSharedTextureCache[i][handle][context].Dispose();
+                                            }
+                                            FSharedTextureCache[i][handle][context] = resource;
+                                            FTextureOut[i][j] = this.FSharedTextureCache[i][handle];
                                         }
-                                        FSharedTextureCache[i][handle][context] = resource;
-                                        FTextureOut[i][j] = this.FSharedTextureCache[i][handle];
+                                        FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width,
+                                            FTextureOut[i][j][context].Height);
+                                        FFormatOut[i] = FTextureOut[i][j][context].Format;
+                                        FGotFirstFrameOut[i] = true;
+                                        FPrevFrameRendered[i][j] = nextFile;
                                     }
-                                    FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width,
-                                        FTextureOut[i][j][context].Height);
-                                    FFormatOut[i] = FTextureOut[i][j][context].Format;
-                                    FGotFirstFrameOut[i] = true;
-                                    FPrevFrameRendered[i][j] = nextFile;
                                 }
+                            }
+                            catch (Exception e)
+                            {
+                                FLogger.Log(LogType.Error, e.StackTrace);
                             }
                         }
                     }
 
-                    FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
-                    FGotRequestedFrameOut[i] = nextFile == FRenderFrameOut[i];
-                    NativeInterface.DX11Player_Update(FDX11NativePlayer[i]);
+                    try
+                    {
+                        FRenderFrameOut[i] = NativeInterface.DX11Player_GetCurrentRenderFrame(FDX11NativePlayer[i]);
+                        FGotRequestedFrameOut[i] = nextFile == FRenderFrameOut[i];
+                        NativeInterface.DX11Player_Update(FDX11NativePlayer[i]);
+                    }
+                    catch (Exception e)
+                    {
+                        FLogger.Log(LogType.Warning, e.Message);
+                    }
 
                     if (this.FIsReady[i])
                     {
@@ -488,7 +502,8 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 if (FDX11NativePlayer[i] != IntPtr.Zero)
                 {
-                    NativeInterface.DX11Player_Destroy(FDX11NativePlayer[i]);
+                    var player = FDX11NativePlayer[i];
+                    NativeInterface.DX11Player_Destroy(player);
                     FDX11NativePlayer[i] = IntPtr.Zero;
                     foreach(var texture in FSharedTextureCache[i].ToList())
                     {
@@ -500,27 +515,10 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
             }
         }
-
-        public void OnImportsSatisfied()
-        {
-            // Check existance of DX11NativePlayer.dll
-            try
-            {
-                NativeInterface.DX11Player_Available();
-            }
-            catch (System.DllNotFoundException e) {
-                FLogger.Log(LogType.Error, e.Message);
-                FStatusOut[0] = e.Message;
-            }
-        }
     }
-
 
     internal class NativeInterface
     {
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
-        internal static extern bool DX11Player_Available();
-
         [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
         internal static extern IntPtr DX11Player_Create(string formatFile, int ringBufferSize);
 
