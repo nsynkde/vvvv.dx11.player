@@ -9,8 +9,15 @@ Supports image sequence streaming from disk to GPU. Supported file formats are:
 Open `DX11Player.sln` from `plugins/DX11Player` and build the solution file.
 
 ### Debugging
-For debugging the example patch, build the `Native` project with `Release`
-configuration first, then run the `DX11Player` project in Debug mode.
+1. Open `DX11Player.sln`
+2. Rightclick `Properties` on the StartUp project (should be DX11Player)
+3. Choose `Debug`
+4. Select `Start external program` and select your `vvvv.exe`
+5. Under `Command line arguments`, use
+
+```/o PATH_TO_YOUR_EXAMPLE_PATCH```
+
+You might want to add `/showecxeptions true`, too
 
 ### Installation
 Build with configuration `Release` and copy `build\Release\nsynk` into your

@@ -1,5 +1,5 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50beta38.1.dtd" >
-   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.example.v4p" scrollx="60" scrolly="0" systemname="nsynk.player.example" filename="C:\Users\nsynk\git\vvvv.patches\nsynk.player.example.v4p">
+   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.simple-example.v4p" scrollx="60" scrolly="0" systemname="nsynk.player.example" filename="C:\Users\nsynk\git\vvvv.patches\nsynk.player.example.v4p">
    <BOUNDS type="Window" left="17055" top="3480" width="14310" height="15810">
    </BOUNDS>
    <NODE systemname="Dir (File)" filename="" nodename="Dir (File)" componentmode="Hidden" id="15">
@@ -113,7 +113,7 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|Number of dropped frames|">
    </PIN>
-   <PIN pinname="Y Input Value" visible="1" slicecount="1" values="0">
+   <PIN pinname="Y Input Value" visible="1" slicecount="1" values="271">
    </PIN>
    </NODE>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="5" systemname="IOBox (Value Advanced)">
@@ -149,7 +149,7 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|Texture resolution|">
    </PIN>
-   <PIN pinname="Y Input Value" visible="1" slicecount="2" values="0,0">
+   <PIN pinname="Y Input Value" visible="1" slicecount="2" values="640,360">
    </PIN>
    </NODE>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="2" systemname="IOBox (Value Advanced)">
@@ -157,7 +157,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="6965" top="5050" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="2">
+   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="8">
    </PIN>
    <PIN pinname="Units" slicecount="1" values="||">
    </PIN>
@@ -374,31 +374,31 @@
    <PIN pinname="String Type" slicecount="1" values="MultiLine">
    </PIN>
    </NODE>
-   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="79">
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="82">
    <BOUNDS type="Node" left="4920" top="6585" width="5610" height="270">
    </BOUNDS>
    <BOUNDS type="Box" left="4920" top="6585" width="3000" height="3000">
    </BOUNDS>
    </NODE>
-   <LINK srcnodeid="79" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
+   <LINK srcnodeid="82" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="79" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
+   <LINK srcnodeid="82" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="79" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
+   <LINK srcnodeid="82" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="79" srcpinname="Texture" dstnodeid="47" dstpinname="Texture">
+   <LINK srcnodeid="82" srcpinname="Texture" dstnodeid="47" dstpinname="Texture">
    </LINK>
-   <LINK srcnodeid="79" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
+   <LINK srcnodeid="82" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="79" dstpinname="Load files">
+   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="82" dstpinname="Load files">
    </LINK>
-   <LINK srcnodeid="71" srcpinname="Output" dstnodeid="79" dstpinname="Format file" linkstyle="Bezier">
+   <LINK srcnodeid="71" srcpinname="Output" dstnodeid="82" dstpinname="Format file" linkstyle="Bezier">
    <LINKPOINT x="3690" y="5835">
    </LINKPOINT>
    <LINKPOINT x="4920" y="5835">
    </LINKPOINT>
    </LINK>
-   <LINK srcnodeid="66" srcpinname="Y Output Value" dstnodeid="79" dstpinname="Frame render index" linkstyle="Bezier">
+   <LINK srcnodeid="66" srcpinname="Y Output Value" dstnodeid="82" dstpinname="Frame render index" linkstyle="Bezier">
    <LINKPOINT x="10905" y="4980">
    </LINKPOINT>
    <LINKPOINT x="8310" y="4980">

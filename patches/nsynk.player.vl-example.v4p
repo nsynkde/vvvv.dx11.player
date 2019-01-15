@@ -1,5 +1,5 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50beta38.1.dtd" >
-   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.example-vl.v4p" scrollx="0" scrolly="0" systemname="nsynk.player.example2+vl" filename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.example2+vl.v4p">
+   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.vl-example.v4p" scrollx="0" scrolly="0" systemname="nsynk.player.example2+vl" filename="C:\Users\nsynk\git\vvvv.player\patches\nsynk.player.example2+vl.v4p">
    <BOUNDS type="Window" left="16395" top="795" width="21285" height="20805">
    </BOUNDS>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="13" systemname="IOBox (String)">
@@ -27,7 +27,7 @@
    </PIN>
    </NODE>
    <NODE systemname="LFO (Animation)" nodename="LFO (Animation)" componentmode="Hidden" id="10">
-   <BOUNDS type="Node" left="3845" top="3865" width="100" height="100">
+   <BOUNDS type="Node" left="3245" top="3865" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Period" visible="1">
    </PIN>
@@ -39,7 +39,7 @@
    </PIN>
    </NODE>
    <NODE systemname="Divide (Value)" nodename="Divide (Value)" componentmode="Hidden" id="9">
-   <BOUNDS type="Node" left="3965" top="3440" width="100" height="100">
+   <BOUNDS type="Node" left="3365" top="3440" width="100" height="100">
    </BOUNDS>
    <PIN pinname="Input 2" visible="1">
    </PIN>
@@ -47,9 +47,9 @@
    </PIN>
    </NODE>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="8" systemname="IOBox (Value Advanced)">
-   <BOUNDS type="Box" left="4040" top="3005" width="795" height="240">
+   <BOUNDS type="Box" left="3440" top="3005" width="795" height="240">
    </BOUNDS>
-   <BOUNDS type="Node" left="4040" top="3005" width="0" height="0">
+   <BOUNDS type="Node" left="3440" top="3005" width="0" height="0">
    </BOUNDS>
    <PIN pinname="Y Input Value" slicecount="1" visible="1" values="30">
    </PIN>
@@ -298,12 +298,34 @@
    </NODE>
    <LINK srcnodeid="230" srcpinname="Output" dstnodeid="228" dstpinname="Playhead">
    </LINK>
-   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="233">
+   <NODE systemname="IOBox (Value Advanced)" nodename="IOBox (Value Advanced)" componentmode="InABox" id="236">
+   <BOUNDS type="Node" left="4620" top="2850" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="4620" top="2850" width="975" height="720">
+   </BOUNDS>
+   <PIN pinname="Value Type" slicecount="1" values="Integer">
+   </PIN>
+   <PIN pinname="Y Output Value" visible="1">
+   </PIN>
+   <PIN pinname="Vector Size" slicecount="1" values="3">
+   </PIN>
+   <PIN pinname="Rows" slicecount="1" values="3">
+   </PIN>
+   <PIN pinname="Y Input Value" slicecount="3" values="100,800,1000">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Frame render index|">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="10" srcpinname="Cycles" dstnodeid="230" dstpinname="Input 1">
+   </LINK>
+   <LINK srcnodeid="236" srcpinname="Y Output Value" dstnodeid="230" dstpinname="Input 2">
+   </LINK>
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="233">
    <BOUNDS type="Node" left="3015" top="6360" width="2880" height="270">
    </BOUNDS>
    <BOUNDS type="Box" left="3015" top="6360" width="3000" height="3000">
    </BOUNDS>
-   <PIN pinname="Frame render index" visible="1">
+   <PIN pinname="Frame render index" visible="1" slicecount="3" values="100,800,1000">
    </PIN>
    </NODE>
    <LINK srcnodeid="233" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
@@ -323,29 +345,5 @@
    <LINK srcnodeid="228" srcpinname="PreloadFiles" dstnodeid="233" dstpinname="Load files">
    </LINK>
    <LINK srcnodeid="228" srcpinname="PreloadFiles Bin Size" dstnodeid="233" dstpinname="Load files Bin Size">
-   </LINK>
-   <NODE systemname="IOBox (Value Advanced)" nodename="IOBox (Value Advanced)" componentmode="InABox" id="236">
-   <BOUNDS type="Node" left="7485" top="3735" width="100" height="100">
-   </BOUNDS>
-   <BOUNDS type="Box" left="7485" top="3735" width="975" height="720">
-   </BOUNDS>
-   <PIN pinname="Value Type" slicecount="1" values="Integer">
-   </PIN>
-   <PIN pinname="Y Output Value" visible="1">
-   </PIN>
-   <PIN pinname="Vector Size" slicecount="1" values="3">
-   </PIN>
-   <PIN pinname="Rows" slicecount="1" values="3">
-   </PIN>
-   <PIN pinname="Y Input Value" slicecount="3" values="100,800,1000">
-   </PIN>
-   <PIN pinname="Descriptive Name" slicecount="1" values="|Frame render index|">
-   </PIN>
-   </NODE>
-   <LINK srcnodeid="236" srcpinname="Y Output Value" dstnodeid="233" dstpinname="Frame render index">
-   </LINK>
-   <LINK srcnodeid="10" srcpinname="Cycles" dstnodeid="230" dstpinname="Input 1">
-   </LINK>
-   <LINK srcnodeid="236" srcpinname="Y Output Value" dstnodeid="230" dstpinname="Input 2">
    </LINK>
    </PATCH>
