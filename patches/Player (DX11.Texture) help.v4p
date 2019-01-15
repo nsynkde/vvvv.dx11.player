@@ -1,6 +1,6 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50beta38.1.dtd" >
    <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p" scrollx="435" scrolly="0" systemname="player (help)" filename="C:\nsynk-system\vvvv-packs\nodes\plugins\dx11-player\player (help).v4p">
-   <BOUNDS type="Window" left="23070" top="6435" width="11610" height="10260">
+   <BOUNDS type="Window" left="23505" top="5835" width="11610" height="10260">
    </BOUNDS>
    <NODE systemname="Dir (File)" filename="" nodename="Dir (File)" componentmode="Hidden" id="2">
    <BOUNDS type="Node" left="5165" top="1720" width="100" height="100">
@@ -271,11 +271,11 @@
    <LINK srcnodeid="13" srcpinname="ResolutionXY" dstnodeid="18" dstpinname="Y Input Value">
    </LINK>
    <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="24">
-   <BOUNDS type="Node" left="1140" top="1950" width="1995" height="270">
+   <BOUNDS type="Node" left="1080" top="1560" width="1995" height="270">
    </BOUNDS>
-   <BOUNDS type="Box" left="1140" top="1950" width="2805" height="1035">
+   <BOUNDS type="Box" left="1080" top="1560" width="3060" height="1005">
    </BOUNDS>
-   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;- .TGA&cr;&lf;- .DPX up to 10bit per channel&cr;&lf;- BC1, BC3, BC5, BC6, BC7 als .DDS|">
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;- .TGA&cr;&lf;- .DPX up to 10bit per channel&cr;&lf;- BC1, BC3, BC5, BC6, BC7 in .DDS format|">
    </PIN>
    <PIN pinname="Output String" visible="0">
    </PIN>
