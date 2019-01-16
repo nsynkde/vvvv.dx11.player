@@ -23,7 +23,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="6180" top="1785" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="5" visible="1" values="..\data\big_buck_bunny,..\data\big_buck_bunny,..\data\big_buck_bunny,..\data\big_buck_bunny,..\data\big_buck_bunny">
+   <PIN pinname="Input String" slicecount="5" visible="1" values="data\big_buck_bunny,data\big_buck_bunny,data\big_buck_bunny,data\big_buck_bunny,data\big_buck_bunny">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>

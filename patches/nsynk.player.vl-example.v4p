@@ -7,7 +7,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="3015" top="1425" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="3" visible="1" values="..\data\big_buck_bunny,..\data\big_buck_bunny,..\data\big_buck_bunny">
+   <PIN pinname="Input String" slicecount="3" visible="1" values="data\big_buck_bunny,data\big_buck_bunny,data\big_buck_bunny">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>
@@ -77,7 +77,7 @@
    </PIN>
    <PIN pinname="Descriptive Name" slicecount="1" values="|Number of dropped frames|">
    </PIN>
-   <PIN pinname="Y Input Value" visible="1" slicecount="3" values="5,4,3">
+   <PIN pinname="Y Input Value" visible="1" slicecount="3" values="0,0,1">
    </PIN>
    </NODE>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="5" systemname="IOBox (Value Advanced)">
@@ -250,24 +250,6 @@
    <PIN pinname="Descriptive Name" slicecount="1" values="Status">
    </PIN>
    </NODE>
-   <NODE systemname="PlayerHandler (String)" filename="vl\VVVV.String.PlayerHandler.vl" nodename="PlayerHandler (String)" componentmode="Hidden" id="228">
-   <BOUNDS type="Node" left="3000" top="4890" width="100" height="100">
-   </BOUNDS>
-   <PIN pinname="Input" visible="1">
-   </PIN>
-   <PIN pinname="FormatFile" visible="1">
-   </PIN>
-   <PIN pinname="Playhead" slicecount="1" visible="1" values="0">
-   </PIN>
-   <PIN pinname="Preload" slicecount="1" visible="1" values="8">
-   </PIN>
-   <PIN pinname="PreloadFiles" visible="1">
-   </PIN>
-   <PIN pinname="PreloadFiles Bin Size" visible="1">
-   </PIN>
-   </NODE>
-   <LINK srcnodeid="13" srcpinname="Output String" dstnodeid="228" dstpinname="Input">
-   </LINK>
    <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="229">
    <BOUNDS type="Box" left="5160" top="3915" width="795" height="240">
    </BOUNDS>
@@ -284,8 +266,6 @@
    <PIN pinname="Descriptive Name" slicecount="1" values="Preload">
    </PIN>
    </NODE>
-   <LINK srcnodeid="229" srcpinname="Y Output Value" dstnodeid="228" dstpinname="Preload">
-   </LINK>
    <NODE systemname="Add (Value)" nodename="Add (Value)" componentmode="Hidden" id="230">
    <BOUNDS type="Node" left="3810" top="4395" width="100" height="100">
    </BOUNDS>
@@ -296,8 +276,6 @@
    <PIN pinname="Output" visible="1">
    </PIN>
    </NODE>
-   <LINK srcnodeid="230" srcpinname="Output" dstnodeid="228" dstpinname="Playhead">
-   </LINK>
    <NODE systemname="IOBox (Value Advanced)" nodename="IOBox (Value Advanced)" componentmode="InABox" id="236">
    <BOUNDS type="Node" left="4620" top="2850" width="100" height="100">
    </BOUNDS>
@@ -320,30 +298,38 @@
    </LINK>
    <LINK srcnodeid="236" srcpinname="Y Output Value" dstnodeid="230" dstpinname="Input 2">
    </LINK>
-   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="233">
+   <NODE systemname="PlayerHandler (String)" filename="vl\VVVV.String.PlayerHandler.vl" nodename="PlayerHandler (String)" componentmode="Hidden" id="237">
+   <BOUNDS type="Node" left="3000" top="4890" width="100" height="100">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="13" srcpinname="Output String" dstnodeid="237" dstpinname="Input">
+   </LINK>
+   <LINK srcnodeid="229" srcpinname="Y Output Value" dstnodeid="237" dstpinname="Preload">
+   </LINK>
+   <LINK srcnodeid="230" srcpinname="Output" dstnodeid="237" dstpinname="Playhead">
+   </LINK>
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\nsynk\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="239">
    <BOUNDS type="Node" left="3015" top="6360" width="2880" height="270">
    </BOUNDS>
    <BOUNDS type="Box" left="3015" top="6360" width="3000" height="3000">
    </BOUNDS>
-   <PIN pinname="Frame render index" visible="1" slicecount="3" values="100,800,1000">
-   </PIN>
    </NODE>
-   <LINK srcnodeid="233" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
+   <LINK srcnodeid="239" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="233" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
+   <LINK srcnodeid="239" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="233" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
+   <LINK srcnodeid="239" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="233" srcpinname="Texture" dstnodeid="47" dstpinname="Texture">
+   <LINK srcnodeid="239" srcpinname="Texture" dstnodeid="47" dstpinname="Texture">
    </LINK>
-   <LINK srcnodeid="233" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
+   <LINK srcnodeid="239" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
    </LINK>
-   <LINK srcnodeid="233" srcpinname="Status" dstnodeid="80" dstpinname="Input String">
+   <LINK srcnodeid="239" srcpinname="Status" dstnodeid="80" dstpinname="Input String">
    </LINK>
-   <LINK srcnodeid="228" srcpinname="FormatFile" dstnodeid="233" dstpinname="Format file">
+   <LINK srcnodeid="237" srcpinname="FormatFile" dstnodeid="239" dstpinname="Format file">
    </LINK>
-   <LINK srcnodeid="228" srcpinname="PreloadFiles" dstnodeid="233" dstpinname="Load files">
+   <LINK srcnodeid="237" srcpinname="PreloadFiles" dstnodeid="239" dstpinname="Load files">
    </LINK>
-   <LINK srcnodeid="228" srcpinname="PreloadFiles Bin Size" dstnodeid="233" dstpinname="Load files Bin Size">
+   <LINK srcnodeid="237" srcpinname="PreloadFiles Bin Size" dstnodeid="239" dstpinname="Load files Bin Size">
    </LINK>
    </PATCH>

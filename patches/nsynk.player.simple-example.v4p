@@ -35,7 +35,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="6195" top="1275" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="1" visible="1" values="..\data\big_buck_bunny">
+   <PIN pinname="Input String" slicecount="1" visible="1" values="data\big_buck_bunny">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>
