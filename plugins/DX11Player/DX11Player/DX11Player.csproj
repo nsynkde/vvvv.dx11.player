@@ -904,10 +904,10 @@
     <PreBuildEvent>$(SolutionDir)gitcommit.sh</PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(SolutionDir)..\..\..\patches\Player (DX11.Texture) help.v4p" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
-xcopy "$(SolutionDir)..\..\..\patches\data\big_buck_bunny\*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\data\big_buck_bunny\"
-xcopy "$(SolutionDir)build\Release\DX11Player*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
-xcopy "$(SolutionDir)build\Release\x64\DX11PlayerNative*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\x64\"
+    <PostBuildEvent>xcopy /y "$(SolutionDir)..\..\..\patches\Player (DX11.Texture) help.v4p" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
+xcopy /y "$(SolutionDir)..\..\..\patches\data\big_buck_bunny\*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\data\big_buck_bunny\"
+xcopy /y "$(SolutionDir)build\Release\DX11Player*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
+xcopy /y "$(SolutionDir)build\Release\x64\DX11PlayerNative*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\x64\"
 </PostBuildEvent>
   </PropertyGroup>
 </Project>
