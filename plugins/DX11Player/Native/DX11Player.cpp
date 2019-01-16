@@ -1,6 +1,4 @@
 // Native.cpp : Defines the exported functions for the DLL application.
-//
-
 #include "stdafx.h"
 #include "DX11Player.h"
 #include "ImageFormat.h"
@@ -14,7 +12,6 @@
 #include "Context.h"
 
 #pragma comment(lib, "Kernel32.lib")
-
 
 static uint32_t SectorSize(char cDisk)
 {
@@ -36,23 +33,18 @@ static uint32_t SectorSize(char cDisk)
         OPEN_EXISTING,
         0,
         NULL);
-
-    if (hDevice == INVALID_HANDLE_VALUE)
-    {
-		//throw std::exception("Error finding out disk sector size");
+    if (hDevice == INVALID_HANDLE_VALUE) {
+        //throw std::exception("Error finding out disk sector size");
         return -1;
     }   
-
     // Now that we have the device handle for the disk, let us get disk's metadata
     DWORD outsize;
     STORAGE_PROPERTY_QUERY storageQuery;
     memset(&storageQuery, 0, sizeof(STORAGE_PROPERTY_QUERY));
     storageQuery.PropertyId = StorageAccessAlignmentProperty;
     storageQuery.QueryType  = PropertyStandardQuery;
-
     STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR diskAlignment = {0};
     memset(&diskAlignment, 0, sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR));
-
     if (!DeviceIoControl(hDevice, 
         IOCTL_STORAGE_QUERY_PROPERTY, 
         &storageQuery, 
@@ -61,13 +53,11 @@ static uint32_t SectorSize(char cDisk)
         sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR), 
         &outsize,
         NULL)
-        )
-    {
-		//throw std::exception("Error finding out disk sector size");
+        ) {
+        //throw std::exception("Error finding out disk sector size");
         //return -1;
-		return 512;
+        return 512;
     }
-
 	return diskAlignment.BytesPerLogicalSector;
 }
 
@@ -107,76 +97,68 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			ChangeStatus(Error, "Cannot find format file" + fileForFormat);
 			return;
 		}
-
-		try{
+		try {
 			m_Context = std::make_shared<Context>(fileForFormat);
-		}catch(std::exception & e){
+		} catch(std::exception & e){
 			ChangeStatus(Error,e.what());
 			return;
 		}
-
 		ImageFormat format = m_Context->GetFormat();
-
-		if (format.copytype == ImageFormat::DiskToGpu){
+		if (format.copytype == ImageFormat::DiskToGpu) {
 			OutputDebugStringA("Uploading textures from disk directly to GPU\n");
-		}else{
+		} else {
 			OutputDebugStringA("Uploading textures from disk through RAM copy\n");
 		}
-
 		// Add enough bytes to read the header + data but we need to read
 		// a multiple of the physical sector size since we are reading 
 		// directly from disk with no buffering
-		char buffer[4096] = {0};
-		auto ret = GetFullPathNameA(fileForFormat.c_str(),4096,buffer,nullptr);
-		if(ret==0){
+		char buffer[4096] = { 0 };
+		auto ret = GetFullPathNameA(fileForFormat.c_str(), 4096, buffer, nullptr);
+		if(ret == 0){
 			ChangeStatus(Error,"Cannot recover file for format drive from " + fileForFormat);
 			return;
 		}
-
 		auto numbytesdata = (DWORD)format.bytes_data + format.data_offset;
 		OutputDebugStringA(("Num bytes to read from file:" + std::to_string(numbytesdata) + "\n").c_str());
 		format = m_Context->GetFormat();
-
 		// init the ring buffer:
 		// - map all the upload buffers and send them to the uploader thread.
-		try{
-			for(auto i=0;i<ringBufferSize;i++){
+		try {
+			for(auto i=0; i < ringBufferSize; i++){
 				auto frame = m_Context->GetFrame();
 				m_ReadyToUpload.send(frame);
 			}
-		}catch(std::exception & e){
+		} catch(std::exception & e) {
 			ChangeStatus(Error,e.what());
 			return;
 		}
-
 		// start the upload loop
 		m_UploaderThreadRunning = true;
 		ChangeStatus(Ready,"Ready");
 		auto nextFrameTime = HighResClock::now();
 		std::shared_ptr<Frame> nextFrame;
-		while(m_ReadyToUpload.recv(nextFrame)){
+		while(m_ReadyToUpload.recv(nextFrame)) {
 			auto now = HighResClock::now();
 			auto in_system=false;
 			std::set<std::string> s_system;
 			std::string localCurrentFrame;
 			auto dropped_now=0;
-			do{
-				if (!m_NextFrameChannel.recv(localCurrentFrame)){
+			do {
+				if (!m_NextFrameChannel.recv(localCurrentFrame)) {
 					m_UploaderThreadRunning = false;
 					return;
 				}
 				(dropped_now)+=1;
 				s_system.clear();
 				std::lock_guard<std::mutex> lock(m_SystemFramesMutex);
-				s_system.insert(m_SystemFrames.begin(), m_SystemFrames.end() );
+				s_system.insert(m_SystemFrames.begin(), m_SystemFrames.end());
 			} while (s_system.find(localCurrentFrame) == s_system.end() || !PathFileExistsA(localCurrentFrame.c_str()));
 			dropped_now-=1;
 			m_DroppedFrames += dropped_now;
 			m_CurrentFrame = localCurrentFrame;
-
 			size_t offset;
 			if (m_Context->GetFormat().copytype == ImageFormat::DiskToGpu) {
-				if (m_Context->GetFormat().IsBC()){
+				if (m_Context->GetFormat().IsBC()) {
 					offset = format.w * format.bytes_per_pixel_in - format.data_offset;
 				} else {
 					offset = nextFrame->GetMappedRowPitch() * 4 - format.data_offset;
@@ -184,9 +166,8 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			} else {
 				offset = 0;
 			}
-			if(nextFrame->ReadFile(m_CurrentFrame,offset,numbytesdata,now)){
-				if(!m_ReadyToWait.send(make_pair(m_ReadyToWait.size()+1,nextFrame)))
-				{
+			if(nextFrame->ReadFile(m_CurrentFrame,offset,numbytesdata,now)) {
+				if(!m_ReadyToWait.send(make_pair(m_ReadyToWait.size()+1, nextFrame))) {
 					m_UploaderThreadRunning = false;
 					break;
 				}
@@ -195,14 +176,13 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			}
 		}
 	});
-	
 	// waiter thread: waits for the transfer from disk to GPU mem to finish
 	// and sends the frame num to the rate thread
 	//OutputDebugString( L"creating waiter thread\n" );
 	m_WaiterThreadRunning = true;
 	m_WaiterThread = std::thread([this]{
 		std::pair<int,std::shared_ptr<Frame>> nextFrame;
-		while (m_ReadyToWait.recv(nextFrame)){
+		while (m_ReadyToWait.recv(nextFrame)) {
 			std::set<std::string> s_system;
 			if (!m_AlwaysShowLastFrame){
 				std::lock_guard<std::mutex> lock(m_SystemFramesMutex);
@@ -210,15 +190,16 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 			}
 			if (m_AlwaysShowLastFrame || s_system.find(nextFrame.second->SourcePath()) != s_system.end()){
 				auto ontime = nextFrame.second->Wait(INFINITE);
-				if (ontime){ // since t=INIFINITE only false if read failed
+				if (ontime) {
+          // since t=INIFINITE only false if read failed
 					m_AvgDecodeDuration = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(nextFrame.second->DecodeDuration()).count() / nextFrame.first);
 					m_ReadyToRender.send(nextFrame.second);
-				}else{
+				} else {
 					//nextFrame.second->Cancel();
 					m_ReadyToUpload.send(nextFrame.second);
 					++m_DroppedFrames;
 				}
-			}else{
+			} else {
 				//nextFrame.second->Cancel();
 				m_ReadyToUpload.send(nextFrame.second);
 				++m_DroppedFrames;
@@ -544,7 +525,6 @@ extern "C" {
 	NATIVE_API void DX11Player_SetAlwaysShowLastFrame(DX11HANDLE player, bool always){
 		static_cast<DX11Player*>(player)->SetAlwaysShowLastFrame(always);
 	}
-
 
 	NATIVE_API bool DX11Player_IsSameFormat(const char * formatFile1, const char *  formatFile2) {
 		try {

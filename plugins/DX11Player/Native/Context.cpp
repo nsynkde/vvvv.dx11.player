@@ -52,6 +52,7 @@ Context::Context(const std::string & fileForFormat)
 #ifndef NDEBUG
 	flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
+	// TODO: D3D11CreateDevice seems to fail (line 66)
 	hr = D3D11CreateDevice(nullptr,
 		D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
@@ -468,23 +469,33 @@ ID3D11DeviceContext * Context::GetDX11Context(){
 }
 
 
-void Context::CopyFrameToOutTexture(Frame * frame){
-	if (m_Format.in_format != m_Format.out_format || m_Format.pixel_format != ImageFormat::DX11_NATIVE){
-		if (m_Format.copytype == ImageFormat::DiskToGpu){
-			m_Context->CopySubresourceRegion(m_CopyTextureIn, 0, 0, 0, 0, frame->UploadBuffer(), 0, &m_CopyBox);
-		} else {
-			m_Context->UpdateSubresource(m_CopyTextureIn, 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
-		}
-		m_Context->Draw(6, 0);
-		m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
-		m_Context->Flush();
-	} else if (m_Format.copytype == ImageFormat::DiskToGpu){ 
-		//OutputDebugStringA(("copying " + frame->SourcePath() + " to render texture\n").c_str());
-		m_Context->CopySubresourceRegion(frame->RenderTexture(),0,0,0,0,frame->UploadBuffer(),0,&m_CopyBox);
-	}else{
-		//m_Context->CopyResource(frame->RenderTexture(), frame->UploadBuffer());
-		m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr, frame->GetRAMBuffer(), static_cast<UINT>(m_Format.row_pitch), static_cast<UINT>(m_Format.bytes_data));
-	}
+void Context::CopyFrameToOutTexture(Frame * frame) {
+  if (m_Format.in_format != m_Format.out_format ||
+      m_Format.pixel_format != ImageFormat::DX11_NATIVE) {
+    if (m_Format.copytype == ImageFormat::DiskToGpu) {
+      m_Context->CopySubresourceRegion(m_CopyTextureIn, 0, 0, 0, 0,
+                                       frame->UploadBuffer(), 0, &m_CopyBox);
+    } else {
+      m_Context->UpdateSubresource(m_CopyTextureIn, 0, nullptr,
+                                   frame->GetRAMBuffer(),
+                                   static_cast<UINT>(m_Format.row_pitch),
+                                   static_cast<UINT>(m_Format.bytes_data));
+    }
+    m_Context->Draw(6, 0);
+    m_Context->CopyResource(frame->RenderTexture(), m_BackBuffer);
+    m_Context->Flush();
+  } else if (m_Format.copytype == ImageFormat::DiskToGpu) {
+    // OutputDebugStringA(("copying " + frame->SourcePath() + " to render
+    // texture\n").c_str());
+    m_Context->CopySubresourceRegion(frame->RenderTexture(), 0, 0, 0, 0,
+                                     frame->UploadBuffer(), 0, &m_CopyBox);
+  } else {
+    // m_Context->CopyResource(frame->RenderTexture(), frame->UploadBuffer());
+    m_Context->UpdateSubresource(frame->RenderTexture(), 0, nullptr,
+                                 frame->GetRAMBuffer(),
+                                 static_cast<UINT>(m_Format.row_pitch),
+                                 static_cast<UINT>(m_Format.bytes_data));
+  }
 }
 
 HRESULT Context::CreateStagingTexture(ID3D11Texture2D ** texture){
