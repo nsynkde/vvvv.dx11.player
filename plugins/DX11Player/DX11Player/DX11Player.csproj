@@ -20,15 +20,16 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>$(SolutionDir)build\nsynk\vvvv.nodes.player\</OutputPath>
+    <OutputPath>$(SolutionDir)build\$(Configuration)\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>$(SolutionDir)build\nsynk\vvvv.nodes.player\</OutputPath>
+    <OutputPath>$(SolutionDir)build\$(Configuration)\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -901,5 +902,12 @@
   <Import Project="packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets" Condition="Exists('packages\VVVV.SlimDX.1.0.2\build\net40\VVVV.SlimDX.targets')" />
   <PropertyGroup>
     <PreBuildEvent>$(SolutionDir)gitcommit.sh</PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(SolutionDir)..\..\..\patches\Player (DX11.Texture) help.v4p" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
+xcopy "$(SolutionDir)..\..\..\patches\data\big_buck_bunny\*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\data\big_buck_bunny\"
+xcopy "$(SolutionDir)build\Release\DX11Player*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\"
+xcopy "$(SolutionDir)build\Release\x64\DX11PlayerNative*" "$(SolutionDir)release\nsynk\nodes\plugins\vvvv.nodes.player\x64\"
+</PostBuildEvent>
   </PropertyGroup>
 </Project>

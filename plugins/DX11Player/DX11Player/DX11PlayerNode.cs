@@ -432,7 +432,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                                             FTextureOut[i][j] = this.FSharedTextureCache[i][handle];
                                         }
                                         FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width,
-                                            FTextureOut[i][j][context].Height);
+                                                                   FTextureOut[i][j][context].Height);
                                         FFormatOut[i] = FTextureOut[i][j][context].Format;
                                         FGotFirstFrameOut[i] = true;
                                         FPrevFrameRendered[i][j] = nextFile;
