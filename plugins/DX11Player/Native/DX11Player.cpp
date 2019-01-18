@@ -75,6 +75,8 @@ static DWORD NextMultiple(DWORD in, DWORD multiple){
 	return max(in / multiple*multiple, multiple);
 }
 
+DX11Player::DX11Player() {}
+
 DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 	:m_UploaderThreadRunning(false)
 	,m_WaiterThreadRunning(false)
@@ -325,24 +327,24 @@ HANDLE DX11Player::GetSharedHandle(const std::string & nextFrame){
 int DX11Player::GetUploadBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return (int)m_ReadyToUpload.size();
+	return static_cast<int>(m_ReadyToUpload.size());
 }
 
 int DX11Player::GetWaitBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return (int)m_ReadyToWait.size();
+	return static_cast<int>(m_ReadyToWait.size());
 }
 
 int DX11Player::GetRenderBufferSize() const
 {
 	if(!m_UploaderThreadRunning) return 0;
-	return (int)m_ReadyToRender.size();
+	return static_cast<int>(m_ReadyToRender.size());
 }
 
 int DX11Player::GetPresentBufferSize() const{
 	if(!m_UploaderThreadRunning) return 0;
-	return (int)m_WaitingToPresent.size();
+	return static_cast<int>(m_WaitingToPresent.size());
 }
 
 int DX11Player::GetDroppedFrames() const
@@ -352,7 +354,7 @@ int DX11Player::GetDroppedFrames() const
 
 int DX11Player::GetAvgLoadDurationMs() const
 {
-	return (int)std::chrono::duration_cast<std::chrono::milliseconds>(m_AvgDecodeDuration).count();
+	return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(m_AvgDecodeDuration).count());
 }
 
 void DX11Player::SendNextFrameToLoad(const std::string & nextFrame)
@@ -392,7 +394,12 @@ void DX11Player::SetAlwaysShowLastFrame(bool alwaysShowLastFrame)
 
 
 extern "C" {
-	typedef void * DX11HANDLE;
+	typedef void *DX11HANDLE;
+
+	NATIVE_API bool DX11Player_Available()
+	{
+		return new DX11Player() != nullptr;
+	}
 	
 	NATIVE_API DX11HANDLE DX11Player_Create(const char *fileForFormat, int ringBufferSize)
 	{
@@ -406,7 +413,7 @@ extern "C" {
 			if (player) {
 				auto ptr = static_cast<DX11Player*>(player);
 				ptr->Cleanup();
-        // FIX: explicitly delete the pointer object lead to crashes
+				// FIX: explicitly delete the pointer object lead to crashes
 				//delete ptr; 
 			}
 		}
@@ -480,7 +487,6 @@ extern "C" {
 		std::string str = static_cast<DX11Player*>(player)->GetStatusMessage();
 		ULONG ulSize = str.size() + sizeof(char);
 		char* pszReturn = NULL;
-
 		pszReturn = (char*)::CoTaskMemAlloc(ulSize);
 		// Copy the contents of szSampleString
 		// to the memory pointed to by pszReturn.
@@ -526,15 +532,15 @@ extern "C" {
 		static_cast<DX11Player*>(player)->SetAlwaysShowLastFrame(always);
 	}
 
-	NATIVE_API bool DX11Player_IsSameFormat(const char * formatFile1, const char *  formatFile2) {
+	NATIVE_API auto DX11Player_IsSameFormat(const char* formatFile1, const char* formatFile2) -> bool
+	{
 		try {
-			ImageFormat format1(formatFile1);
-			ImageFormat format2(formatFile2);
+			const ImageFormat format1(formatFile1);
+			const ImageFormat format2(formatFile2);
 			return format1 == format2;
 		}
 		catch (...) {
 			return false;
-
 		}
 	}
 }

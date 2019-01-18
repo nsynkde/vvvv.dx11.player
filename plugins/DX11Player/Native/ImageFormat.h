@@ -28,6 +28,12 @@ public:
 
   ImageFormat(const std::string &imageFile);
 
+  void processDPX(const std::string & imageFile);
+
+  void processTGA(const std::string & imageFile);
+
+  void processDDS(const std::string & imageFile);
+
   static bool IsRGBA(DXGI_FORMAT format);
   static bool IsRGBA32(DXGI_FORMAT format);
   static bool IsBGRA(DXGI_FORMAT format);
