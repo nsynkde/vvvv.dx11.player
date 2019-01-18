@@ -341,40 +341,40 @@ void ImageFormat::processTGA(const std::string & imageFile)
 	str << "imagedescriptor " << (int)header.imagedescriptor << std::endl;
 	OutputDebugStringA(str.str().c_str());
 	switch (header.bitsperpixel) {
-	case 24:
-		if (header.width * 3 % 4) {
-			in_format = DXGI_FORMAT_R8_UNORM;
-			out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			w = header.width * 3;
-			row_pitch = header.width * 3;
-			pixel_format = RGB;
-			byteswap = true;
+		case 24:
+			if (header.width * 3 % 4) {
+				in_format = DXGI_FORMAT_R8_UNORM;
+				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				w = header.width * 3;
+				row_pitch = header.width * 3;
+				pixel_format = RGB;
+				byteswap = true;
+			}
+			else {
+				in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				w = header.width * 3 / 4;
+				row_pitch = header.width * 3;
+				pixel_format = RGB;
+				byteswap = true;
+			}
+			bytes_per_pixel_in = 4;
+			OutputDebugStringA("\nrgb\n");
+			break;
+		case 32:
+			in_format = DXGI_FORMAT_B8G8R8A8_UNORM;
+			out_format = in_format;
+			w = header.width;
+			row_pitch = header.width * 4;
+			pixel_format = DX11_NATIVE;
+			OutputDebugStringA("\nrgba\n");
+			break;
+		default: {
+			std::stringstream str;
+			str << "tga format with bitsperpixel " << header.bitsperpixel
+				<< " not suported, only RGB(A) truecolor supported\n";
+			throw std::exception(str.str().c_str());
 		}
-		else {
-			in_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			out_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			w = header.width * 3 / 4;
-			row_pitch = header.width * 3;
-			pixel_format = RGB;
-			byteswap = true;
-		}
-		bytes_per_pixel_in = 4;
-		OutputDebugStringA("\nrgb\n");
-		break;
-	case 32:
-		in_format = DXGI_FORMAT_B8G8R8A8_UNORM;
-		out_format = in_format;
-		w = header.width;
-		row_pitch = header.width * 4;
-		pixel_format = DX11_NATIVE;
-		OutputDebugStringA("\nrgba\n");
-		break;
-	default: {
-		std::stringstream str;
-		str << "tga format with bitsperpixel " << header.bitsperpixel
-			<< " not suported, only RGB(A) truecolor supported\n";
-		throw std::exception(str.str().c_str());
-	}
 	}
 	bytes_data = row_pitch * header.height;
 	depth = 8;
