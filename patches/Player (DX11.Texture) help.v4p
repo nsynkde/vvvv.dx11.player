@@ -1,5 +1,5 @@
 <!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50beta38.1.dtd" >
-   <PATCH nodename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p" scrollx="0" scrolly="0" systemname="Player (DX11.Texture) help" filename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p">
+   <PATCH nodename="C:\Users\gs\git\nsynk\vvvv.dx11.player\patches\Player (DX11.Texture) help.v4p" scrollx="0" scrolly="0" systemname="Player (DX11.Texture) help" filename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p">
    <BOUNDS type="Window" left="19215" top="795" width="19185" height="20805">
    </BOUNDS>
    <NODE systemname="Dir (File)" filename="" nodename="Dir (File)" componentmode="Hidden" id="15">
@@ -35,7 +35,7 @@
    </BOUNDS>
    <BOUNDS type="Node" left="5925" top="645" width="0" height="0">
    </BOUNDS>
-   <PIN pinname="Input String" slicecount="1" visible="1" values="data\big_buck_bunny">
+   <PIN pinname="Input String" slicecount="1" visible="1" values="data\big_buck_bunny\dpx">
    </PIN>
    <PIN pinname="Default" slicecount="1" values="||">
    </PIN>
@@ -244,34 +244,6 @@
    </NODE>
    <LINK srcnodeid="10" srcpinname="Cycles" dstnodeid="11" dstpinname="Offset">
    </LINK>
-   <NODE systemname="Player (DX11.Texture)" filename="%VVVV%\packs\nsynk\nodes\plugins\vvvv.nodes.player\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="94">
-   <BOUNDS type="Node" left="4650" top="5955" width="5610" height="270">
-   </BOUNDS>
-   <BOUNDS type="Box" left="4650" top="5955" width="3000" height="3000">
-   </BOUNDS>
-   <PIN pinname="Version" visible="1">
-   </PIN>
-   </NODE>
-   <LINK srcnodeid="94" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
-   </LINK>
-   <LINK srcnodeid="94" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
-   </LINK>
-   <LINK srcnodeid="94" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
-   </LINK>
-   <LINK srcnodeid="94" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
-   </LINK>
-   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="94" dstpinname="Load files">
-   </LINK>
-   <LINK srcnodeid="71" srcpinname="Output" dstnodeid="94" dstpinname="Format file" linkstyle="Bezier">
-   <LINKPOINT x="3480" y="5205">
-   </LINKPOINT>
-   <LINKPOINT x="4680" y="5205">
-   </LINKPOINT>
-   </LINK>
-   <LINK srcnodeid="94" srcpinname="Texture format" dstnodeid="83" dstpinname="Input Enum">
-   </LINK>
-   <LINK srcnodeid="94" srcpinname="Texture" dstnodeid="89" dstpinname="Texture In">
-   </LINK>
    <NODE nodename="IOBox (String)" componentmode="InABox" id="97" systemname="IOBox (String)">
    <BOUNDS type="Node" left="285" top="270" width="970" height="230">
    </BOUNDS>
@@ -340,6 +312,46 @@
    <PIN pinname="Descriptive Name" slicecount="1" values="Version">
    </PIN>
    </NODE>
+   <NODE systemname="Player (DX11.Texture)" filename="..\plugins\DX11Player\DX11Player\build\Release\DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="94">
+   <BOUNDS type="Node" left="4650" top="5955" width="5610" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="4650" top="5955" width="3000" height="3000">
+   </BOUNDS>
+   <PIN pinname="Version" visible="1">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="94" srcpinname="Got requested frame" dstnodeid="5" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="94" srcpinname="Number of dropped frames" dstnodeid="6" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="94" srcpinname="ResolutionXY" dstnodeid="4" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="94" srcpinname="Texture Bin Size" dstnodeid="65" dstpinname="Y Input Value">
+   </LINK>
+   <LINK srcnodeid="11" srcpinname="Output" dstnodeid="94" dstpinname="Load files">
+   </LINK>
+   <LINK srcnodeid="71" srcpinname="Output" dstnodeid="94" dstpinname="Format file" linkstyle="Bezier">
+   <LINKPOINT x="3480" y="5205">
+   </LINKPOINT>
+   <LINKPOINT x="4680" y="5205">
+   </LINKPOINT>
+   </LINK>
+   <LINK srcnodeid="94" srcpinname="Texture format" dstnodeid="83" dstpinname="Input Enum">
+   </LINK>
+   <LINK srcnodeid="94" srcpinname="Texture" dstnodeid="89" dstpinname="Texture In">
+   </LINK>
    <LINK srcnodeid="94" srcpinname="Version" dstnodeid="98" dstpinname="Input String" linkstyle="PolyLine">
    </LINK>
+   <NODE systemname="Renderer (TTY)" nodename="Renderer (TTY)" componentmode="InAWindow" id="100">
+   <BOUNDS type="Node" left="1695" top="9180" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="1695" top="9180" width="2400" height="1800">
+   </BOUNDS>
+   <BOUNDS type="Window" left="10845" top="10605" width="6240" height="5085">
+   </BOUNDS>
+   </NODE>
+   <PACK Name="dx11" Version="1.3.1">
+   </PACK>
+   <PACK Name="dx11.particles" Version="1.0.6">
+   </PACK>
    </PATCH>

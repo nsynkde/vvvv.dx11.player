@@ -411,8 +411,11 @@ extern "C" {
 		// Catching exceptions here should be evaluated further
 		try {
 			if (player) {
-				auto ptr = static_cast<DX11Player*>(player);
-				ptr->Cleanup();
+				// FIXME: cleaning up the player leads to a crash
+				// propably the thread joining is not correct?
+
+				// auto ptr = static_cast<DX11Player*>(player);
+				//ptr->Cleanup();
 				// FIX: explicitly delete the pointer object lead to crashes
 				//delete ptr; 
 			}
