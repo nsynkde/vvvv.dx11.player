@@ -15,12 +15,11 @@ using VVVV.PluginInterfaces.V1;
 using SlimDX.Direct3D11;
 using SlimDX.DXGI;
 using VVVV.DX11;
+using System.Reactive;
 
 namespace VVVV.Nodes.DX11PlayerNode
 {
-    [PluginInfo(Name = "Player",
-                Category = "DX11.Texture",
-                Author = "NSYNK GmbH")]
+    [PluginInfo(Name = "Player", Category = "DX11.Texture", Author = "NSYNK GmbH")]
 
     public class DX11PlayerNode :
         IPluginEvaluate,
@@ -28,6 +27,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         IDisposable,
         IPartImportsSatisfiedNotification
     {
+        #region System library imports
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern void OutputDebugString(string message);
 
@@ -35,6 +35,8 @@ namespace VVVV.Nodes.DX11PlayerNode
         private static extern IntPtr AddDllDirectory(string newdirectory);
 
         [DllImport("kernel32.dll")]
+        #endregion
+
         private static extern bool SetDefaultDllDirectories(UInt32 DirectoryFlags);
 
         const UInt32 LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200;
@@ -42,77 +44,32 @@ namespace VVVV.Nodes.DX11PlayerNode
         const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
         const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800;
 
-        static DX11PlayerNode()
-        {
-            try
-            {
-                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-                UriBuilder uri = new UriBuilder(codeBase);
-                string path = Uri.UnescapeDataString(uri.Path);
-                string pluginfolder = Path.GetDirectoryName(path);
-                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR |
-                                         LOAD_LIBRARY_SEARCH_USER_DIRS |
-                                         LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
-                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
-                AddDllDirectory(pluginfolder);
-                var check64 = (IntPtr) 0;
-                if (System.Runtime.InteropServices.Marshal.SizeOf(check64) == sizeof(Int64))
-                {
-                    pluginfolder = pluginfolder + "\\" + "x64\\";
-                }
-                else
-                {
-                    pluginfolder = pluginfolder + "\\" + "x86\\";
-                }
-
-                OutputDebugString("Adding " + pluginfolder + " to dll search path");
-                AddDllDirectory(pluginfolder);
-            }
-            catch (Exception e)
-            {
-                OutputDebugString("Error adding dll search path" + e.StackTrace);
-            }
-        }
-
+        #region Input pins
         [Input("Format file", StringType = StringType.Filename)]
-        public IDiffSpread<string> FFormatFile;
-
-        [Input("Load files")] public IDiffSpread<ISpread<string>> FFileLoadIn;
-
+        public IDiffSpread<string> FInFormatFile;
+        [Input("Load files")] public IDiffSpread<ISpread<string>> FInTextureFiles;
         [Input("Frame render index")] public IDiffSpread<ISpread<int>> FNextFrameRenderIn;
-
         [Input("Always show last frame")] public IDiffSpread<bool> FAlwaysShowLastIn;
+        #endregion
 
+        #region Output pins
         [Output("Status")] public ISpread<string> FStatusOut;
-
         [Output("Texture")] public ISpread<ISpread<DX11Resource<DX11Texture2D>>> FTextureOut;
-
         [Output("Resolution")] public ISpread<Vector2D> FSizeOut;
-
         [Output("Texture format")] public ISpread<Format> FFormatOut;
-
         [Output("Upload buffer size")] public ISpread<int> FUploadSizeOut;
-
         [Output("Wait buffer size")] public ISpread<int> FWaitSizeOut;
-
         [Output("Render buffer size")] public ISpread<int> FRenderSizeOut;
-
         [Output("Present buffer size")] public ISpread<int> FPresentSizeOut;
-
         [Output("Number of dropped frames")] public ISpread<int> FDroppedFramesOut;
-
         [Output("Average load duration ms")] public ISpread<int> FAvgLoadDurationMsOut;
-
         [Output("Ready state")] public ISpread<bool> FGotFirstFrameOut;
-
         [Output("Load frame")] public ISpread<string> FLoadFrameOut;
-
         [Output("Render frame")] public ISpread<string> FRenderFrameOut;
-
         [Output("Got requested frame")] public ISpread<bool> FGotRequestedFrameOut;
-
         [Output("Version", Visibility = PinVisibility.Hidden, IsSingle = true)]
         public ISpread<string> FVersion;
+        #endregion
 
         [Import] ILogger FLogger;
 
@@ -132,11 +89,48 @@ namespace VVVV.Nodes.DX11PlayerNode
         private bool FRefreshTextures = false;
 
         #region DX11PlayerNode lifecycle
+        static DX11PlayerNode()
+        {
+            LoadDLLDirectory();
+        }
+
+        static string ResolvePluginFolderFromArchitecture()
+        {
+            var check64Bit = (IntPtr)0;
+            if (System.Runtime.InteropServices.Marshal.SizeOf(check64Bit) == sizeof(Int64))
+            {
+                return "x64\\";
+            }
+            return "x86\\";
+        }
+
+        static void LoadDLLDirectory()
+        {
+            try
+            {
+                string rootDir = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder rootDirURI = new UriBuilder(rootDir);
+                string path = Uri.UnescapeDataString(rootDirURI.Path);
+                string pluginfolder = Path.GetDirectoryName(path);
+                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR |
+                                         LOAD_LIBRARY_SEARCH_USER_DIRS |
+                                         LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
+                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
+                pluginfolder = pluginfolder + "\\" + ResolvePluginFolderFromArchitecture();
+                AddDllDirectory(pluginfolder);
+                OutputDebugString("Adding " + pluginfolder + " to DLL search path");
+                AddDllDirectory(pluginfolder);
+            }
+            catch (Exception e)
+            {
+                OutputDebugString("Error adding DLL search path: " + e.StackTrace);
+            }
+        }
 
         public void OnImportsSatisfied()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var version = (AssemblyInformationalVersionAttribute) assembly
+            var version = (AssemblyInformationalVersionAttribute)assembly
                 .GetCustomAttribute(typeof(AssemblyInformationalVersionAttribute));
             var versionString = version.InformationalVersion;
             FVersion[0] = versionString;
@@ -150,11 +144,15 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
         }
 
+        public void EvaluateNew(int spreadMax)
+        {
+        }
+
         public void Evaluate(int spreadMax)
         {
             try
             {
-                var numSpreads = Math.Max(FFormatFile.SliceCount, 1);
+                var numSpreads = Math.Max(FInFormatFile.SliceCount, 1);
                 if (FPrevNumSpreads != numSpreads)
                 {
                     FLogger.Log(LogType.Message, "Evaluate: Setting spreads to " + numSpreads);
@@ -190,14 +188,12 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FSharedTextureCache[i] = new Dictionary<IntPtr, DX11Resource<DX11Texture2D>>();
                         FIsReady[i] = false;
                     }
-
                     FPrevNumSpreads = numSpreads;
                 }
             }
             catch (Exception e)
             {
                 FLogger.Log(LogType.Error, e.ToString());
-                //throw e;
             }
 
             for (var i = 0; i < FDX11NativePlayer.SliceCount; i++)
@@ -212,8 +208,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FPresentSizeOut[i] = NativeInterface.DX11Player_GetPresentBufferSize(FDX11NativePlayer[i]);
                         FDroppedFramesOut[i] = NativeInterface.DX11Player_GetDroppedFrames(FDX11NativePlayer[i]);
                         FAvgLoadDurationMsOut[i] =
-                            (int) (((double) FAvgLoadDurationMsOut[i]) * 0.9 +
-                                   ((double) NativeInterface.DX11Player_GetAvgLoadDurationMs(FDX11NativePlayer[i])) *
+                            (int)(((double)FAvgLoadDurationMsOut[i]) * 0.9 +
+                                   ((double)NativeInterface.DX11Player_GetAvgLoadDurationMs(FDX11NativePlayer[i])) *
                                    0.1);
                     }
 
@@ -226,10 +222,11 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
 
             // Check for changes in the format files 
-            for (var i = 0; i < FFormatFile.Count(); i++)
+            for (var i = 0; i < FInFormatFile.Count(); i++)
             {
+                if (FPrevFormatFile.SliceCount == 0) break;
                 var previousFormatFile = FPrevFormatFile[i];
-                var currentFormatFile = FFormatFile[i];
+                var currentFormatFile = FInFormatFile[i];
                 if (previousFormatFile != currentFormatFile)
                 {
                     var previousFormatFileExtension = Path.GetExtension(previousFormatFile);
@@ -261,16 +258,16 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
             }
 
-            if (!FFormatFile.Any())
+            if (!FInFormatFile.Any())
             {
                 for (var i = 0; i < FPrevFormatFile.Count(); i++)
                 {
                     FPrevFormatFile[i] = null;
                 }
-
                 FPrevFormatFile.SliceCount = 0;
             }
 
+            /*
             if (FAlwaysShowLastIn.IsChanged)
             {
                 for (var i = 0; i < FDX11NativePlayer.SliceCount; i++)
@@ -280,8 +277,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                         NativeInterface.DX11Player_SetAlwaysShowLastFrame(FDX11NativePlayer[i], FAlwaysShowLastIn[i]);
                     }
                 }
-
             }
+            */
 
             for (var i = 0; i < FNextFrameRenderIn.SliceCount; i++)
             {
@@ -366,7 +363,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             FIsReady[i] = false;
             FGotFirstFrameOut[i] = false;
             CreateTextureOut(i);
-            FPrevFrames[i].SliceCount = FFileLoadIn[i].SliceCount;
+            FPrevFrames[i].SliceCount = FInTextureFiles[i].SliceCount;
             for (var j = 0; j < FPrevFrames[i].Count(); j++)
             {
                 FPrevFrames[i][j] = "";
@@ -390,10 +387,10 @@ namespace VVVV.Nodes.DX11PlayerNode
                     for (var i = 0; i < FDX11NativePlayer.SliceCount; i++)
                     {
                         if (FDX11NativePlayer[i] != IntPtr.Zero) continue;
-                        var nativePlayer = NativeInterface.DX11Player_Create(FFormatFile[i], FFileLoadIn[i].Count());
+                        var nativePlayer = NativeInterface.DX11Player_Create(FInFormatFile[i], FInTextureFiles[i].Count());
                         if (nativePlayer != IntPtr.Zero)
                         {
-                            NativeInterface.DX11Player_SetAlwaysShowLastFrame(nativePlayer, FAlwaysShowLastIn[i]);
+                            //NativeInterface.DX11Player_SetAlwaysShowLastFrame(nativePlayer, FAlwaysShowLastIn[i]);
                             FDX11NativePlayer[i] = nativePlayer;
                         }
                         else
@@ -417,7 +414,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
 
                 var nextFile = "";
-                if (FFileLoadIn[i].Any())
+                if (FInTextureFiles[i].Any())
                 {
                     for (var j = 0; j < FNextFrameRenderIn[i].Count(); j++)
                     {
@@ -425,8 +422,8 @@ namespace VVVV.Nodes.DX11PlayerNode
                         {
                             var nextFrameRenderIdx = FNextFrameRenderIn[i][j];
                             var prevFrameRender = FPrevFrameRendered[i][j];
-                            var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FFileLoadIn[i].Count());
-                            nextFile = FFileLoadIn[i][renderFrame];
+                            var renderFrame = (Math.Max(0, nextFrameRenderIdx) % FInTextureFiles[i].Count());
+                            nextFile = FInTextureFiles[i][renderFrame];
                             if (prevFrameRender != nextFile)
                             {
                                 var handle = NativeInterface.DX11Player_GetSharedHandle(FDX11NativePlayer[i], nextFile);
@@ -482,21 +479,21 @@ namespace VVVV.Nodes.DX11PlayerNode
                 }
 
                 if (!this.FIsReady[i]) continue;
-                NativeInterface.DX11Player_SetSystemFrames(FDX11NativePlayer[i], FFileLoadIn[i].ToArray(),
-                    FFileLoadIn[i].Count());
-                var diff = FFileLoadIn[i].Except(FPrevFrames[i]);
+                NativeInterface.DX11Player_SetSystemFrames(FDX11NativePlayer[i], FInTextureFiles[i].ToArray(),
+                    FInTextureFiles[i].Count());
+                var diff = FInTextureFiles[i].Except(FPrevFrames[i]);
                 foreach (var f in diff)
                 {
                     NativeInterface.DX11Player_SendNextFrameToLoad(FDX11NativePlayer[i], f);
                 }
 
-                if (FDX11NativePlayer[i] != IntPtr.Zero && FPrevFrames[i].Count() != FFileLoadIn[i].Count())
+                if (FDX11NativePlayer[i] != IntPtr.Zero && FPrevFrames[i].Count() != FInTextureFiles[i].Count())
                 {
                     FRefreshPlayer = true;
                     OutputDebugString("Destroying player number of files to load has changed");
                 }
 
-                FPrevFrames[i] = FFileLoadIn[i].Clone();
+                FPrevFrames[i] = FInTextureFiles[i].Clone();
                 FLoadFrameOut[i] = NativeInterface.DX11Player_GetCurrentLoadFrame(FDX11NativePlayer[i]);
             }
         }
@@ -511,7 +508,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                     handle.Value.Dispose();
                     FSharedTextureCache[i].Remove(handle.Key);
                 }
-
                 for (var j = 0; j < FTextureOut[i].Count(); j++)
                 {
                     if (this.FTextureOut[i][j].Contains(context))
