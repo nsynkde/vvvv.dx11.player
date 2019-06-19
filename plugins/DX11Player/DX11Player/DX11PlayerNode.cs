@@ -15,7 +15,6 @@ using VVVV.PluginInterfaces.V1;
 using SlimDX.Direct3D11;
 using SlimDX.DXGI;
 using VVVV.DX11;
-using System.Reactive;
 
 namespace VVVV.Nodes.DX11PlayerNode
 {
@@ -91,7 +90,7 @@ namespace VVVV.Nodes.DX11PlayerNode
         #region DX11PlayerNode lifecycle
         static DX11PlayerNode()
         {
-            LoadDLLDirectory();
+            SetupDLLDirectory();
         }
 
         static string ResolvePluginFolderFromArchitecture()
@@ -104,7 +103,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             return "x86\\";
         }
 
-        static void LoadDLLDirectory()
+        static void SetupDLLDirectory()
         {
             try
             {
@@ -153,7 +152,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             try
             {
                 var numSpreads = Math.Max(FInFormatFile.SliceCount, 1);
-                if (FPrevNumSpreads != numSpreads)
+                if (FPrevNumSpreads != numSpreads || FRefreshPlayer)
                 {
                     FLogger.Log(LogType.Message, "Evaluate: Setting spreads to " + numSpreads);
                     FRefreshTextures = true;
@@ -189,6 +188,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                         FIsReady[i] = false;
                     }
                     FPrevNumSpreads = numSpreads;
+                    FRefreshPlayer = false;
                 }
             }
             catch (Exception e)
@@ -224,17 +224,21 @@ namespace VVVV.Nodes.DX11PlayerNode
             // Check for changes in the format files 
             for (var i = 0; i < FInFormatFile.Count(); i++)
             {
-                if (FPrevFormatFile.SliceCount == 0) break;
-                var previousFormatFile = FPrevFormatFile[i];
-                var currentFormatFile = FInFormatFile[i];
+                var availablePrevFormatFile = FPrevFormatFile.SliceCount > i;
+                var availableFormatFile = FInFormatFile.SliceCount > i;
+                if (!availableFormatFile || !availablePrevFormatFile)
+                {
+                    FRefreshPlayer = true;
+                    continue;
+                }
+                var previousFormatFile = string.IsNullOrEmpty(FPrevFormatFile[i]) ? "" : FPrevFormatFile[i];
+                var currentFormatFile = string.IsNullOrEmpty(FInFormatFile[i]) ? "" : FInFormatFile[i];
                 if (previousFormatFile != currentFormatFile)
                 {
                     var previousFormatFileExtension = Path.GetExtension(previousFormatFile);
                     var currentFormatFileExtension = Path.GetExtension(currentFormatFile);
-                    FLogger.Log(LogType.Message,
-                        "Current Format File: " + currentFormatFile + " | extension: " + currentFormatFileExtension);
-                    FLogger.Log(LogType.Message,
-                        "Previous Format File: " + previousFormatFile + " | extension: " + previousFormatFileExtension);
+                    FLogger.Log(LogType.Message, "Current Format File: " + currentFormatFile + " | extension: " + currentFormatFileExtension);
+                    FLogger.Log(LogType.Message, "Previous Format File: " + previousFormatFile + " | extension: " + previousFormatFileExtension);
                     var validFormatFile = !string.IsNullOrEmpty(currentFormatFile);
                     var validPrevFormatFile = !string.IsNullOrEmpty(previousFormatFile);
                     if (validFormatFile && validPrevFormatFile)
@@ -248,11 +252,9 @@ namespace VVVV.Nodes.DX11PlayerNode
                             "Formats are the same (DX11PlayerNative.dll): " + formatsAreTheSame);
                         if (!formatsAreTheSame || !formatExtensionsAreTheSame)
                         {
-                            //FRefreshPlayer = true;
                             DestroyPlayer(i);
                         }
                     }
-
                     // Update the previous format file with the current one
                     FPrevFormatFile[i] = currentFormatFile;
                 }
@@ -267,7 +269,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                 FPrevFormatFile.SliceCount = 0;
             }
 
-            /*
             if (FAlwaysShowLastIn.IsChanged)
             {
                 for (var i = 0; i < FDX11NativePlayer.SliceCount; i++)
@@ -278,7 +279,6 @@ namespace VVVV.Nodes.DX11PlayerNode
                     }
                 }
             }
-            */
 
             for (var i = 0; i < FNextFrameRenderIn.SliceCount; i++)
             {

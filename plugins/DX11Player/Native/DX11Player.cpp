@@ -61,16 +61,6 @@ static uint32_t SectorSize(char cDisk)
 	return diskAlignment.BytesPerLogicalSector;
 }
 
-
-/*static DWORD NextMultiple(DWORD in, DWORD multiple){
-	if (in % multiple != 0){
-		return in + (multiple - in % multiple);
-	}
-	else{
-		return in;
-	}
-}*/
-
 static DWORD NextMultiple(DWORD in, DWORD multiple){
 	return max(in / multiple*multiple, multiple);
 }
@@ -211,18 +201,20 @@ DX11Player::DX11Player(const std::string & fileForFormat, size_t ringBufferSize)
 }
 
 DX11Player::~DX11Player() {
-  Cleanup();
+  //Cleanup();
 }
 
 void DX11Player::Cleanup() {
 	m_WaiterThreadRunning = false;
 	m_UploaderThreadRunning = false;
+
+	m_UploaderThread.join();
+	m_WaiterThread.join();
+
 	m_ReadyToUpload.close();
 	m_ReadyToRender.close();
 	m_ReadyToWait.close();
 	m_NextFrameChannel.close();
-	m_UploaderThread.join();
-	m_WaiterThread.join();
 }
 
 void DX11Player::Update(){
@@ -408,21 +400,15 @@ extern "C" {
 
 	NATIVE_API void DX11Player_Destroy(DX11HANDLE player)
 	{
+		DX11Player* playerPtr = static_cast<DX11Player*>(player);
 		// Catching exceptions here should be evaluated further
 		try {
-			if (player) {
-				// FIXME: cleaning up the player leads to a crash
-				// propably the thread joining is not correct?
-
-				// auto ptr = static_cast<DX11Player*>(player);
-				//ptr->Cleanup();
-				// FIX: explicitly delete the pointer object lead to crashes
-				//delete ptr; 
-			}
+			//playerPtr->Cleanup();
 		}
 		catch (const std::exception& e) {
 			OutputDebugStringA(e.what());
 		}
+		//delete playerPtr;
 	}
 
 	NATIVE_API void DX11Player_Update(DX11HANDLE player)
