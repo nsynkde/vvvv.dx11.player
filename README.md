@@ -9,8 +9,8 @@ Supports image sequence streaming from disk to GPU. Supported file formats are:
 ### Building
 Open `DX11Player.sln` from `plugins/DX11Player` and build the solution file.
 
-**Release** build will output to `patches/` directory — ready for usage in vvvv.
-**Debug** builds will output to a `/build` directory relative to the Solution file.
+- **Release** build will output to `patches/` directory — ready for usage in vvvv.
+- **Debug** builds will output to a `/build` directory relative to the Solution file.
 
 
 ### Debugging
