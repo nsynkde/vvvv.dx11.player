@@ -225,3 +225,6 @@ plugins/DX11Player/Native/VShader.h
 plugins/DX11Player/DX11Player.VC.db
 
 plugins/DX11Player/DX11Player/packages/
+
+# ignore data directory
+# /data
