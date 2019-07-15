@@ -222,43 +222,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
 
             // Check for changes in the format files 
-            for (var i = 0; i < FInFormatFile.Count(); i++)
-            {
-                var availablePrevFormatFile = FPrevFormatFile.SliceCount > i;
-                var availableFormatFile = FInFormatFile.SliceCount > i;
-                if (!availableFormatFile || !availablePrevFormatFile)
-                {
-                    FRefreshPlayer = true;
-                    continue;
-                }
-                var previousFormatFile = string.IsNullOrEmpty(FPrevFormatFile[i]) ? "" : FPrevFormatFile[i];
-                var currentFormatFile = string.IsNullOrEmpty(FInFormatFile[i]) ? "" : FInFormatFile[i];
-                if (previousFormatFile != currentFormatFile)
-                {
-                    var previousFormatFileExtension = Path.GetExtension(previousFormatFile);
-                    var currentFormatFileExtension = Path.GetExtension(currentFormatFile);
-                    FLogger.Log(LogType.Message, "Current Format File: " + currentFormatFile + " | extension: " + currentFormatFileExtension);
-                    FLogger.Log(LogType.Message, "Previous Format File: " + previousFormatFile + " | extension: " + previousFormatFileExtension);
-                    var validFormatFile = !string.IsNullOrEmpty(currentFormatFile);
-                    var validPrevFormatFile = !string.IsNullOrEmpty(previousFormatFile);
-                    if (validFormatFile && validPrevFormatFile)
-                    {
-                        var formatsAreTheSame =
-                            NativeInterface.DX11Player_IsSameFormat(currentFormatFile, previousFormatFile);
-                        var formatExtensionsAreTheSame = previousFormatFileExtension == currentFormatFileExtension;
-                        FLogger.Log(LogType.Message,
-                            "Formats are the same (File extension): " + formatExtensionsAreTheSame);
-                        FLogger.Log(LogType.Message,
-                            "Formats are the same (DX11PlayerNative.dll): " + formatsAreTheSame);
-                        if (!formatsAreTheSame || !formatExtensionsAreTheSame)
-                        {
-                            DestroyPlayer(i);
-                        }
-                    }
-                    // Update the previous format file with the current one
-                    FPrevFormatFile[i] = currentFormatFile;
-                }
-            }
+            ReactOnFormatFileChanges(); 
 
             if (!FInFormatFile.Any())
             {
@@ -285,6 +249,40 @@ namespace VVVV.Nodes.DX11PlayerNode
                 if (FNextFrameRenderIn[i].Count() == FPrevRenderFrameIdxCount[i]) continue;
                 CreateTextureOut(i);
                 FPrevRenderFrameIdxCount[i] = FNextFrameRenderIn[i].Count();
+            }
+        }
+
+        public void ReactOnFormatFileChanges()
+        {
+            for (var i = 0; i < FInFormatFile.Count(); i++)
+            {
+                var availablePrevFormatFile = FPrevFormatFile.SliceCount > i;
+                var availableFormatFile     = FInFormatFile.SliceCount   > i;
+                if (!availableFormatFile || !availablePrevFormatFile)
+                {
+                    FRefreshPlayer = true;
+                    continue;
+                }
+                var previousFormatFile = string.IsNullOrEmpty(FPrevFormatFile[i]) ? "" : FPrevFormatFile[i];
+                var currentFormatFile  = string.IsNullOrEmpty(FInFormatFile[i])   ? "" : FInFormatFile[i];
+                if (previousFormatFile != currentFormatFile)
+                {
+                    var validFormatFile = !string.IsNullOrEmpty(currentFormatFile);
+                    var validPrevFormatFile = !string.IsNullOrEmpty(previousFormatFile);
+                    if (validFormatFile && validPrevFormatFile)
+                    {
+                        var formatsAreTheSame =
+                            NativeInterface.DX11Player_IsSameFormat(currentFormatFile, previousFormatFile);
+                        FLogger.Log(LogType.Message,
+                            "Formats are the same (DX11PlayerNative.dll): " + formatsAreTheSame);
+                        if (!formatsAreTheSame)
+                        {
+                            DestroyPlayer(i);
+                        }
+                    }
+                    // Update the previous format file with the current one
+                    FPrevFormatFile[i] = currentFormatFile;
+                }
             }
         }
 
