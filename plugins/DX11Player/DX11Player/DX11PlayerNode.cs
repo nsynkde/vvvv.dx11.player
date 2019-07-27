@@ -354,7 +354,8 @@ namespace VVVV.Nodes.DX11PlayerNode
             FPrevRenderFrameIdxCount[i] = numSpreads;
             for (var j = 0; j < numSpreads; j++)
             {
-                FTextureOut[i][j] = new DX11Resource<DX11Texture2D>();
+                DX11Resource<DX11Texture2D> texture = new DX11Resource<DX11Texture2D>();
+                FTextureOut[i][j] = texture;
             }
         }
 
@@ -405,7 +406,6 @@ namespace VVVV.Nodes.DX11PlayerNode
             FRefreshTextures = true;
             FRefreshPlayer = false;
         }
-
         #endregion
 
         #region DX11 
@@ -485,8 +485,7 @@ namespace VVVV.Nodes.DX11PlayerNode
                                         FTextureOut[i][j] = this.FSharedTextureCache[i][handle];
                                     }
 
-                                    FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width,
-                                        FTextureOut[i][j][context].Height);
+                                    FSizeOut[i] = new Vector2D(FTextureOut[i][j][context].Width, FTextureOut[i][j][context].Height);
                                     FFormatOut[i] = FTextureOut[i][j][context].Format;
                                     FGotFirstFrameOut[i] = true;
                                     FPrevFrameRendered[i][j] = nextFile;
