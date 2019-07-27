@@ -34,43 +34,80 @@ namespace VVVV.Nodes.DX11PlayerNode
         private static extern IntPtr AddDllDirectory(string newdirectory);
 
         [DllImport("kernel32.dll")]
+        private static extern bool SetDefaultDllDirectories(UInt32 DirectoryFlags);
         #endregion
 
-        private static extern bool SetDefaultDllDirectories(UInt32 DirectoryFlags);
-
-        const UInt32 LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200;
-        const UInt32 LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400;
-        const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
-        const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800;
+        #region Imports
+        [Import] ILogger FLogger;
+        #endregion
 
         #region Input pins
+
         [Input("Format file", StringType = StringType.Filename)]
         public IDiffSpread<string> FInFormatFile;
-        [Input("Load files")] public IDiffSpread<ISpread<string>> FInTextureFiles;
-        [Input("Frame render index")] public IDiffSpread<ISpread<int>> FNextFrameRenderIn;
-        [Input("Always show last frame")] public IDiffSpread<bool> FAlwaysShowLastIn;
+
+        [Input("Load files")]
+        public IDiffSpread<ISpread<string>> FInTextureFiles;
+
+        [Input("Frame render index")]
+        public IDiffSpread<ISpread<int>> FNextFrameRenderIn;
+
+        [Input("Always show last frame")]
+        public IDiffSpread<bool> FAlwaysShowLastIn;
         #endregion
 
         #region Output pins
-        [Output("Status")] public ISpread<string> FStatusOut;
-        [Output("Texture")] public ISpread<ISpread<DX11Resource<DX11Texture2D>>> FTextureOut;
-        [Output("Resolution")] public ISpread<Vector2D> FSizeOut;
-        [Output("Texture format")] public ISpread<Format> FFormatOut;
-        [Output("Upload buffer size")] public ISpread<int> FUploadSizeOut;
-        [Output("Wait buffer size")] public ISpread<int> FWaitSizeOut;
-        [Output("Render buffer size")] public ISpread<int> FRenderSizeOut;
-        [Output("Present buffer size")] public ISpread<int> FPresentSizeOut;
-        [Output("Number of dropped frames")] public ISpread<int> FDroppedFramesOut;
-        [Output("Average load duration ms")] public ISpread<int> FAvgLoadDurationMsOut;
-        [Output("Ready state")] public ISpread<bool> FGotFirstFrameOut;
-        [Output("Load frame")] public ISpread<string> FLoadFrameOut;
-        [Output("Render frame")] public ISpread<string> FRenderFrameOut;
-        [Output("Got requested frame")] public ISpread<bool> FGotRequestedFrameOut;
+        [Output("Status")]
+        public ISpread<string> FStatusOut;
+
+        [Output("Texture")]
+        public ISpread<ISpread<DX11Resource<DX11Texture2D>>> FTextureOut;
+
+        [Output("Resolution")]
+        public ISpread<Vector2D> FSizeOut;
+
+        [Output("Texture format")]
+        public ISpread<Format> FFormatOut;
+
+        [Output("Upload buffer size")]
+        public ISpread<int> FUploadSizeOut;
+
+        [Output("Wait buffer size")]
+        public ISpread<int> FWaitSizeOut;
+
+        [Output("Render buffer size")]
+        public ISpread<int> FRenderSizeOut;
+
+        [Output("Present buffer size")]
+        public ISpread<int> FPresentSizeOut;
+
+        [Output("Number of dropped frames")]
+        public ISpread<int> FDroppedFramesOut;
+
+        [Output("Average load duration ms")]
+        public ISpread<int> FAvgLoadDurationMsOut;
+
+        [Output("Ready state")]
+        public ISpread<bool> FGotFirstFrameOut;
+
+        [Output("Load frame")]
+        public ISpread<string> FLoadFrameOut;
+
+        [Output("Render frame")]
+        public ISpread<string> FRenderFrameOut;
+
+        [Output("Got requested frame")]
+        public ISpread<bool> FGotRequestedFrameOut;
+
         [Output("Version", Visibility = PinVisibility.Hidden, IsSingle = true)]
         public ISpread<string> FVersion;
         #endregion
 
-        [Import] ILogger FLogger;
+        #region class variables and properties
+        const UInt32 LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200;
+        const UInt32 LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400;
+        const UInt32 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
+        const UInt32 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800;
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
         private Spread<string> FPrevFormatFile = new Spread<string>();
@@ -86,8 +123,9 @@ namespace VVVV.Nodes.DX11PlayerNode
         private int FPrevNumSpreads = 0;
         private bool FRefreshPlayer = false;
         private bool FRefreshTextures = false;
+        #endregion
 
-        #region DX11PlayerNode lifecycle
+        #region vvvv node life cycle
         static DX11PlayerNode()
         {
             SetupDLLDirectory();
@@ -141,10 +179,6 @@ namespace VVVV.Nodes.DX11PlayerNode
             {
                 FStatusOut[0] = e.Message;
             }
-        }
-
-        public void EvaluateNew(int spreadMax)
-        {
         }
 
         public void Evaluate(int spreadMax)
@@ -517,79 +551,5 @@ namespace VVVV.Nodes.DX11PlayerNode
         }
 
         #endregion
-    }
-
-    internal class NativeInterface
-    {
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
-        internal static extern bool DX11Player_Available();
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
-        internal static extern IntPtr DX11Player_Create(string formatFile, int ringBufferSize);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern void DX11Player_Destroy(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern void DX11Player_Update(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern IntPtr DX11Player_GetSharedHandle(IntPtr player, string nextFrame);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetUploadBufferSize(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetWaitBufferSize(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetRenderBufferSize(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetPresentBufferSize(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetDroppedFrames(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetAvgLoadDurationMs(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern void DX11Player_SendNextFrameToLoad(IntPtr player, string nextFrame);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        [return: MarshalAs(UnmanagedType.I1)]
-        internal static extern bool DX11Player_IsReady(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        [return: MarshalAs(UnmanagedType.I1)]
-        internal static extern bool DX11Player_GotFirstFrame(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false)]
-        internal static extern int DX11Player_GetStatus(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi,
-            CallingConvention = CallingConvention.StdCall)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal static extern string DX11Player_GetStatusMessage(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi,
-            CallingConvention = CallingConvention.StdCall)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal static extern string DX11Player_GetCurrentLoadFrame(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi,
-            CallingConvention = CallingConvention.StdCall)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal static extern string DX11Player_GetCurrentRenderFrame(IntPtr player);
-
-        [DllImport("DX11PlayerNative.dll", CallingConvention = CallingConvention.StdCall)]
-        internal static extern void DX11Player_SetSystemFrames(IntPtr player, String[] frames, int size);
-
-        [DllImport("DX11PlayerNative.dll")]
-        internal static extern void DX11Player_SetAlwaysShowLastFrame(IntPtr player, bool always);
-
-        [DllImport("DX11PlayerNative.dll", SetLastError = false, CharSet = CharSet.Ansi)]
-        internal static extern bool DX11Player_IsSameFormat(string formatFile1, string formatFile2);
-    }
+    } 
 }
