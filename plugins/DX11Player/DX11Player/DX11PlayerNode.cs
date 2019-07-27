@@ -257,7 +257,7 @@ namespace VVVV.Nodes.DX11PlayerNode
             }
 
             // Check for changes in the format files 
-            ReactOnFormatFileChanges(); 
+            ReactOnFormatFileChanges();
 
             if (!FInFormatFile.Any())
             {
@@ -292,27 +292,29 @@ namespace VVVV.Nodes.DX11PlayerNode
             for (var i = 0; i < FInFormatFile.Count(); i++)
             {
                 var availablePrevFormatFile = FPrevFormatFile.SliceCount > i;
-                var availableFormatFile     = FInFormatFile.SliceCount   > i;
+                var availableFormatFile = FInFormatFile.SliceCount > i;
                 if (!availableFormatFile || !availablePrevFormatFile)
                 {
                     FRefreshPlayer = true;
                     continue;
                 }
                 var previousFormatFile = string.IsNullOrEmpty(FPrevFormatFile[i]) ? "" : FPrevFormatFile[i];
-                var currentFormatFile  = string.IsNullOrEmpty(FInFormatFile[i])   ? "" : FInFormatFile[i];
+                var currentFormatFile = string.IsNullOrEmpty(FInFormatFile[i]) ? "" : FInFormatFile[i];
                 if (previousFormatFile != currentFormatFile)
                 {
                     var validFormatFile = !string.IsNullOrEmpty(currentFormatFile);
                     var validPrevFormatFile = !string.IsNullOrEmpty(previousFormatFile);
                     if (validFormatFile && validPrevFormatFile)
                     {
-                        var formatsAreTheSame =
-                            NativeInterface.DX11Player_IsSameFormat(currentFormatFile, previousFormatFile);
-                        FLogger.Log(LogType.Message,
-                            "Formats are the same (DX11PlayerNative.dll): " + formatsAreTheSame);
-                        if (!formatsAreTheSame)
+                        var doFormatFilesMatch = currentFormatFile.Equals(previousFormatFile);
+                        if (doFormatFilesMatch == false)
                         {
+                            FLogger.Log(LogType.Message, $"Format files do not match, recreate player at {i}.");
                             DestroyPlayer(i);
+                        }
+                        else
+                        {
+                            FLogger.Log(LogType.Message, $"Format files match, no need to recreate player at {i}.");
                         }
                     }
                     // Update the previous format file with the current one
@@ -551,5 +553,5 @@ namespace VVVV.Nodes.DX11PlayerNode
         }
 
         #endregion
-    } 
+    }
 }
