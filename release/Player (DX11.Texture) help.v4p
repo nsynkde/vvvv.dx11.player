@@ -164,24 +164,6 @@
    <PIN pinname="Size" slicecount="1" values="8">
    </PIN>
    </NODE>
-   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="129">
-   <BOUNDS type="Node" left="585" top="2025" width="1995" height="270">
-   </BOUNDS>
-   <BOUNDS type="Box" left="585" top="2025" width="3060" height="1005">
-   </BOUNDS>
-   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;&cr;&lf;- .tga&cr;&lf;- .dbx up to 10bit per channel&cr;&lf;- .dds (BC1, BC3, BC5, BC6, BC7)|">
-   </PIN>
-   <PIN pinname="Output String" visible="0">
-   </PIN>
-   <PIN pinname="Show Grid" slicecount="1" values="0">
-   </PIN>
-   <PIN pinname="String Type" slicecount="1" values="MultiLine">
-   </PIN>
-   <PIN pinname="Font" slicecount="1" values="Consolas">
-   </PIN>
-   <PIN pinname="Size" slicecount="1" values="8">
-   </PIN>
-   </NODE>
    <NODE id="96" nodename="IOBox (String)" componentmode="InABox" systemname="IOBox (String)">
    <BOUNDS type="Node" left="285" top="825" width="1070" height="230">
    </BOUNDS>

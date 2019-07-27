@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Document xmlns:p="property" Id="GB2VxUl5VdhM5rsl5IbjQg" Version="0.94">
+<Document xmlns:p="property" Id="GB2VxUl5VdhM5rsl5IbjQg" LanguageVersion="2019.1.0-0417-g808f072318" Version="0.128">
   <NugetDependency Id="RKFCmk1Lg5EP3I4IQegLTw" Location="VL.CoreLib" Version="0.35.21" />
   <NugetDependency Id="U2JwHqMJLyGLDs97lM6eZ6" Location="VL.CoreLib.VVVV" Version="0.35.21" />
   <Patch Id="Th8hpfHvBF4Lk6VOwDCc9D">
@@ -22,10 +22,10 @@
                 <Choice Kind="TypeFlag" Name="String" />
               </p:TypeAnnotation>
             </Pin>
-            <Pin Id="VyQ0oni1xgxOH4tU9JFmDe" Name="FormatFile" Kind="OutputPin" Bounds="353,583" />
-            <Pin Id="GbJqjuuZbkFPHqNize1DoZ" Name="PreloadFiles" Kind="OutputPin" Bounds="476,580" />
             <Pin Id="QBwDLp9m1XmMrib8Zj6qci" Name="Playhead" Kind="InputPin" Bounds="607,239" />
             <Pin Id="E77J2wetoyVNkeR0YwGj36" Name="Preload" Kind="InputPin" Bounds="728,243" />
+            <Pin Id="VyQ0oni1xgxOH4tU9JFmDe" Name="FormatFile" Kind="OutputPin" Bounds="353,583" />
+            <Pin Id="GbJqjuuZbkFPHqNize1DoZ" Name="PreloadFiles" Kind="OutputPin" Bounds="476,580" />
           </Patch>
           <Canvas Id="C4yd3S6BFv9NWqJ2WO3OFi" CanvasType="Group">
             <ControlPoint Id="N1wdtIrCDgbPjsA5FdakTJ" Bounds="333,188" />
@@ -57,7 +57,7 @@
             <Node Bounds="333,238,92,128" Id="I8IB6BsFTSlLc37qN6Qi5E">
               <p:NodeReference LastCategoryFullName="Primitive" LastSymbolSource="CoreLibBasics.vl">
                 <Choice Kind="StatefulRegion" Name="Region (Stateful)" Fixed="true" />
-                <Choice Kind="ApplicationStatefulRegion" Name="Cache" />
+                <Choice Kind="ProcessStatefulRegion" Name="Cache" />
                 <FullNameCategoryReference ID="Primitive" />
               </p:NodeReference>
               <Pin Id="PHwhxpcHDZJLj0kRbHh3yK" Name="Force" Kind="InputPin" />
@@ -112,6 +112,31 @@
         </Patch>
       </Node>
     </Canvas>
+    <!--
+
+    ************************ Application ************************
+
+-->
+    <Node Name="Application" Bounds="100,100" Id="QrHlbhF4tcfOzLUXryEyJS">
+      <p:NodeReference>
+        <Choice Kind="ContainerDefinition" Name="Process" />
+        <FullNameCategoryReference ID="Primitive" />
+      </p:NodeReference>
+      <Patch Id="NejGYXJ5xCfMzIZwoYfejw">
+        <Canvas Id="ALP5jPRoffbNiaLgite2ke" BordersChecked="false" CanvasType="Group" />
+        <Patch Id="ThZ8AvfPZRsNB1tik2XC6N" Name="Create" />
+        <Patch Id="BfcrRHCTJ8sOoGLJLO6oOT" Name="Update" />
+        <!--
+
+    ************************  ************************
+
+-->
+        <ProcessDefinition Id="Rkep55lisLQO4Mqg9CxsIh">
+          <Fragment Id="NMZTXK0KsG1NHGvJIO8Ag1" Patch="ThZ8AvfPZRsNB1tik2XC6N" Enabled="true" />
+          <Fragment Id="JZKEVzgsIjxOy1g07yydSw" Patch="BfcrRHCTJ8sOoGLJLO6oOT" Enabled="true" />
+        </ProcessDefinition>
+      </Patch>
+    </Node>
   </Patch>
   <PlatformDependency Id="E6scp1P0xv3NuuIX1C70TO" Location="System.Windows.Forms" />
 </Document>
