@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns:p="property" Id="GB2VxUl5VdhM5rsl5IbjQg" Version="0.94">
+  <NugetDependency Id="RKFCmk1Lg5EP3I4IQegLTw" Location="VL.CoreLib" Version="0.35.21" />
+  <NugetDependency Id="U2JwHqMJLyGLDs97lM6eZ6" Location="VL.CoreLib.VVVV" Version="0.35.21" />
+  <Patch Id="Th8hpfHvBF4Lk6VOwDCc9D">
+    <Canvas Id="NtZT52Xp5qNOXK0fF2H7kv" DefaultCategory="VVVV.String" BordersChecked="false" CanvasType="FullCategory">
+      <!--
+
+    ************************ PlayerHandler ************************
+
+-->
+      <Node Name="PlayerHandler" Bounds="153,200" Id="TSttkfeJHQSN5gkEF54G9o">
+        <p:NodeReference>
+          <Choice Kind="ContainerDefinition" Name="Patch" />
+          <FullNameCategoryReference ID="Primitive" />
+        </p:NodeReference>
+        <Patch Id="CzjSvRY5dvXQDxmAOA8mZj">
+          <Patch Id="ESJZDDS0I02LAWDOx9RJVV" Name="Create" />
+          <Patch Id="OkqGvJfa3PDOppp4PFQghD" Name="Update">
+            <Pin Id="NtS4nEceEyJNz7UGgOM13F" Name="Input" Kind="InputPin">
+              <p:TypeAnnotation>
+                <Choice Kind="TypeFlag" Name="String" />
+              </p:TypeAnnotation>
+            </Pin>
+            <Pin Id="VyQ0oni1xgxOH4tU9JFmDe" Name="FormatFile" Kind="OutputPin" Bounds="353,583" />
+            <Pin Id="GbJqjuuZbkFPHqNize1DoZ" Name="PreloadFiles" Kind="OutputPin" Bounds="476,580" />
+            <Pin Id="QBwDLp9m1XmMrib8Zj6qci" Name="Playhead" Kind="InputPin" Bounds="607,239" />
+            <Pin Id="E77J2wetoyVNkeR0YwGj36" Name="Preload" Kind="InputPin" Bounds="728,243" />
+          </Patch>
+          <Canvas Id="C4yd3S6BFv9NWqJ2WO3OFi" CanvasType="Group">
+            <ControlPoint Id="N1wdtIrCDgbPjsA5FdakTJ" Bounds="333,188" />
+            <Node Bounds="333,448,46,22" Id="O0ITgdxK0stMe6MT37ucBB">
+              <p:NodeReference LastCategoryFullName="Collections.Spread" LastSymbolSource="VL.Collections.vl">
+                <Choice Kind="NodeFlag" Name="Node" Fixed="true" />
+                <Choice Kind="OperationCallFlag" Name="GetSlice" />
+                <CategoryReference Kind="RecordType" Name="Spread" NeedsToBeDirectParent="true" />
+              </p:NodeReference>
+              <Pin Id="NwCz0NaMWoYPzn6kAhm1n5" Name="Input" Kind="StateInputPin" />
+              <Pin Id="ToCMxHhnZn6OZJPcLx8JUV" Name="Default Value" Kind="InputPin" />
+              <Pin Id="OL0E4kRhxD6NKFbOjOacSz" Name="Index" Kind="InputPin" />
+              <Pin Id="Dzg3Xfml9HMLx067O6Dolc" Name="Result" Kind="OutputPin" />
+            </Node>
+            <ControlPoint Id="GHANHG08QyNPwygYJt3Wvz" Bounds="333,577" />
+            <Node Bounds="470,448,163,22" Id="GU3UuHWwQKWOiGCe6y16eh">
+              <p:NodeReference LastCategoryFullName="Collections.Spread" LastSymbolSource="VL.Collections.vl">
+                <Choice Kind="NodeFlag" Name="Node" Fixed="true" />
+                <Choice Kind="OperationCallFlag" Name="GetSpread" />
+              </p:NodeReference>
+              <Pin Id="Uw1Z0fZ9q7TQLGyqmZyjow" Name="Input" Kind="StateInputPin" />
+              <Pin Id="TVqYc8wCphuQFem17ihvIg" Name="Index" Kind="InputPin" />
+              <Pin Id="Kcz4CzjnxOIOT2HeovnYBP" Name="Count" Kind="InputPin" />
+              <Pin Id="Vgg1QZ5IXqPPLDJSp0lCwx" Name="Output" Kind="StateOutputPin" />
+            </Node>
+            <ControlPoint Id="HC3zYZh2hISPShaERDmdZK" Bounds="550,188" />
+            <ControlPoint Id="I204WNPYoO7MNGddroyVQF" Bounds="630,188" />
+            <ControlPoint Id="TtTlpy0JJC0LTYpVl7CJJm" Bounds="470,577" />
+            <Node Bounds="333,238,92,128" Id="I8IB6BsFTSlLc37qN6Qi5E">
+              <p:NodeReference LastCategoryFullName="Primitive" LastSymbolSource="CoreLibBasics.vl">
+                <Choice Kind="StatefulRegion" Name="Region (Stateful)" Fixed="true" />
+                <Choice Kind="ApplicationStatefulRegion" Name="Cache" />
+                <FullNameCategoryReference ID="Primitive" />
+              </p:NodeReference>
+              <Pin Id="PHwhxpcHDZJLj0kRbHh3yK" Name="Force" Kind="InputPin" />
+              <Pin Id="LbaZKZnc0MdNfZqyiQElKs" Name="Dispose Cached Outputs" Kind="InputPin" />
+              <Pin Id="RFDbsxzhzQUQSVnYyhHLpw" Name="Has Changed" Kind="OutputPin" />
+              <Patch Id="Nop1jpXnWCVMzWFZ7hbNhe" ManuallySortedPins="true">
+                <Patch Id="Gg0Dsg6UYSQQLyJkay3E8S" Name="Create" ManuallySortedPins="true" />
+                <Patch Id="Up0MsvxAXHFObd1mM6PqqG" Name="Then" ManuallySortedPins="true" />
+                <Node Bounds="333,310,65,22" Id="SHpTFMW8lxZOlxjignPMU0">
+                  <p:NodeReference LastCategoryFullName="IO.Path" LastSymbolSource="CoreLibBasics.vl">
+                    <Choice Kind="NodeFlag" Name="Node" Fixed="true" />
+                    <Choice Kind="OperationCallFlag" Name="GetFiles" />
+                  </p:NodeReference>
+                  <Pin Id="OFt3cnMkzylPleEhwIkbfe" Name="Input" Kind="StateInputPin" />
+                  <Pin Id="OHQGyUUQTqKLoK0TAkxXaw" Name="Search Pattern" Kind="InputPin" />
+                  <Pin Id="Iz85zo9S0lCO7XeHAbC304" Name="Include Subdirectories" Kind="InputPin" />
+                  <Pin Id="NDwyZIgB1mOMn9tdUcDinQ" Name="Include Hidden" Kind="InputPin" />
+                  <Pin Id="I1mZzLz1UKcQWafHXz0AHt" Name="Result" Kind="OutputPin" />
+                </Node>
+                <Node Bounds="333,276,65,20" Id="Tud8A963jKHNWOsjbs06YB">
+                  <p:NodeReference LastCategoryFullName="IO" LastSymbolSource="CoreLibBasics.vl">
+                    <Choice Kind="NodeFlag" Name="Node" Fixed="true" />
+                    <Choice Kind="OperationCallFlag" Name="ToPath" />
+                  </p:NodeReference>
+                  <Pin Id="S1SIaummYxSOJtuAyefTpM" Name="Input" Kind="InputPin" />
+                  <Pin Id="Toc1aY2FCdBO6Lc75SkA35" Name="Result" Kind="OutputPin" />
+                </Node>
+              </Patch>
+              <ControlPoint Id="NRQHoB9WPOjMXL7GxbYSkN" Bounds="333,244" Alignment="Top" />
+              <ControlPoint Id="Jx8Y5f1jUebPofy0a1PbV4" Bounds="333,360" Alignment="Bottom" />
+            </Node>
+          </Canvas>
+          <ProcessDefinition Id="FHNLl8GWgcVOJzRkkPI83E">
+            <Fragment Id="MRFnVwHDf0WOO7H3jKbCxI" Patch="ESJZDDS0I02LAWDOx9RJVV" Enabled="true" />
+            <Fragment Id="PulIQZQ5YLtPp6C2yvbTNE" Patch="OkqGvJfa3PDOppp4PFQghD" Enabled="true" />
+          </ProcessDefinition>
+          <Link Id="N8spuNZEfYkLEaQuzNT2m0" Ids="NtS4nEceEyJNz7UGgOM13F,N1wdtIrCDgbPjsA5FdakTJ" IsHidden="true" />
+          <Link Id="KI2ez29I49PN9xKKYFEd5A" Ids="Dzg3Xfml9HMLx067O6Dolc,GHANHG08QyNPwygYJt3Wvz" />
+          <Link Id="SGdFXF7WnpjNSMsfaqHB9F" Ids="GHANHG08QyNPwygYJt3Wvz,VyQ0oni1xgxOH4tU9JFmDe" IsHidden="true" />
+          <Link Id="HtaHmoctNbwQWzoWwnXltN" Ids="HC3zYZh2hISPShaERDmdZK,TVqYc8wCphuQFem17ihvIg" />
+          <Link Id="IQDpdvHLRpfLruqM5bDIPr" Ids="QBwDLp9m1XmMrib8Zj6qci,HC3zYZh2hISPShaERDmdZK" IsHidden="true" />
+          <Link Id="MtJpU3cCH9TOd6Cv1Wudux" Ids="I204WNPYoO7MNGddroyVQF,Kcz4CzjnxOIOT2HeovnYBP" />
+          <Link Id="RlDKqQeOt4UPjKuPNQ2H9u" Ids="E77J2wetoyVNkeR0YwGj36,I204WNPYoO7MNGddroyVQF" IsHidden="true" />
+          <Link Id="Nb53kcOB4zyNHlLlaPH4lo" Ids="Vgg1QZ5IXqPPLDJSp0lCwx,TtTlpy0JJC0LTYpVl7CJJm" />
+          <Link Id="Ab3x5omg6ymPy8Ya8p1UDo" Ids="TtTlpy0JJC0LTYpVl7CJJm,GbJqjuuZbkFPHqNize1DoZ" IsHidden="true" />
+          <Link Id="MYgj4PynOSoNz7quUHmfnX" Ids="I1mZzLz1UKcQWafHXz0AHt,Jx8Y5f1jUebPofy0a1PbV4" />
+          <Link Id="VKmG12lIGXGMHuH2fCpvRp" Ids="Jx8Y5f1jUebPofy0a1PbV4,NwCz0NaMWoYPzn6kAhm1n5" />
+          <Link Id="OhKMW7xtGzLL6L5ZphnwkR" Ids="Jx8Y5f1jUebPofy0a1PbV4,Uw1Z0fZ9q7TQLGyqmZyjow" />
+          <Link Id="Oo31VWlPjkmQUMezQYbXlz" Ids="Toc1aY2FCdBO6Lc75SkA35,OFt3cnMkzylPleEhwIkbfe" />
+          <Link Id="QFVKmsvOxhLO9R4s1lEnyW" Ids="N1wdtIrCDgbPjsA5FdakTJ,NRQHoB9WPOjMXL7GxbYSkN" />
+          <Link Id="JQGJkI83tdCLPyytKHHMPZ" Ids="NRQHoB9WPOjMXL7GxbYSkN,S1SIaummYxSOJtuAyefTpM" />
+        </Patch>
+      </Node>
+    </Canvas>
+  </Patch>
+  <PlatformDependency Id="E6scp1P0xv3NuuIX1C70TO" Location="System.Windows.Forms" />
+</Document>

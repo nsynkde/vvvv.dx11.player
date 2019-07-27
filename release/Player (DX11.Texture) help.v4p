@@ -1,0 +1,217 @@
+<!DOCTYPE PATCH  SYSTEM "http://vvvv.org/versions/vvvv50alpha38.2.dtd" >
+   <PATCH nodename="F:\git\nsynk\vvvv.dx11.player\release\Player (DX11.Texture) help.v4p" scrollx="0" scrolly="0" systemname="Player (DX11.Texture) help" filename="C:\Users\nsynk\git\vvvv.player\patches\Player (DX11.Texture) help.v4p">
+   <BOUNDS type="Window" left="9165" top="240" width="19185" height="20805">
+   </BOUNDS>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="13" systemname="IOBox (String)">
+   <BOUNDS type="Box" left="4630" top="650" width="3465" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="4630" top="650" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Input String" slicecount="1" visible="1" values="data\bunny\dds">
+   </PIN>
+   <PIN pinname="Default" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="File Mask" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Maximum Characters" slicecount="1" values="-1">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="Directory">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="|Input Directory|">
+   </PIN>
+   <PIN pinname="Output String" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="LFO (Animation)" nodename="LFO (Animation)" componentmode="Hidden" id="10">
+   <BOUNDS type="Node" left="5705" top="2885" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Period" visible="1">
+   </PIN>
+   <PIN pinname="Cycles" visible="1">
+   </PIN>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   </NODE>
+   <NODE systemname="Divide (Value)" nodename="Divide (Value)" componentmode="Hidden" id="9">
+   <BOUNDS type="Node" left="5900" top="2550" width="100" height="100">
+   </BOUNDS>
+   <PIN pinname="Input 2" visible="1">
+   </PIN>
+   <PIN pinname="Output" visible="1">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (Value Advanced)" componentmode="InABox" id="8" systemname="IOBox (Value Advanced)">
+   <BOUNDS type="Box" left="5990" top="2110" width="795" height="240">
+   </BOUNDS>
+   <BOUNDS type="Node" left="5990" top="2110" width="0" height="0">
+   </BOUNDS>
+   <PIN pinname="Y Input Value" slicecount="1" visible="1" values="30">
+   </PIN>
+   <PIN pinname="Units" slicecount="1" values="||">
+   </PIN>
+   <PIN pinname="Precision" slicecount="1" values="4">
+   </PIN>
+   <PIN pinname="Descriptive Name" slicecount="1" values="FPS">
+   </PIN>
+   </NODE>
+   <LINK srcnodeid="8" srcpinname="Y Output Value" dstnodeid="9" dstpinname="Input 2">
+   </LINK>
+   <LINK srcnodeid="9" srcpinname="Output" dstnodeid="10" dstpinname="Period">
+   </LINK>
+   <PACK Name="addonpack" Version="38.1.0">
+   </PACK>
+   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="74">
+   <BOUNDS type="Node" left="2720" top="4505" width="5820" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="2720" top="4505" width="1710" height="930">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|The &quot;format file&quot; is used to determine the texture properties of image sequences|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   </NODE>
+   <NODE systemname="Preview (DX11.Texture)" filename="%VVVV%\packs\dx11\nodes\plugins\base\VVVV.DX11.Nodes.dll" nodename="Preview (DX11.Texture)" componentmode="InABox" id="89">
+   <BOUNDS type="Node" left="4785" top="6900" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="4785" top="6900" width="6000" height="4500">
+   </BOUNDS>
+   <BOUNDS type="Window" left="21585" top="14100" width="6240" height="5085">
+   </BOUNDS>
+   <PIN pinname="Texture In" visible="1" slicecount="1" values="||">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (String)" componentmode="InABox" id="97" systemname="IOBox (String)">
+   <BOUNDS type="Node" left="285" top="270" width="970" height="230">
+   </BOUNDS>
+   <BOUNDS type="Box" left="285" top="270" width="2160" height="560">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="Player.DX11">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Rows" slicecount="1" values="1">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="17">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="95">
+   <BOUNDS type="Node" left="285" top="1725" width="1995" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="285" top="1725" width="3060" height="1005">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;&cr;&lf;- .tga&cr;&lf;- .dbx up to 10bit per channel&cr;&lf;- .dds (BC1, BC3, BC5, BC6, BC7)|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Font" slicecount="1" values="Consolas">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="8">
+   </PIN>
+   </NODE>
+   <PACK Name="dx11" Version="1.3.1">
+   </PACK>
+   <PACK Name="dx11.particles" Version="1.0.6">
+   </PACK>
+   <NODE systemname="PlayerHandler (String)" filename="vl\VVVV.String.PlayerHandler.vl" nodename="PlayerHandler (String)" componentmode="Hidden" id="126">
+   <BOUNDS type="Node" left="4640" top="3780" width="2280" height="270">
+   </BOUNDS>
+   <PIN pinname="Input" visible="1" slicecount="10" values="E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02055_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02056_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02057_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02058_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02059_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02060_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02061_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02062_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02063_result.dpx,E:\git\nsynk\vvvv.dx11.player\patches\data\big_buck_bunny\dpx\big_buck_bunny_02064_result.dpx">
+   </PIN>
+   <PIN pinname="Playhead" visible="1" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="FormatFile" visible="1">
+   </PIN>
+   <PIN pinname="Preload" slicecount="1" values="3">
+   </PIN>
+   <PIN pinname="PreloadFiles" visible="1">
+   </PIN>
+   <PIN pinname="PreloadFiles Bin Size" visible="1">
+   </PIN>
+   <BOUNDS type="Box" left="4640" top="3780">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="10" srcpinname="Cycles" dstnodeid="126" dstpinname="Playhead">
+   </LINK>
+   <LINK srcnodeid="13" srcpinname="Output String" dstnodeid="126" dstpinname="Input">
+   </LINK>
+   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="128">
+   <BOUNDS type="Node" left="8220" top="540" width="1995" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="8220" top="540" width="3060" height="1005">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|Make sure to extract data/bunny.7z first|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Font" slicecount="1" values="Consolas">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="8">
+   </PIN>
+   </NODE>
+   <NODE nodename="IOBox (String)" systemname="IOBox (String)" componentmode="InABox" id="129">
+   <BOUNDS type="Node" left="585" top="2025" width="1995" height="270">
+   </BOUNDS>
+   <BOUNDS type="Box" left="585" top="2025" width="3060" height="1005">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|Supported image formats:&cr;&lf;&cr;&lf;- .tga&cr;&lf;- .dbx up to 10bit per channel&cr;&lf;- .dds (BC1, BC3, BC5, BC6, BC7)|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Font" slicecount="1" values="Consolas">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="8">
+   </PIN>
+   </NODE>
+   <NODE id="96" nodename="IOBox (String)" componentmode="InABox" systemname="IOBox (String)">
+   <BOUNDS type="Node" left="285" top="825" width="1070" height="230">
+   </BOUNDS>
+   <BOUNDS type="Box" left="285" top="825" width="2265" height="645">
+   </BOUNDS>
+   <PIN pinname="Input String" visible="0" slicecount="1" values="|NSYNK GmbH&cr;&lf;www.nsynk.de|">
+   </PIN>
+   <PIN pinname="Output String" visible="0">
+   </PIN>
+   <PIN pinname="Show Grid" slicecount="1" values="0">
+   </PIN>
+   <PIN pinname="String Type" slicecount="1" values="MultiLine">
+   </PIN>
+   <PIN pinname="Font" slicecount="1" values="Consolas">
+   </PIN>
+   <PIN pinname="Size" slicecount="1" values="11">
+   </PIN>
+   </NODE>
+   <NODE systemname="Player (DX11.Texture)" filename="DX11Player.dll" nodename="Player (DX11.Texture)" componentmode="Hidden" id="135">
+   <BOUNDS type="Node" left="4650" top="4620" width="100" height="100">
+   </BOUNDS>
+   <BOUNDS type="Box" left="4650" top="4620" width="3000" height="3000">
+   </BOUNDS>
+   </NODE>
+   <LINK srcnodeid="126" srcpinname="PreloadFiles Bin Size" dstnodeid="135" dstpinname="Load files Bin Size">
+   </LINK>
+   <LINK srcnodeid="126" srcpinname="PreloadFiles" dstnodeid="135" dstpinname="Load files">
+   </LINK>
+   <LINK srcnodeid="126" srcpinname="FormatFile" dstnodeid="135" dstpinname="Format file">
+   </LINK>
+   <LINK srcnodeid="135" srcpinname="Texture" dstnodeid="89" dstpinname="Texture In">
+   </LINK>
+   </PATCH>
