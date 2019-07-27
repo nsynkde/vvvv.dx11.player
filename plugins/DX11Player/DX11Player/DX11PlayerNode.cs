@@ -111,6 +111,7 @@ namespace VVVV.Nodes.DX11PlayerNode
 
         private Spread<IntPtr> FDX11NativePlayer = new Spread<IntPtr>();
         private Spread<string> FPrevFormatFile = new Spread<string>();
+        private WorkerThread FWorkerThread = new WorkerThread();
         private Spread<int> FPrevRenderFrameIdxCount = new Spread<int>();
         private Spread<ISpread<string>> FPrevFrameRendered = new Spread<ISpread<string>>();
         private Spread<bool> FIsReady = new Spread<bool>();

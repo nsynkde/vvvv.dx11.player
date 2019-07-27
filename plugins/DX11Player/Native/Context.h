@@ -7,31 +7,29 @@
 
 class Frame;
 
-class Context {
-private:
-  D3D11_TEXTURE2D_DESC m_RenderTextureDescription;
-  ID3D11Device *m_Device;
-  ID3D11DeviceContext *m_Context;
-  ID3D11Texture2D *m_CopyTextureIn;
-  ID3D11ShaderResourceView *m_ShaderResourceView;
-  ID3D11Texture2D *m_BackBuffer;
-  ID3D11RenderTargetView *m_RenderTargetView;
-  std::vector<std::shared_ptr<Frame>> m_Frames;
-  D3D11_BOX m_CopyBox;
-  ImageFormat m_Format;
-  std::mutex mutex;
 
-  friend void ReleaseContext(Context *context);
-  friend void ReleaseFrame(Frame *frame);
-
+class Context{
 public:
-  Context(const std::string &fileForFormat);
-  ~Context();
-  ImageFormat GetFormat() const;
-  std::shared_ptr<Frame> GetFrame();
-  ID3D11DeviceContext *GetDX11Context();
-  void CopyFrameToOutTexture(Frame *frame);
-  HRESULT CreateStagingTexture(ID3D11Texture2D **texture);
-  HRESULT CreateRenderTexture(ID3D11Texture2D **texture,
-                              uint8_t *initialData = nullptr);
+	Context(const std::string & fileForFormat);
+	~Context();
+	ImageFormat GetFormat() const;
+	std::shared_ptr<Frame> GetFrame();
+	ID3D11DeviceContext * GetDX11Context();
+	void CopyFrameToOutTexture(Frame * frame);
+	HRESULT CreateStagingTexture(ID3D11Texture2D ** texture);
+	HRESULT CreateRenderTexture(ID3D11Texture2D ** texture, uint8_t *initialData=nullptr);
+private:
+	D3D11_TEXTURE2D_DESC m_RenderTextureDescription;
+	ID3D11Device * m_Device;
+	ID3D11DeviceContext * m_Context;
+	ID3D11Texture2D * m_CopyTextureIn;
+	ID3D11ShaderResourceView * m_ShaderResourceView;
+    ID3D11Texture2D* m_BackBuffer;
+	ID3D11RenderTargetView*  m_RenderTargetView;
+	std::vector<std::shared_ptr<Frame>> m_Frames;
+	D3D11_BOX m_CopyBox;
+	ImageFormat m_Format;
+	friend void ReleaseContext(Context * context);
+	friend void ReleaseFrame(Frame * frame);
+	std::mutex mutex;
 };

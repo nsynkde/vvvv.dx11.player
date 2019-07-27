@@ -41,6 +41,7 @@
     <Compile Include="DX11PlayerNode.cs" />
     <Compile Include="NativeInterface.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WorkerThread.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FeralTic, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
